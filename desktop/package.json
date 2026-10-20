@@ -1,0 +1,23 @@
+{
+  "name": "seyra-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Seyra — client de bureau",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.seyra.chat",
+    "productName": "Seyra",
+    "files": ["main.js", "config.json", "icon.png"],
+    "directories": { "output": "dist" },
+    "win": { "icon": "icon.png", "target": ["portable"] },
+    "portable": { "artifactName": "Seyra-${version}.exe" }
+  }
+}
