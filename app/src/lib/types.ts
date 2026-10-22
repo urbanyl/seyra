@@ -42,7 +42,22 @@ export type Envelope = {
   audio?: VoiceClip;
   file?: FileMeta;
   reply?: ReplyTo | null;
+  poll?: Poll;
   from?: string;
+};
+
+/** Sondage à choix unique, scellé dans le message. `id` relie les votes. */
+export type Poll = { id: string; q: string; opts: string[] };
+
+/** Votes : pollId -> participant -> index de l'option choisie. */
+export type Votes = Record<string, Record<string, number>>;
+
+/** Contrôle scellé (kind 'react') : réaction, épingle, vote ou note partagée. */
+export type ControlBody = {
+  react?: { rid?: unknown; emoji?: unknown; on?: unknown };
+  pin?: { mid?: unknown; on?: unknown };
+  vote?: { pid?: unknown; opt?: unknown };
+  note?: { text?: unknown; ts?: unknown };
 };
 
 /** Un morceau de fichier : base64 brut, scellé séparément. */

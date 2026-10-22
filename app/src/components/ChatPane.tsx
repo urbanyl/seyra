@@ -3,9 +3,9 @@ import type { ReactNode } from 'react';
 import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
 import { dayLabel, timeOf } from '../lib/format';
-import type { Envelope, FileMeta, Msg, Notice, Participant, Reactions, ReplyTo, VoiceClip } from '../lib/types';
-import { IconArrowDown, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPhone, IconPin, IconReply, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
-import { Avatar, Empty, IconButton } from './ui';
+import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
+import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import { Avatar, Empty, IconButton, Modal } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
 
@@ -40,7 +40,35 @@ type Props = {
   shareStream: MediaStream | null;
   pinned: string[];
   onTogglePin: (msgId: string) => void;
+  votes: Votes;
+  onVote: (pollId: string, opt: number) => void;
 };
+
+/** Sondage à choix unique : barres proportionnelles, clic = vote (re-clic = retrait). */
+function PollCard({ poll, votes, selfId, nameOf, onVote }: {
+  poll: Poll; votes: Record<string, number>; selfId: string; nameOf: (id: string) => string; onVote: (opt: number) => void;
+}) {
+  const counts = poll.opts.map((_, i) => Object.values(votes).filter((o) => o === i).length);
+  const total = Object.keys(votes).length;
+  const mine = votes[selfId];
+  return (
+    <div className="poll">
+      <div className="poll-q">{poll.q}</div>
+      {poll.opts.map((o, i) => {
+        const pct = total ? Math.round((counts[i] / total) * 100) : 0;
+        const voters = Object.keys(votes).filter((uid) => votes[uid] === i).map((uid) => (uid === selfId ? 'vous' : nameOf(uid)));
+        return (
+          <button key={i} type="button" className={`poll-opt ${mine === i ? 'mine' : ''}`} onClick={() => onVote(i)} title={voters.join(', ') || 'Aucun vote'}>
+            <span className="poll-bar" style={{ width: pct + '%' }} />
+            <span className="poll-label">{mine === i && <IconCheck size={13} />}{o}</span>
+            <span className="poll-count">{counts[i]}</span>
+          </button>
+        );
+      })}
+      <em className="poll-total">{total} vote{total > 1 ? 's' : ''} · {mine === undefined ? 'choisissez une option' : 'cliquez à nouveau pour retirer'}</em>
+    </div>
+  );
+}
 
 const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🤔', '👍', '🙏', '🔥', '💙', '✨', '🎧', '📌', '✅'];
 const REACTS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅'];
@@ -136,6 +164,21 @@ export default function ChatPane(p: Props) {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.pinned, p.messages, p.participants]);
+
+  // Fils : pour chaque message, les réponses qui le citent (déchiffrées localement).
+  const threads = useMemo(() => {
+    const map: Record<string, { m: Msg; env: Envelope | null }[]> = {};
+    for (const m of visible) {
+      const env = p.open(m);
+      const rid = env?.reply?.id;
+      if (!rid) continue;
+      (map[rid] ||= []).push({ m, env });
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, p.open]);
+  const [threadRoot, setThreadRoot] = useState<string | null>(null);
+  const rootMsg = threadRoot ? visible.find((x) => x.id === threadRoot) || null : null;
 
   const timeline = useMemo(() => {
     const items = [
@@ -487,6 +530,11 @@ export default function ChatPane(p: Props) {
                   onPointerCancel={() => window.clearTimeout(longPress.current)}
                 >
                   <div className="msg-actions" onClick={(e) => e.stopPropagation()}>
+                    {(threads[m.id]?.length || 0) > 0 && (
+                      <button type="button" title="Voir le fil" onClick={() => { setThreadRoot(m.id); setOpenActions(null); }}>
+                        <IconThread size={15} />
+                      </button>
+                    )}
                     <button type="button" title="Répondre" onClick={() => startReply(m,
                       file ? (file.kind === 'image' ? 'Photo' : file.kind === 'video' ? 'Vidéo' : file.name)
                         : audio ? 'Message vocal' : text || '')}>
@@ -562,6 +610,14 @@ export default function ChatPane(p: Props) {
                     />
                   ) : audio ? (
                     <VoicePlayer clip={audio} />
+                  ) : env?.poll ? (
+                    <PollCard
+                      poll={env.poll}
+                      votes={p.votes[env.poll.id] || {}}
+                      selfId={p.selfId}
+                      nameOf={nameOf}
+                      onVote={(opt) => p.onVote(env.poll!.id, opt)}
+                    />
                   ) : text === null ? (
                     <span className="locked"><IconLock size={13} /> illisible</span>
                   ) : m.kind === 'call' ? (
@@ -749,6 +805,28 @@ export default function ChatPane(p: Props) {
           <IconArrowDown size={unread ? 16 : 18} />
           {unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
         </button>
+      )}
+
+      {rootMsg && (
+        <Modal title="Fil de discussion" onClose={() => setThreadRoot(null)} width={460}>
+          <div className="thread-root">
+            <span className="thread-label">Message d’origine</span>
+            <p>{(() => { const e = p.open(rootMsg); return e?.text || (e?.poll ? '📊 ' + e.poll.q : e?.file ? e.file.name : e?.audio ? 'Message vocal' : '…'); })()}</p>
+          </div>
+          <div className="thread-list">
+            {(threads[rootMsg.id] || []).map(({ m, env }) => (
+              <div key={m.id} className="thread-item">
+                <strong style={{ color: colorOf(m.from) }}>{nameOf(m.from)}</strong>
+                <span>{env?.text || '…'}</span>
+                <time>{timeOf(m.ts)}</time>
+              </div>
+            ))}
+          </div>
+          <div className="modal-actions">
+            <button className="btn ghost" onClick={() => setThreadRoot(null)}>Fermer</button>
+            <button className="btn primary" onClick={() => { const e = p.open(rootMsg); startReply(rootMsg, e?.text || e?.poll?.q || 'Message'); setThreadRoot(null); }}>Répondre</button>
+          </div>
+        </Modal>
       )}
 
       {preview && (

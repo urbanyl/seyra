@@ -35,6 +35,23 @@ export const AVATAR_COLORS = [
 export const initials = (name: string) =>
   name.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]?.toUpperCase() || '').join('') || '?';
 
+/** Pseudo : sans contrôle ni espaces superflus, 24 points de code au plus (jamais d'emoji coupé). */
+export function cleanPseudo(raw: string): string {
+  const s = String(raw ?? '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const cps = [...s];
+  return cps.length > 24 ? cps.slice(0, 24).join('') : s;
+}
+
+/** Vrai si le texte cite @nom (insensible à la casse, nom entier, ponctuation finale tolérée). */
+export function mentionsName(text: string, name: string): boolean {
+  const n = name.trim().toLowerCase();
+  if (!n) return false;
+  return text.toLowerCase().split(/\s+/).some((w) => w.replace(/[.,!?;:)]+$/, '') === '@' + n);
+}
+
 export function formatCodeInput(value: string) {
   const raw = String(value).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
   return raw.replace(/(.{4})(?=.)/g, '$1-');

@@ -8,19 +8,14 @@ import InviteQR from './components/InviteQR';
 import './components/invite.css';
 import { IconCopy, IconLock, IconScreenShare, IconX } from './components/Icons';
 import { Modal } from './components/ui';
-import { formatCodeInput } from './lib/format';
+import { cleanPseudo, formatCodeInput, mentionsName } from './lib/format';
+import { parsePoll } from './lib/poll';
 import { CHUNK, MAX_FILE, base64ToBytes, bytesToBase64, cleanName, compressImage, fileKind, formatSize, isCompressibleImage, stripImageMetadata } from './lib/files';
 import { cryptoReady, deriveSession, newCode, normalizeCode, openBody, sealBody } from './lib/session';
 import { rt } from './lib/rt';
 import { applyPrefs, loadPrefs, savePrefs, WALLPAPERS, type Prefs } from './lib/prefs';
-import type { ChunkBody, Envelope, FileMeta, Msg, Notice, Participant, ReactBody, Reactions, ReplyTo, SessionInfo, VoiceClip } from './lib/types';
+import type { ChunkBody, ControlBody, Envelope, FileMeta, Msg, Notice, Participant, Poll, ReactBody, Reactions, ReplyTo, SessionInfo, VoiceClip, Votes } from './lib/types';
 import { voice, type VoiceState } from './lib/voice';
-
-/** Contrôle scellé : réaction ou épingle. Jamais visible du serveur. */
-type ControlBody = {
-  react?: { rid?: unknown; emoji?: unknown; on?: unknown };
-  pin?: { mid?: unknown; on?: unknown };
-};
 
 type Phase = 'landing' | 'session';
 
@@ -236,6 +231,9 @@ export default function App() {
 
   /* Messages épinglés : liste ordonnée d'identifiants, mise à jour par contrôles scellés. */
   const [pinned, setPinned] = useState<string[]>([]);
+  /* Sondages (votes par participant) et note partagée (dernière version gagne). */
+  const [votes, setVotes] = useState<Votes>({});
+  const [note, setNote] = useState<{ text: string; ts: number }>({ text: '', ts: 0 });
   const applyPin = useCallback((mid: string, on: boolean) => {
     setPinned((prev) => {
       const rest = prev.filter((x) => x !== mid);
@@ -262,6 +260,21 @@ export default function App() {
       applyReact(from, b.react.rid, String(b.react.emoji || ''), !!b.react.on);
     }
     if (b.pin && typeof b.pin.mid === 'string') applyPin(b.pin.mid, !!b.pin.on);
+    if (b.vote && typeof b.vote.pid === 'string' && typeof b.vote.opt === 'number') {
+      const pid = b.vote.pid;
+      const opt = b.vote.opt;
+      setVotes((prev) => {
+        const bucket = { ...(prev[pid] || {}) };
+        if (opt < 0) delete bucket[from]; else bucket[from] = opt;
+        return { ...prev, [pid]: bucket };
+      });
+    }
+    if (b.note && typeof b.note.text === 'string' && typeof b.note.ts === 'number') {
+      const text = b.note.text.slice(0, 2000);
+      const ts = b.note.ts;
+      // Note partagée : la plus récente l'emporte.
+      setNote((prev) => (ts > prev.ts ? { text, ts } : prev));
+    }
   }, [applyReact, applyPin]);
 
   useEffect(() => {
@@ -285,6 +298,8 @@ export default function App() {
     setMessages([]);
     setReactions({});
     setPinned([]);
+    setVotes({});
+    setNote({ text: '', ts: 0 });
     for (const t of expTimers.current.values()) window.clearTimeout(t);
     expTimers.current.clear();
     // Libère les aperçus de fichiers (blob URLs) et les tampons de morceaux.
@@ -559,10 +574,42 @@ export default function App() {
   const send = useCallback((text: string, reply: ReplyTo | null, ttl: number | null) => {
     const cur = stateRef.current;
     if (!cur.session || !key) return;
-    const body: Envelope = { text, ...(reply ? { reply } : {}), from: cur.session.selfId };
+    // Commande « /sondage Question | option | option » : sondage à choix unique.
+    const poll = parsePoll(text);
+    const body: Envelope = poll
+      ? { text: poll.q, poll, ...(reply ? { reply } : {}), from: cur.session.selfId }
+      : { text, ...(reply ? { reply } : {}), from: cur.session.selfId };
     const { cipher, nonce } = sealBody(body, key);
     rt.send({ t: 'msg', cipher, nonce, ...(ttl ? { ttl } : {}) });
   }, [key]);
+
+  /** Vote (ou retrait avec opt = -1) : contrôle scellé, comme une réaction. */
+  const votePoll = useCallback((pollId: string, opt: number) => {
+    const cur = stateRef.current;
+    const k = keyRef.current;
+    if (!cur.session || !k) return;
+    const me = cur.session.selfId;
+    const already = votes[pollId]?.[me];
+    const next = already === opt ? -1 : opt;
+    const { cipher, nonce } = sealBody({ vote: { pid: pollId, opt: next } } as ControlBody, k);
+    setVotes((prev) => {
+      const bucket = { ...(prev[pollId] || {}) };
+      if (next < 0) delete bucket[me]; else bucket[me] = next;
+      return { ...prev, [pollId]: bucket };
+    });
+    rt.send({ t: 'msg', kind: 'react', cipher, nonce });
+  }, [votes]);
+
+  /** Note partagée : publiée chiffrée, visible de tous, la plus récente gagne. */
+  const saveNote = useCallback((text: string) => {
+    const k = keyRef.current;
+    if (!k) return;
+    const ts = Date.now();
+    const clean = text.slice(0, 2000);
+    const { cipher, nonce } = sealBody({ note: { text: clean, ts } } as ControlBody, k);
+    setNote({ text: clean, ts });
+    rt.send({ t: 'msg', kind: 'react', cipher, nonce });
+  }, []);
 
   /** Envoie un clip vocal : l'audio est scellé comme le reste, jamais en clair. */
   const sendVoice = useCallback((clip: VoiceClip, reply: ReplyTo | null, ttl: number | null) => {
@@ -669,9 +716,15 @@ export default function App() {
         h: Number(b.file.h) || undefined,
       } as FileMeta
       : undefined;
-    if (typeof b.text !== 'string' && !audio && !file) return null;
+    // Sondage : identifiant, question et 2 à 6 options, validés avant affichage.
+    const pl = (b as Envelope).poll;
+    const poll = pl && typeof pl.id === 'string' && typeof pl.q === 'string' && Array.isArray(pl.opts)
+      && pl.opts.length >= 2 && pl.opts.length <= 6 && pl.opts.every((o) => typeof o === 'string')
+      ? { id: pl.id, q: pl.q.slice(0, 200), opts: pl.opts.map((o) => o.slice(0, 120)) }
+      : undefined;
+    if (typeof b.text !== 'string' && !audio && !file && !poll) return null;
     const from = typeof b.from === 'string' ? b.from : undefined;
-    return { text: typeof b.text === 'string' ? b.text : undefined, audio, file, reply, from };
+    return { text: typeof b.text === 'string' ? b.text : undefined, audio, file, reply, from, poll };
   }, [key]);
 
   const togglePin = useCallback((msgId: string) => {
@@ -768,9 +821,7 @@ export default function App() {
   }, []);
 
   const savePseudo = useCallback((name: string) => {
-    const trimmed = name.replace(/\s+/g, ' ').trim();
-    const cps = [...trimmed];
-    const clean = cps.length > 24 ? cps.slice(0, 24).join('') : trimmed;
+    const clean = cleanPseudo(name);
     if (!clean) return;
     localStorage.setItem('seyra.pseudo', clean);
     setPseudo(clean);
@@ -846,6 +897,8 @@ export default function App() {
         messageCount={messages.filter((m) => m.kind === 'text' || m.kind === 'voice' || m.kind === 'file').length}
         fileCount={messages.filter((m) => m.kind === 'file').length}
         inviteLink={`${window.location.origin}/app#join=${code}`}
+        note={note}
+        onSaveNote={saveNote}
       />
       {sideOpen && <div className="scrim" onClick={() => setSideOpen(false)} />}
 
@@ -879,6 +932,8 @@ export default function App() {
           onShareScreen={() => voice.toggleScreen()}
           pinned={pinned}
           onTogglePin={togglePin}
+          votes={votes}
+          onVote={votePoll}
           sharing={vstate.sharing}
           shareStream={vstate.screen}
         />
@@ -976,6 +1031,7 @@ export default function App() {
             <dt><kbd>Ctrl</kbd> + <kbd>V</kbd></dt><dd>Coller une image ou un fichier</dd>
             <dt><kbd>Échap</kbd></dt><dd>Fermer une fenêtre, quitter le plein écran</dd>
             <dt><kbd>?</kbd></dt><dd>Afficher cette aide</dd>
+            <dt><code>/sondage</code></dt><dd>Question | option | option : sondage à choix unique</dd>
           </dl>
         </Modal>
       )}
@@ -987,13 +1043,6 @@ export default function App() {
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
-}
-
-/** Vrai si le texte cite @nom (insensible à la casse, nom entier). */
-export function mentionsName(text: string, name: string): boolean {
-  const n = name.trim().toLowerCase();
-  if (!n) return false;
-  return text.toLowerCase().split(/\s+/).some((w) => w.replace(/[.,!?;:)]+$/, '') === '@' + n);
 }
 
 function beep(freq = 760, dur = 0.3) {

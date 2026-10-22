@@ -194,6 +194,18 @@ export const IconPencil = ({ size, className, strokeWidth = 1.7 }: P) => (
   </svg>
 );
 
+export const IconCheck = ({ size, className, strokeWidth = 2 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M5 12.5l4.2 4.2L19 7" />
+  </svg>
+);
+
+export const IconThread = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M4 5h16v11H9l-5 4V5Z" />
+  </svg>
+);
+
 export const IconPin = ({ size, className, strokeWidth = 1.7 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <path d="M9 3.5h6l-1 5.5 3 3v1.5H7V12l3-3-1-5.5Z" />

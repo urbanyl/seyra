@@ -16,7 +16,7 @@ function elapsed(since: number, now: number) {
 
 export default function SessionPanel({
   code, participants, selfId, ownerId, onCopy, copied, onClose, onKick, onHide, open,
-  onRename, voiceById, selfVoice, onInvite, onSettings, since, messageCount, fileCount, inviteLink,
+  onRename, voiceById, selfVoice, onInvite, onSettings, since, messageCount, fileCount, inviteLink, note, onSaveNote,
 }: {
   onInvite: () => void;
   onSettings: () => void;
@@ -24,6 +24,8 @@ export default function SessionPanel({
   messageCount: number;
   fileCount: number;
   inviteLink: string;
+  note: { text: string; ts: number };
+  onSaveNote: (text: string) => void;
   code: string;
   participants: Participant[];
   selfId: string;
@@ -41,6 +43,10 @@ export default function SessionPanel({
   const isOwner = ownerId === selfId;
   const [now, setNow] = useState(() => Date.now());
   const [linkCopied, setLinkCopied] = useState(false);
+  // Note partagée : l'éditeur suit la dernière version reçue tant qu'on n'écrit pas.
+  const [noteDraft, setNoteDraft] = useState(note.text);
+  const [noteDirty, setNoteDirty] = useState(false);
+  useEffect(() => { if (!noteDirty) setNoteDraft(note.text); }, [note.ts, note.text, noteDirty]);
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 30000);
     return () => window.clearInterval(t);
@@ -85,6 +91,27 @@ export default function SessionPanel({
           </button>
         </div>
         <em>Ce code est la clé. Toute personne qui l'a peut rejoindre.</em>
+      </div>
+
+      <div className="side-section note-section">
+        <span className="side-title"><IconPencil size={13} /> Note partagée</span>
+        <textarea
+          className="note-area"
+          value={noteDraft}
+          maxLength={2000}
+          placeholder="Un bloc commun, chiffré. Tout le monde le voit et peut le modifier."
+          onChange={(e) => { setNoteDraft(e.target.value); setNoteDirty(true); }}
+        />
+        <div className="note-foot">
+          <span>{note.ts ? `Mise à jour ${new Date(note.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : 'Vide'}</span>
+          <button
+            className="note-save"
+            disabled={!noteDirty || noteDraft === note.text}
+            onClick={() => { onSaveNote(noteDraft); setNoteDirty(false); }}
+          >
+            Enregistrer
+          </button>
+        </div>
       </div>
 
       <div className="side-section">
