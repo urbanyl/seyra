@@ -2,6 +2,17 @@ import { SeyraMark } from './Icons';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.1.1',
+    date: 'octobre 2026',
+    title: 'Corrections',
+    items: [
+      'Désépingler fonctionne : un second clic retire bien le message des épingles, chez tous les participants.',
+      'Mentions avec un pseudo à espaces (par exemple « @Invité 1 ») sont reconnues en entier.',
+      'En-tête de session lisible sur téléphone étroit.',
+      'Déploiement : types et tests passent avant chaque mise en ligne, et le site ne répond qu’une fois le serveur prêt.',
+    ],
+  },
+  {
     version: '2.1',
     date: 'octobre 2026',
     title: 'Sondages, fil et note partagée',

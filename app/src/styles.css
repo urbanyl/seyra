@@ -876,3 +876,13 @@ kbd { font: 12px ui-monospace, Consolas, monospace; padding: 3px 7px; border-rad
 }
 .note-save:hover:not(:disabled) { background: rgba(0,178,255,0.24); }
 .note-save:disabled { background: transparent; color: var(--muted); cursor: default; opacity: 0.6; }
+
+/* ---------- petit écran : en-tête de session sans chevauchement ---------- */
+@media (max-width: 480px) {
+  .pane-head { gap: 6px; }
+  .pane-title { min-width: 0; }
+  .pane-title p { font-size: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .pane-actions { gap: 0; flex: none; }
+  .pane-actions .icon-btn, .call-btn { width: 34px; height: 36px; }
+  .pane-actions .icon-btn svg, .call-btn svg { width: 17px; height: 17px; }
+}

@@ -49,7 +49,17 @@ export function cleanPseudo(raw: string): string {
 export function mentionsName(text: string, name: string): boolean {
   const n = name.trim().toLowerCase();
   if (!n) return false;
-  return text.toLowerCase().split(/\s+/).some((w) => w.replace(/[.,!?;:)]+$/, '') === '@' + n);
+  // Nom complet (espaces compris), suivi d'une fin ou d'une ponctuation.
+  const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`@${esc}(?=$|[\\s.,!?;:)])`, 'iu').test(text);
+}
+
+/** Pseudos cités dans un texte, du plus long au plus court (évite « @Ann » pour « @Anne-Marie »). */
+export function mentionPattern(names: string[]): RegExp | null {
+  const list = names.map((n) => n.trim()).filter(Boolean).sort((a, b) => b.length - a.length);
+  if (!list.length) return null;
+  const alt = list.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  return new RegExp(`@(?:${alt})(?=$|[\\s.,!?;:)])`, 'iu');
 }
 
 export function formatCodeInput(value: string) {

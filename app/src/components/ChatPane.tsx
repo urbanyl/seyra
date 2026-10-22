@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
-import { dayLabel, timeOf } from '../lib/format';
+import { dayLabel, mentionPattern, timeOf } from '../lib/format';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
 import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton, Modal } from './ui';
@@ -623,7 +623,7 @@ export default function ChatPane(p: Props) {
                   ) : m.kind === 'call' ? (
                     <span className="call-log"><IconPhone size={14} /> {text}</span>
                   ) : (
-                    <span className="bubble-text">{linkify(text, p.participants.find((x) => x.id === p.selfId)?.name)}</span>
+                    <span className="bubble-text">{linkify(text, p.participants.find((x) => x.id === p.selfId)?.name, p.participants.map((x) => x.name))}</span>
                   )}
 
                   {m.expiresAt && left > 0 && (
@@ -946,18 +946,32 @@ export function ShareTile({ stream, name, onStop, onClose, local }: {
 }
 
 /** Liens cliquables et mentions @pseudo. Votre propre pseudo est mis en évidence. */
-function linkify(text: string, me?: string): ReactNode[] {
+function linkify(text: string, me: string | undefined, names: string[]): ReactNode[] {
   const meLow = (me || '').trim().toLowerCase();
-  return text.split(/(https?:\/\/[^\s<>"']+|@[^\s@<>"']{1,24})/gi).map((p, i) => {
-    if (/^https?:\/\//i.test(p)) {
-      return <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => e.stopPropagation()}>{p}</a>;
+  const mention = mentionPattern(names);
+  // Découpe : liens d'abord, puis mentions connues (noms complets, espaces compris).
+  const parts = text.split(/(https?:\/\/[^\s<>"']+)/gi);
+  const out: ReactNode[] = [];
+  let k = 0;
+  for (const part of parts) {
+    if (/^https?:\/\//i.test(part)) {
+      out.push(<a key={k++} href={part} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => e.stopPropagation()}>{part}</a>);
+      continue;
     }
-    if (p.startsWith('@') && p.length > 1) {
-      const mine = meLow && p.slice(1).toLowerCase() === meLow;
-      return <span key={i} className={mine ? 'mention mention-me' : 'mention'}>{p}</span>;
+    if (!mention) { out.push(part); continue; }
+    const re = new RegExp(mention.source, 'giu');
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(part)) !== null) {
+      if (m.index > last) out.push(part.slice(last, m.index));
+      const label = m[0];
+      const mine = meLow && label.slice(1).toLowerCase() === meLow;
+      out.push(<span key={k++} className={mine ? 'mention mention-me' : 'mention'}>{label}</span>);
+      last = m.index + label.length;
     }
-    return p;
-  });
+    if (last < part.length) out.push(part.slice(last));
+  }
+  return out;
 }
 
 const COLORS = ['#2f8bff', '#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#facc15', '#60a5fa'];

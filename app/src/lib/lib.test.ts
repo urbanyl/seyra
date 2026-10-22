@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanPseudo, formatCodeInput, initials, mentionsName } from './format';
+import { cleanPseudo, formatCodeInput, initials, mentionPattern, mentionsName } from './format';
 import { parsePoll } from './poll';
 import { cleanName as cleanFileName } from './files';
 
@@ -52,6 +52,23 @@ describe('mentionsName', () => {
 
   it('ignore un pseudo vide', () => {
     expect(mentionsName('@ salut', '   ')).toBe(false);
+  });
+
+  it('reconnaît un pseudo à espaces en entier', () => {
+    expect(mentionsName('tu viens @Invité 1 ?', 'Invité 1')).toBe(true);
+    expect(mentionsName('tu viens @Invité 2 ?', 'Invité 1')).toBe(false);
+  });
+});
+
+describe('mentionPattern', () => {
+  it('préfère le pseudo le plus long quand deux commencent pareil', () => {
+    const re = mentionPattern(['Ann', 'Anne-Marie']);
+    const m = re!.exec('bonjour @Anne-Marie !');
+    expect(m?.[0]).toBe('@Anne-Marie');
+  });
+
+  it('renvoie null sans pseudo', () => {
+    expect(mentionPattern([])).toBeNull();
   });
 });
 
