@@ -33,7 +33,7 @@ export const AVATAR_COLORS = [
 ];
 
 export const initials = (name: string) =>
-  name.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join('') || '?';
+  name.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((w) => [...w][0]?.toUpperCase() || '').join('') || '?';
 
 export function formatCodeInput(value: string) {
   const raw = String(value).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);

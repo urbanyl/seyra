@@ -22,10 +22,11 @@ type Peer = {
   speaking: boolean;
   analyser: AnalyserNode | null;
   screen: MediaStream | null;
+  screenMuted: boolean;
   disconnectTimer?: number;
 };
 
-export type VoicePeer = { id: string; name: string; muted: boolean; deaf: boolean; speaking: boolean; connected: boolean; screen: MediaStream | null };
+export type VoicePeer = { id: string; name: string; muted: boolean; deaf: boolean; speaking: boolean; connected: boolean; screen: MediaStream | null; screenMuted: boolean };
 
 export type VoiceState = {
   active: boolean;
@@ -69,7 +70,7 @@ class VoiceManager {
       screen: this.screen,
       peers: [...this.peers.values()].map((p) => ({
         id: p.id, name: p.name, muted: p.muted, deaf: p.deaf, speaking: p.speaking,
-        connected: this.connectedPeers.has(p.id), screen: p.screen,
+        connected: this.connectedPeers.has(p.id), screen: p.screen, screenMuted: p.screenMuted,
       })),
     };
     for (const fn of this.listeners) fn(this.state);
@@ -173,7 +174,7 @@ class VoiceManager {
     } else if (this.micBeforeDeaf) {
       this.applyMicQuiet(false);
     }
-    for (const p of this.peers.values()) { p.audio.muted = deaf; p.screenAudio.muted = deaf; }
+    for (const p of this.peers.values()) { p.audio.muted = deaf; p.screenAudio.muted = deaf || p.screenMuted; }
     this.emit({ deafened: deaf, muted: deaf ? true : this.state.muted });
     this.sendState();
   }
@@ -242,6 +243,23 @@ class VoiceManager {
   toggleScreen() {
     if (this.screen) this.stopScreen(true);
     else void this.shareScreen();
+  }
+
+  /** Met à jour le nom d'un pair après un renommage (sinon l'appel affiche l'ancien pseudo). */
+  renamePeer(id: string, name: string) {
+    const p = this.peers.get(id);
+    if (!p || p.name === name) return;
+    p.name = name;
+    this.emit();
+  }
+
+  /** Coupe ou remet le son du partage d'écran d'un pair (fermer/rouvrir sa fenêtre). */
+  setScreenSound(id: string, on: boolean) {
+    const p = this.peers.get(id);
+    if (!p) return;
+    p.screenMuted = !on;
+    p.screenAudio.muted = !on || this.state.deafened;
+    this.emit();
   }
 
   private audioContext() {
@@ -352,6 +370,7 @@ class VoiceManager {
       speaking: false,
       analyser: null,
       screen: null,
+      screenMuted: false,
     };
     this.peers.set(id, peer);
 
@@ -406,6 +425,7 @@ class VoiceManager {
         this.startLoop();
       } else {
         peer.screenAudio.srcObject = stream;
+        peer.screenAudio.muted = peer.screenMuted || this.state.deafened;
         peer.screenAudio.play().catch(() => {});
       }
       this.emit();

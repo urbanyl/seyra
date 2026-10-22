@@ -82,9 +82,6 @@ export default function SessionPanel({
       </div>
 
       <div className="side-foot">
-        <button className="btn ghost wide" onClick={onInvite}>
-          <IconUsers size={16} /> Inviter
-        </button>
         <button className="btn danger wide" onClick={onClose}>
           <IconLogout size={16} /> Fermer la session
         </button>

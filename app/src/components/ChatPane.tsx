@@ -4,7 +4,7 @@ import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
 import { dayLabel, timeOf } from '../lib/format';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Reactions, ReplyTo, VoiceClip } from '../lib/types';
-import { IconArrowDown, IconCopy, IconFile, IconHome, IconImage, IconLock, IconMic, IconPaperclip, IconPhone, IconReply, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import { IconArrowDown, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPhone, IconReply, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
@@ -715,7 +715,9 @@ export default function ChatPane(p: Props) {
 }
 
 /** Vignette de partage d'écran : la vidéo est muette (le son passe par l'appel). */
-export function ShareTile({ stream, name, onStop, local }: { stream: MediaStream; name: string; onStop?: () => void; local?: boolean }) {
+export function ShareTile({ stream, name, onStop, onClose, local }: {
+  stream: MediaStream; name: string; onStop?: () => void; onClose: () => void; local?: boolean;
+}) {
   const ref = useRef<HTMLVideoElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
@@ -730,6 +732,14 @@ export function ShareTile({ stream, name, onStop, local }: { stream: MediaStream
     el.play().catch(() => {});
     return () => { el.srcObject = null; };
   }, [stream]);
+
+  // Échap quitte le plein écran, sans fermer le partage.
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFull(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [full]);
 
   const onDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
@@ -761,8 +771,10 @@ export function ShareTile({ stream, name, onStop, local }: { stream: MediaStream
 
   if (mini) {
     return (
-      <button className="share-chip" onClick={() => setMini(false)} title="Revenir au partage d'écran">
-        <IconScreenShare size={15} /> {local ? 'Votre partage' : `${name} partage`}
+      <button className="share-pill" onClick={() => setMini(false)} title="Réafficher le partage">
+        <span className="share-chip-dot" />
+        <IconScreenShare size={15} />
+        <span>{local ? 'Votre partage' : `Partage de ${name}`}</span>
       </button>
     );
   }
@@ -778,13 +790,25 @@ export function ShareTile({ stream, name, onStop, local }: { stream: MediaStream
       onPointerCancel={onUp}
       title={full ? undefined : 'Glissez pour déplacer'}
     >
-      <video ref={ref} autoPlay playsInline muted onClick={() => setFull((f) => !f)} />
+      <video ref={ref} autoPlay playsInline muted onDoubleClick={() => setFull((f) => !f)} />
       <div className="share-bar">
-        <span><IconScreenShare size={14} /> {label}</span>
+        <span className="share-label"><span className="share-chip-dot" />{label}</span>
         <span className="share-ctrl">
-          <button type="button" onClick={() => setFull((f) => !f)} title={full ? 'Réduire' : 'Voir en grand'}>{full ? 'Réduire' : 'Agrandir'}</button>
-          <button type="button" onClick={() => setMini(true)} title="Masquer">Masquer</button>
-          {onStop && <button type="button" className="stop" onClick={onStop}>Arrêter</button>}
+          <button type="button" className="sc-btn" onClick={() => setFull((f) => !f)} title={full ? 'Réduire (Échap)' : 'Plein écran'} aria-label={full ? 'Réduire' : 'Plein écran'}>
+            {full ? <IconMinimize size={15} /> : <IconMaximize size={15} />}
+          </button>
+          <button type="button" className="sc-btn" onClick={() => setMini(true)} title="Masquer (le partage continue)" aria-label="Masquer">
+            <IconEyeOff size={15} />
+          </button>
+          {local ? (
+            <button type="button" className="sc-btn danger" onClick={onStop || onClose} title="Arrêter le partage" aria-label="Arrêter le partage">
+              <IconX size={15} />
+            </button>
+          ) : (
+            <button type="button" className="sc-btn danger" onClick={onClose} title="Fermer : ne plus voir ni entendre ce partage" aria-label="Fermer">
+              <IconX size={15} />
+            </button>
+          )}
         </span>
       </div>
     </div>

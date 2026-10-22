@@ -266,6 +266,25 @@ export const IconDownload = ({ size, className, strokeWidth = 1.7 }: P) => (
   </svg>
 );
 
+export const IconMaximize = ({ size, className, strokeWidth = 1.8 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+  </svg>
+);
+
+export const IconMinimize = ({ size, className, strokeWidth = 1.8 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+  </svg>
+);
+
+export const IconEyeOff = ({ size, className, strokeWidth = 1.8 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4.2 9.5 6-.4.8-1.2 2-2.4 3.2M6.6 6.7C4.3 8.2 2.9 10.3 2.5 12c1 1.8 4.5 6 9.5 6 1.6 0 3-.4 4.2-1" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </svg>
+);
+
 export const IconArrowDown = ({ size, className, strokeWidth = 1.9 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <path d="M12 5v14M6 13l6 6 6-6" />

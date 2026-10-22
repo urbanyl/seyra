@@ -6,7 +6,7 @@ import VoiceDock from './components/VoiceDock';
 import Settings from './components/Settings';
 import InviteQR from './components/InviteQR';
 import './components/invite.css';
-import { IconCopy, IconLock, IconX } from './components/Icons';
+import { IconCopy, IconLock, IconScreenShare, IconX } from './components/Icons';
 import { Modal } from './components/ui';
 import { formatCodeInput } from './lib/format';
 import { CHUNK, MAX_FILE, base64ToBytes, bytesToBase64, cleanName, compressImage, fileKind, formatSize, isCompressibleImage, stripImageMetadata } from './lib/files';
@@ -283,6 +283,7 @@ export default function App() {
 
         case 'peer:renamed':
           setParticipants((prev) => prev.map((x) => (x.id === m.id ? { ...x, name: m.name } : x)));
+          voice.renamePeer(m.id, m.name);
           if (cur.session && m.id === cur.session.selfId) {
             setSession((s) => (s ? { ...s, selfName: m.name } : s));
           } else if (m.old && m.old !== m.name) {
@@ -695,8 +696,30 @@ export default function App() {
     voice.join();
   }, []);
 
+  /* Fermer un partage distant : ni image ni son, jusqu'à réouverture. */
+  const [closedScreens, setClosedScreens] = useState<Set<string>>(() => new Set());
+  // Un pair qui arrête son partage ne reste pas "fermé" : le prochain partage s'affiche.
+  useEffect(() => {
+    const sharing = new Set(vstate.peers.filter((p) => p.screen).map((p) => p.id));
+    setClosedScreens((prev) => {
+      const next = new Set([...prev].filter((id) => sharing.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [vstate.peers]);
+
+  const closeRemoteScreen = useCallback((id: string, open: boolean) => {
+    setClosedScreens((prev) => {
+      const next = new Set(prev);
+      if (open) next.delete(id); else next.add(id);
+      return next;
+    });
+    voice.setScreenSound(id, open);
+  }, []);
+
   const savePseudo = useCallback((name: string) => {
-    const clean = name.replace(/\s+/g, ' ').trim().slice(0, 24);
+    const trimmed = name.replace(/\s+/g, ' ').trim();
+    const cps = [...trimmed];
+    const clean = cps.length > 24 ? cps.slice(0, 24).join('') : trimmed;
     if (!clean) return;
     localStorage.setItem('seyra.pseudo', clean);
     setPseudo(clean);
@@ -814,10 +837,16 @@ export default function App() {
       />
 
       {vstate.screen && (
-        <ShareTile stream={vstate.screen} name={session.selfName} local onStop={() => voice.stopScreen(true)} />
+        <ShareTile stream={vstate.screen} name={session.selfName} local onStop={() => voice.stopScreen(true)} onClose={() => voice.stopScreen(true)} />
       )}
-      {vstate.peers.filter((p) => p.screen).map((p) => (
-        <ShareTile key={p.id} stream={p.screen!} name={p.name} />
+      {vstate.peers.filter((p) => p.screen && !closedScreens.has(p.id)).map((p) => (
+        <ShareTile key={p.id} stream={p.screen!} name={p.name} onClose={() => closeRemoteScreen(p.id, false)} />
+      ))}
+      {vstate.peers.filter((p) => p.screen && closedScreens.has(p.id)).map((p) => (
+        <button key={'cs' + p.id} className="share-pill" onClick={() => closeRemoteScreen(p.id, true)} title="Voir et entendre le partage">
+          <IconScreenShare size={15} />
+          <span>Rouvrir le partage de {p.name}</span>
+        </button>
       ))}
 
       {askRename && (

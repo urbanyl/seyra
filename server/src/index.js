@@ -41,11 +41,14 @@ function iceServers(id) {
 }
 
 function cleanName(raw) {
-  return String(raw ?? '')
+  const s = String(raw ?? '')
     .replace(/[\u0000-\u001f\u007f]/g, '')
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 24);
+    .trim();
+  // Découpe sur des points de code entiers : slice() sur des unités UTF-16
+  // pouvait trancher un emoji en deux et produire un caractère illisible.
+  const cps = [...s];
+  return cps.length > 24 ? cps.slice(0, 24).join('') : s;
 }
 const MAX_MESSAGES = 800;
 const MAX_ROOMS = 4000;
