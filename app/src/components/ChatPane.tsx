@@ -66,6 +66,19 @@ export default function ChatPane(p: Props) {
   const [recMs, setRecMs] = useState<number | null>(null);
   const [showJump, setShowJump] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+
+  // Raccourci : Ctrl+F (ou Cmd+F) ouvre la recherche dans la session.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+        setQuery('');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const seenTs = useRef(Date.now());
   const imgInput = useRef<HTMLInputElement>(null);

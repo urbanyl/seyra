@@ -791,6 +791,10 @@ export default function App() {
         onRename={() => { setRenameValue(session.selfName || pseudo); setAskRename(true); }}
         voiceById={Object.fromEntries(vstate.peers.map((x) => [x.id, x]))}
         selfVoice={vstate.active ? { muted: vstate.muted, deaf: vstate.deafened } : null}
+        since={session.createdAt}
+        messageCount={messages.filter((m) => m.kind === 'text' || m.kind === 'voice' || m.kind === 'file').length}
+        fileCount={messages.filter((m) => m.kind === 'file').length}
+        inviteLink={`${window.location.origin}/app#join=${code}`}
       />
       {sideOpen && <div className="scrim" onClick={() => setSideOpen(false)} />}
 
