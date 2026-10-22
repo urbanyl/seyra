@@ -52,12 +52,11 @@ export type Poll = { id: string; q: string; opts: string[] };
 /** Votes : pollId -> participant -> index de l'option choisie. */
 export type Votes = Record<string, Record<string, number>>;
 
-/** Contrôle scellé (kind 'react') : réaction, épingle, vote ou note partagée. */
+/** Contrôle scellé (kind 'react') : réaction, épingle ou vote. */
 export type ControlBody = {
   react?: { rid?: unknown; emoji?: unknown; on?: unknown };
   pin?: { mid?: unknown; on?: unknown };
   vote?: { pid?: unknown; opt?: unknown };
-  note?: { text?: unknown; ts?: unknown };
 };
 
 /** Un morceau de fichier : base64 brut, scellé séparément. */

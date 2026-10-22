@@ -4,8 +4,10 @@ import Landing from './components/Landing';
 import SessionPanel from './components/SessionPanel';
 import VoiceDock from './components/VoiceDock';
 import Settings from './components/Settings';
-import InviteQR from './components/InviteQR';
+import { lazy, Suspense } from 'react';
 import './components/invite.css';
+// Le générateur de QR code (qrcode) n'est chargé qu'à l'ouverture de la fenêtre d'invitation.
+const InviteQR = lazy(() => import('./components/InviteQR'));
 import { IconCopy, IconLock, IconScreenShare, IconX } from './components/Icons';
 import { Modal } from './components/ui';
 import { cleanPseudo, formatCodeInput, mentionsName } from './lib/format';
@@ -50,7 +52,7 @@ function InviteBox({ code, onFlash }: { code: string; onFlash: (text: string) =>
           {showQr ? 'Masquer le QR code' : 'Afficher le QR code'}
         </button>
       </div>
-      {showQr && <InviteQR url={url} />}
+      {showQr && <Suspense fallback={null}><InviteQR url={url} /></Suspense>}
     </div>
   );
 }
@@ -234,9 +236,8 @@ export default function App() {
   // Lecture synchrone dans togglePin (les callbacks ne doivent pas garder un état périmé).
   const pinnedRef = useRef<string[]>([]);
   pinnedRef.current = pinned;
-  /* Sondages (votes par participant) et note partagée (dernière version gagne). */
+  /* Sondages : votes par participant. */
   const [votes, setVotes] = useState<Votes>({});
-  const [note, setNote] = useState<{ text: string; ts: number }>({ text: '', ts: 0 });
   const applyPin = useCallback((mid: string, on: boolean) => {
     setPinned((prev) => {
       const rest = prev.filter((x) => x !== mid);
@@ -272,12 +273,6 @@ export default function App() {
         return { ...prev, [pid]: bucket };
       });
     }
-    if (b.note && typeof b.note.text === 'string' && typeof b.note.ts === 'number') {
-      const text = b.note.text.slice(0, 2000);
-      const ts = b.note.ts;
-      // Note partagée : la plus récente l'emporte.
-      setNote((prev) => (ts > prev.ts ? { text, ts } : prev));
-    }
   }, [applyReact, applyPin]);
 
   useEffect(() => {
@@ -302,7 +297,6 @@ export default function App() {
     setReactions({});
     setPinned([]);
     setVotes({});
-    setNote({ text: '', ts: 0 });
     for (const t of expTimers.current.values()) window.clearTimeout(t);
     expTimers.current.clear();
     // Libère les aperçus de fichiers (blob URLs) et les tampons de morceaux.
@@ -603,17 +597,6 @@ export default function App() {
     rt.send({ t: 'msg', kind: 'react', cipher, nonce });
   }, [votes]);
 
-  /** Note partagée : publiée chiffrée, visible de tous, la plus récente gagne. */
-  const saveNote = useCallback((text: string) => {
-    const k = keyRef.current;
-    if (!k) return;
-    const ts = Date.now();
-    const clean = text.slice(0, 2000);
-    const { cipher, nonce } = sealBody({ note: { text: clean, ts } } as ControlBody, k);
-    setNote({ text: clean, ts });
-    rt.send({ t: 'msg', kind: 'react', cipher, nonce });
-  }, []);
-
   /** Envoie un clip vocal : l'audio est scellé comme le reste, jamais en clair. */
   const sendVoice = useCallback((clip: VoiceClip, reply: ReplyTo | null, ttl: number | null) => {
     const cur = stateRef.current;
@@ -900,8 +883,6 @@ export default function App() {
         messageCount={messages.filter((m) => m.kind === 'text' || m.kind === 'voice' || m.kind === 'file').length}
         fileCount={messages.filter((m) => m.kind === 'file').length}
         inviteLink={`${window.location.origin}/app#join=${code}`}
-        note={note}
-        onSaveNote={saveNote}
       />
       {sideOpen && <div className="scrim" onClick={() => setSideOpen(false)} />}
 

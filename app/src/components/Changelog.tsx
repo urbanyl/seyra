@@ -15,11 +15,10 @@ const RELEASES: { version: string; date: string; title: string; items: string[] 
   {
     version: '2.1',
     date: 'octobre 2026',
-    title: 'Sondages, fil et note partagée',
+    title: 'Sondages et fil de discussion',
     items: [
       'Sondages : tapez /sondage Question | option | option. Le vote est chiffré et le décompte est visible de tous.',
       'Fil de discussion : un message qui a des réponses affiche un bouton « Voir le fil ».',
-      'Note partagée dans le panneau de session : un bloc commun, chiffré, la plus récente version gagne.',
       'Tests automatisés (Vitest) sur le pseudo, les mentions, les codes et les sondages.',
     ],
   },
