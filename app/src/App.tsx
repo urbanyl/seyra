@@ -1,19 +1,63 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ChatPane from './components/ChatPane';
+import ChatPane, { ShareTile } from './components/ChatPane';
 import Landing from './components/Landing';
 import SessionPanel from './components/SessionPanel';
 import VoiceDock from './components/VoiceDock';
+import Settings from './components/Settings';
+import InviteQR from './components/InviteQR';
+import './components/invite.css';
 import { IconCopy, IconLock, IconX } from './components/Icons';
 import { Modal } from './components/ui';
-import { cryptoReady, deriveSession, newCode, normalizeCode, openMessage, sealMessage } from './lib/session';
+import { formatCodeInput } from './lib/format';
+import { CHUNK, MAX_FILE, base64ToBytes, bytesToBase64, cleanName, compressImage, fileKind, formatSize, isCompressibleImage, stripImageMetadata } from './lib/files';
+import { cryptoReady, deriveSession, newCode, normalizeCode, openBody, sealBody } from './lib/session';
 import { rt } from './lib/rt';
-import type { Msg, Notice, Participant, SessionInfo } from './lib/types';
+import { applyPrefs, loadPrefs, savePrefs, WALLPAPERS, type Prefs } from './lib/prefs';
+import type { ChunkBody, Envelope, FileMeta, Msg, Notice, Participant, ReactBody, Reactions, ReplyTo, SessionInfo, VoiceClip } from './lib/types';
 import { voice, type VoiceState } from './lib/voice';
 
 type Phase = 'landing' | 'session';
 
+/** Lit #join=CODE au chargement. Le fragment ne part jamais vers le serveur. */
+function readJoinHash(): string {
+  const m = /^#join=([A-Za-z0-9-]+)$/.exec(window.location.hash);
+  if (!m) return '';
+  const formatted = formatCodeInput(m[1]);
+  return formatted.replace(/-/g, '').length === 12 ? formatted : '';
+}
+
+function InviteBox({ code, onFlash }: { code: string; onFlash: (text: string) => void }) {
+  const [showQr, setShowQr] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const url = `${window.location.origin}/app#join=${code}`;
+
+  const copyLink = () => {
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 1800);
+    }).catch(() => onFlash('Copie impossible : sélectionnez le lien à la main.'));
+  };
+
+  return (
+    <div className="invite-box">
+      <code className="invite-link">{url}</code>
+      <div className="invite-actions">
+        <button className="btn ghost" onClick={copyLink}>
+          <IconCopy size={16} /> {copiedLink ? 'Lien copié' : 'Copier le lien'}
+        </button>
+        <button className="btn ghost" onClick={() => setShowQr((v) => !v)}>
+          {showQr ? 'Masquer le QR code' : 'Afficher le QR code'}
+        </button>
+      </div>
+      {showQr && <InviteQR url={url} />}
+    </div>
+  );
+}
+
 export default function App() {
   const [phase, setPhase] = useState<Phase>('landing');
+  const [prefillCode, setPrefillCode] = useState<string>(() => readJoinHash());
+  const [showInvite, setShowInvite] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -23,6 +67,7 @@ export default function App() {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [reactions, setReactions] = useState<Reactions>({});
   const [notices, setNotices] = useState<Notice[]>([]);
   const [typing, setTyping] = useState<{ name: string; ts: number } | null>(null);
   const [connection, setConnection] = useState<'online' | 'offline' | 'connecting'>('connecting');
@@ -31,14 +76,38 @@ export default function App() {
   const [showCode, setShowCode] = useState(false);
   const [askClose, setAskClose] = useState(false);
   const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [pseudo, setPseudo] = useState<string>(() => localStorage.getItem('seyra.pseudo') || '');
+  const pseudoRef = useRef(pseudo);
+  pseudoRef.current = pseudo;
+  const [askRename, setAskRename] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
   const [askKick, setAskKick] = useState<Participant | null>(null);
+  const [lockedCode, setLockedCode] = useState('');
+  const [lockedPwd, setLockedPwd] = useState('');
   const [sideOpen, setSideOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState('');
+  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
+  const [showSettings, setShowSettings] = useState(false);
+  const [sessionWall, setSessionWall] = useState<string | null>(null);
+  const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
+  const [fileProgress, setFileProgress] = useState<Record<string, number>>({});
 
-  const pending = useRef<{ mode: 'open' | 'join'; key: Uint8Array; roomId: string; display: string } | null>(null);
+  const pending = useRef<{ mode: 'open' | 'join'; key: Uint8Array; roomId: string; display: string; password: string } | null>(null);
+  const sessionPwd = useRef('');
+  const sessionHist = useRef(false);
+  const keyRef = useRef<Uint8Array | null>(null);
+  keyRef.current = key;
+  const expTimers = useRef(new Map<string, number>());
+  const fileUrlsRef = useRef<Record<string, string>>({});
+  fileUrlsRef.current = fileUrls;
+  const fileParts = useRef(new Map<string, { n: number; got: number; parts: (Uint8Array<ArrayBuffer> | undefined)[] }>());
+  const fileMetaRef = useRef(new Map<string, FileMeta>());
+  const msgFid = useRef(new Map<string, string>());
   const stateRef = useRef<any>({});
-  stateRef.current = { phase, session, participants, messages };
+  stateRef.current = { phase, session, participants, messages, reactions };
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
   const lastTyping = useRef(0);
   const typingTimer = useRef<number | undefined>(undefined);
   const inviteTimer = useRef<number | undefined>(undefined);
@@ -49,14 +118,146 @@ export default function App() {
     setTimeout(() => setToast(''), 3200);
   }, []);
 
+  useEffect(() => { applyPrefs(prefs); savePrefs(prefs); }, [prefs]);
+  // Le fond partagé de la session prend le pas sur le fond personnel.
+  useEffect(() => {
+    if (!sessionWall) { applyPrefs(prefs); return; }
+    const w = WALLPAPERS.find((x) => x.id === sessionWall)?.css ?? 'none';
+    document.documentElement.style.setProperty('--chat-wall', w);
+  }, [sessionWall, prefs]);
+  const updatePrefs = useCallback((patch: Partial<Prefs>) => setPrefs((p) => ({ ...p, ...patch })), []);
+  const setWall = useCallback((wall: string) => {
+    setSessionWall(wall);
+    rt.send({ t: 'wall', wall });
+  }, []);
+
+  /* ---------------- messages ---------------- */
+  const cleanupFile = useCallback((fid: string) => {
+    const url = fileUrlsRef.current[fid];
+    if (url) URL.revokeObjectURL(url);
+    fileParts.current.delete(fid);
+    fileMetaRef.current.delete(fid);
+    setFileUrls((prev) => {
+      if (!(fid in prev)) return prev;
+      const next = { ...prev };
+      delete next[fid];
+      return next;
+    });
+    setFileProgress((prev) => {
+      if (!(fid in prev)) return prev;
+      const next = { ...prev };
+      delete next[fid];
+      return next;
+    });
+  }, []);
+
+  /** Déchiffre un morceau de fichier et l'ajoute au tampon. */
+  const ingestChunk = useCallback((msg: Msg, k: Uint8Array): void => {
+    const fid = msg.fid;
+    if (!fid) return;
+    const body = openBody(msg.cipher, msg.nonce, k) as Partial<ChunkBody> | null;
+    const c = body?.chunk;
+    if (!c || c.fid !== fid) return;
+    const i = Number(c.i);
+    const n = Number(c.n);
+    if (!Number.isInteger(i) || !Number.isInteger(n) || n <= 0 || n > 2000 || i < 0 || i >= n) return;
+    if (typeof c.data !== 'string' || c.data.length > 1_200_000) return;
+
+    let state = fileParts.current.get(fid);
+    if (!state) {
+      state = { n, got: 0, parts: new Array(n) };
+      fileParts.current.set(fid, state);
+    }
+    if (state.parts[i]) return; // morceau déjà reçu
+    state.parts[i] = base64ToBytes(c.data);
+    state.got += 1;
+    setFileProgress((prev) => ({ ...prev, [fid]: Math.min(1, state!.got / n) }));
+
+    if (state.got === n && state.parts.every(Boolean)) {
+      const meta = fileMetaRef.current.get(fid);
+      const blob = new Blob(state.parts as Uint8Array<ArrayBuffer>[], { type: meta?.mime || 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      fileParts.current.delete(fid);
+      setFileUrls((prev) => ({ ...prev, [fid]: url }));
+    }
+  }, []);
+
+  const removeMsgs = useCallback((ids: string[]) => {
+    if (!ids.length) return;
+    for (const id of ids) {
+      const fid = msgFid.current.get(id);
+      if (fid) {
+        msgFid.current.delete(id);
+        // Un fichier est découpé : on libère l'aperçu dès qu'un morceau part.
+        cleanupFile(fid);
+      }
+    }
+    setMessages((prev) => prev.filter((x) => !ids.includes(x.id)));
+    setReactions((prev) => {
+      let touched = false;
+      const next = { ...prev };
+      for (const id of ids) if (next[id]) { delete next[id]; touched = true; }
+      return touched ? next : prev;
+    });
+    for (const id of ids) {
+      const t = expTimers.current.get(id);
+      if (t !== undefined) { window.clearTimeout(t); expTimers.current.delete(id); }
+    }
+  }, [cleanupFile]);
+
+  const scheduleExpiry = useCallback((m: Msg) => {
+    if (!m.expiresAt || expTimers.current.has(m.id)) return;
+    const delay = m.expiresAt - Date.now();
+    if (delay <= 0) { removeMsgs([m.id]); return; }
+    const t = window.setTimeout(() => {
+      expTimers.current.delete(m.id);
+      removeMsgs([m.id]);
+    }, Math.min(delay, 2 ** 31 - 1));
+    expTimers.current.set(m.id, t);
+  }, [removeMsgs]);
+
+  const applyReact = useCallback((uid: string, rid: string, emoji: string, on: boolean) => {
+    if (!emoji || !uid) return;
+    setReactions((prev) => {
+      const bucket = { ...(prev[rid] || {}) };
+      const users = new Set(bucket[emoji] || []);
+      if (on) users.add(uid); else users.delete(uid);
+      if (users.size) bucket[emoji] = [...users]; else delete bucket[emoji];
+      const next = { ...prev };
+      if (Object.keys(bucket).length) next[rid] = bucket; else delete next[rid];
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!window.location.hash.startsWith('#join=')) return;
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    setPrefillCode('');
+  }, []);
+
   /* ---------------- lifecycle ---------------- */
   const wipe = useCallback(() => {
+    const k = keyRef.current;
+    if (k) k.fill(0); // la clé de session disparaît de la mémoire à la fermeture
+    keyRef.current = null;
+    if (pending.current?.key) pending.current.key.fill(0);
+    pending.current = null;
     setPhase('landing');
     setSession(null);
     setKey(null);
     setCode('');
     setParticipants([]);
     setMessages([]);
+    setReactions({});
+    for (const t of expTimers.current.values()) window.clearTimeout(t);
+    expTimers.current.clear();
+    // Libère les aperçus de fichiers (blob URLs) et les tampons de morceaux.
+    for (const url of Object.values(fileUrlsRef.current)) URL.revokeObjectURL(url);
+    fileParts.current.clear();
+    fileMetaRef.current.clear();
+    msgFid.current.clear();
+    setFileUrls({});
+    setFileProgress({});
     setNotices([]);
     setTyping(null);
     setCallInvite(null);
@@ -66,6 +267,9 @@ export default function App() {
     setAskKick(null);
     setOwnerId(null);
     setSideOpen(false);
+    setShowSettings(false);
+    sessionPwd.current = '';
+    sessionHist.current = false;
   }, []);
 
   useEffect(() => {
@@ -73,8 +277,22 @@ export default function App() {
     const off = rt.on((m) => {
       const cur = stateRef.current;
       switch (m.t) {
+        case 'hello':
+          voice.setIce(m.ice);
+          break;
+
+        case 'peer:renamed':
+          setParticipants((prev) => prev.map((x) => (x.id === m.id ? { ...x, name: m.name } : x)));
+          if (cur.session && m.id === cur.session.selfId) {
+            setSession((s) => (s ? { ...s, selfName: m.name } : s));
+          } else if (m.old && m.old !== m.name) {
+            setNotices((prev) => [...prev, { id: 'r' + Date.now() + m.id, text: `${m.old} s'appelle maintenant ${m.name}`, ts: Date.now() }]);
+          }
+          break;
+
         case 'session:joined': {
           const p = pending.current;
+          const k = (p && p.key) || keyRef.current;
           if (p) {
             setKey(p.key);
             setCode(p.display);
@@ -83,12 +301,40 @@ export default function App() {
           }
           setSession({ roomId: m.roomId, selfId: m.selfId, selfName: m.selfName, createdAt: m.createdAt });
           setOwnerId(m.ownerId || null);
+          setSessionWall(typeof m.wall === 'string' ? m.wall : null);
           setParticipants(m.participants || []);
-          setMessages((prev) => {
-            const map = new Map(prev.map((x) => [x.id, x]));
-            for (const msg of m.messages || []) map.set(msg.id, msg);
-            return [...map.values()].sort((a, b) => a.ts - b.ts);
-          });
+          // Fusionne l'historique reçu, applique les réactions, ignore ce qui a expiré.
+          const map = new Map((stateRef.current.messages as Msg[]).map((x) => [x.id, x]));
+          for (const msg of (m.messages || []) as Msg[]) map.set(msg.id, msg);
+          const all = [...map.values()].sort((a, b) => a.ts - b.ts);
+          const visible: Msg[] = [];
+          for (const msg of all) {
+            if (msg.kind === 'react') {
+              if (k) {
+                const b = openBody(msg.cipher, msg.nonce, k) as { react?: { rid?: unknown; emoji?: unknown; on?: unknown } } | null;
+                if (b && b.react && typeof b.react.rid === 'string') {
+                  applyReact(msg.from, b.react.rid, String(b.react.emoji || ''), !!b.react.on);
+                }
+              }
+              continue;
+            }
+            if (msg.kind === 'file' || msg.kind === 'filechunk') {
+              if (msg.kind === 'file' && msg.fid) {
+                msgFid.current.set(msg.id, msg.fid);
+                if (k) {
+                  const b = openBody(msg.cipher, msg.nonce, k) as { file?: FileMeta } | null;
+                  if (b?.file) fileMetaRef.current.set(msg.fid, b.file);
+                }
+              } else if (msg.kind === 'filechunk') {
+                if (k) ingestChunk(msg, k);
+                continue; // les morceaux ne s'affichent pas
+              }
+            }
+            if (msg.expiresAt && msg.expiresAt <= Date.now()) continue;
+            visible.push(msg);
+          }
+          setMessages(visible);
+          for (const msg of visible) scheduleExpiry(msg);
           voice.setMe(m.selfId);
           setPhase('session');
           setBusy(false);
@@ -102,6 +348,22 @@ export default function App() {
           setError(m.message || 'Session indisponible.');
           rt.close();
           break;
+
+        case 'wall:set':
+          setSessionWall(typeof m.wall === 'string' ? m.wall : null);
+          break;
+
+        case 'session:locked': {
+          // La session demande un mot de passe : on garde le code pour réessayer.
+          const p = pending.current;
+          if (p) {
+            pending.current = null;
+            setLockedCode(p.display);
+            rt.close();
+          }
+          setBusy(false);
+          break;
+        }
 
         case 'session:closed':
           if (cur.phase === 'session') {
@@ -133,8 +395,38 @@ export default function App() {
           }
           break;
 
-        case 'msg':
-          setMessages((prev) => prev.some((x) => x.id === m.msg.id) ? prev : [...prev, m.msg]);
+        case 'msg': {
+          const msg = m.msg as Msg;
+          const k = keyRef.current;
+          if (msg.kind === 'react') {
+            if (k) {
+              const b = openBody(msg.cipher, msg.nonce, k) as { react?: { rid?: unknown; emoji?: unknown; on?: unknown } } | null;
+              if (b && b.react && typeof b.react.rid === 'string') {
+                applyReact(msg.from, b.react.rid, String(b.react.emoji || ''), !!b.react.on);
+              }
+            }
+            break;
+          }
+          if (msg.kind === 'filechunk') {
+            if (k) ingestChunk(msg, k);
+            break; // morceau de fichier : jamais affiché tel quel
+          }
+          if (msg.kind === 'file' && msg.fid) {
+            msgFid.current.set(msg.id, msg.fid);
+            if (k) {
+              const b = openBody(msg.cipher, msg.nonce, k) as { file?: FileMeta } | null;
+              if (b?.file) fileMetaRef.current.set(msg.fid, b.file);
+            }
+          }
+          if (msg.expiresAt && msg.expiresAt <= Date.now()) break;
+          setMessages((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
+          scheduleExpiry(msg);
+          if (prefsRef.current.sound && msg.from !== stateRef.current.session?.selfId) beep(520, 0.12);
+          break;
+        }
+
+        case 'msg:removed':
+          removeMsgs(((m.ids as string[]) || (m.id ? [m.id] : [])).filter((x) => typeof x === 'string'));
           break;
 
         case 'typing':
@@ -156,6 +448,8 @@ export default function App() {
         case 'voice:peer-join':
         case 'voice:peer-leave':
         case 'voice:signal':
+        case 'voice:state':
+        case 'voice:error':
           voice.handle(m);
           break;
       }
@@ -182,24 +476,26 @@ export default function App() {
       if (s !== 'online') return;
       const cur = stateRef.current;
       if (cur.phase === 'session' && cur.session) {
-        rt.send({ t: 'join', roomId: cur.session.roomId });
+        rt.send({ t: 'join', roomId: cur.session.roomId, pwd: sessionPwd.current ? 1 : 0 });
       }
     });
     return offStatus;
   }, []);
 
   /* ---------------- actions ---------------- */
-  const start = useCallback(async (display: string, mode: 'open' | 'join') => {
+  const start = useCallback(async (display: string, mode: 'open' | 'join', password = '', history = false) => {
     setBusy(true);
     setError('');
     setNotice('');
     try {
       await cryptoReady();
-      const { key, roomId } = await deriveSession(display);
-      pending.current = { mode, key, roomId, display };
+      const { key, roomId } = await deriveSession(display, password);
+      sessionPwd.current = password;
+      sessionHist.current = history;
+      pending.current = { mode, key, roomId, display, password };
       rt.connect();
       await rt.ready();
-      rt.send({ t: mode, roomId });
+      rt.send({ t: mode, roomId, name: pseudoRef.current.trim(), pwd: password ? 1 : 0, hist: history ? 1 : 0 });
       window.clearTimeout(joinTimer.current);
       joinTimer.current = window.setTimeout(() => {
         if (pending.current) {
@@ -215,17 +511,141 @@ export default function App() {
     }
   }, []);
 
-  const create = useCallback(() => start(newCode(), 'open'), [start]);
-  const join = useCallback((raw: string) => start(normalizeCode(raw), 'join'), [start]);
+  const create = useCallback((opts: { password?: string; history?: boolean }) => start(newCode(), 'open', opts?.password || '', !!opts?.history), [start]);
+  const join = useCallback((raw: string, password?: string) => start(normalizeCode(raw), 'join', password || '', false), [start]);
 
-  const send = useCallback((text: string) => {
+  const send = useCallback((text: string, reply: ReplyTo | null, ttl: number | null) => {
     const cur = stateRef.current;
     if (!cur.session || !key) return;
-    const { cipher, nonce } = sealMessage(text, key);
-    rt.send({ t: 'msg', cipher, nonce });
+    const body: Envelope = { text, ...(reply ? { reply } : {}), from: cur.session.selfId };
+    const { cipher, nonce } = sealBody(body, key);
+    rt.send({ t: 'msg', cipher, nonce, ...(ttl ? { ttl } : {}) });
   }, [key]);
 
-  const decrypt = useCallback((m: Msg) => (key ? openMessage(m.cipher, m.nonce, key) : null), [key]);
+  /** Envoie un clip vocal : l'audio est scellé comme le reste, jamais en clair. */
+  const sendVoice = useCallback((clip: VoiceClip, reply: ReplyTo | null, ttl: number | null) => {
+    const cur = stateRef.current;
+    if (!cur.session || !key) return;
+    const body: Envelope = { audio: clip, ...(reply ? { reply } : {}), from: cur.session.selfId };
+    const { cipher, nonce } = sealBody(body, key);
+    // Garde-fou aligné sur le serveur (3 M de base64 pour un vocal).
+    if (cipher.length > 2950000) {
+      flash('Message vocal trop long. Réessayez plus court.');
+      return;
+    }
+    rt.send({ t: 'msg', kind: 'voice', cipher, nonce, ...(ttl ? { ttl } : {}) });
+  }, [key, flash]);
+
+  /**
+   * Envoie un fichier : compression locale éventuelle, puis métadonnées scellées
+   * et morceaux scellés séparément. Rien ne part en clair, et le serveur ne voit
+   * qu'un identifiant aléatoire de transfert.
+   */
+  const sendFile = useCallback(async (picked: File, compress: number | null, reply: ReplyTo | null, ttl: number | null) => {
+    const cur = stateRef.current;
+    const k = keyRef.current;
+    if (!cur.session || !k) return;
+
+    const originalSize = picked.size;
+    let blob: Blob = picked;
+    let name = cleanName(picked.name);
+    let w: number | undefined;
+    let h: number | undefined;
+
+    const compressible = isCompressibleImage(picked.type) && compress !== null;
+    if (compressible) {
+      const out = await compressImage(picked, compress);
+      // On ne garde la version compressée que si elle est vraiment plus légère.
+      if (out && out.blob.size < picked.size * 0.92) {
+        blob = out.blob;
+        name = name.replace(/\.(png|webp|jpe?g|bmp|heic|avif)$/i, '') + '.jpg';
+        w = out.w;
+        h = out.h;
+      }
+    } else if (isCompressibleImage(picked.type)) {
+      // Photo « originale » : on garde les dimensions et la qualité, mais on
+      // ré-encode pour jeter les métadonnées (GPS, EXIF, appareil).
+      const out = await stripImageMetadata(picked);
+      if (out) {
+        blob = out.blob;
+        name = name.replace(/\.(png|webp|jpe?g|bmp|heic|avif)$/i, '') + '.jpg';
+        w = out.w;
+        h = out.h;
+      } else {
+        flash('Impossible de nettoyer les métadonnées de cette image. Envoi annulé par prudence.');
+        return;
+      }
+    }
+
+    if (blob.size > MAX_FILE) {
+      flash(`${blob.size > originalSize ? 'Image' : 'Fichier'} trop lourd (${formatSize(blob.size)}). Maximum ${formatSize(MAX_FILE)}.`);
+      return;
+    }
+
+    const mime = blob.type || picked.type || 'application/octet-stream';
+    const kind = fileKind(mime);
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const fid = crypto.randomUUID().replace(/-/g, '');
+    const meta: FileMeta = { fid, name, mime, size: bytes.length, kind, w, h };
+
+    const metaBody: Envelope = { file: meta, ...(reply ? { reply } : {}), from: cur.session.selfId };
+    const sealed = sealBody(metaBody, k);
+    rt.send({ t: 'msg', kind: 'file', fid, cipher: sealed.cipher, nonce: sealed.nonce, ...(ttl ? { ttl } : {}) });
+
+    const total = Math.ceil(bytes.length / CHUNK);
+    for (let i = 0; i < total; i++) {
+      const data = bytesToBase64(bytes.subarray(i * CHUNK, (i + 1) * CHUNK));
+      const body: ChunkBody = { chunk: { fid, i, n: total, data } };
+      const part = sealBody(body, k);
+      rt.send({ t: 'msg', kind: 'filechunk', fid, cipher: part.cipher, nonce: part.nonce, ...(ttl ? { ttl } : {}) });
+      // Laisse respirer le fil : évite de bloquer l'interface sur un gros fichier.
+      if ((i & 3) === 3) await new Promise((r) => setTimeout(r, 0));
+    }
+
+    if (originalSize !== bytes.length) {
+      flash(`${kind === 'image' ? 'Photo compressée' : 'Fichier compressé'} : ${formatSize(originalSize)} → ${formatSize(bytes.length)}.`);
+    }
+  }, [flash]);
+
+  /** Ouvre l'enveloppe chiffrée d'un message (texte, vocal ou fichier). */
+  const open = useCallback((m: Msg): Envelope | null => {
+    if (!key) return null;
+    const b = openBody(m.cipher, m.nonce, key) as Partial<Envelope> | null;
+    if (!b) return null;
+    const reply = b.reply && typeof b.reply.id === 'string' ? b.reply : null;
+    const audio = b.audio && typeof b.audio.data === 'string' && typeof b.audio.mime === 'string'
+      ? { mime: b.audio.mime, data: b.audio.data, dur: Number(b.audio.dur) || 0 }
+      : undefined;
+    const file = b.file && typeof b.file.fid === 'string' && typeof b.file.name === 'string'
+      ? {
+        fid: b.file.fid,
+        name: String(b.file.name),
+        mime: String(b.file.mime || 'application/octet-stream'),
+        size: Number(b.file.size) || 0,
+        kind: b.file.kind === 'image' || b.file.kind === 'video' ? b.file.kind : 'file',
+        w: Number(b.file.w) || undefined,
+        h: Number(b.file.h) || undefined,
+      } as FileMeta
+      : undefined;
+    if (typeof b.text !== 'string' && !audio && !file) return null;
+    const from = typeof b.from === 'string' ? b.from : undefined;
+    return { text: typeof b.text === 'string' ? b.text : undefined, audio, file, reply, from };
+  }, [key]);
+
+  const reactTo = useCallback((msgId: string, emoji: string) => {
+    const cur = stateRef.current;
+    const k = keyRef.current;
+    if (!cur.session || !k) return;
+    const on = !(cur.reactions?.[msgId]?.[emoji] || []).includes(cur.session.selfId);
+    const { cipher, nonce } = sealBody({ react: { rid: msgId, emoji, on } } as ReactBody, k);
+    applyReact(cur.session.selfId, msgId, emoji, on);
+    rt.send({ t: 'msg', kind: 'react', cipher, nonce });
+  }, [applyReact]);
+
+  const deleteMsg = useCallback((m: Msg) => {
+    rt.send({ t: 'del', id: m.id });
+    removeMsgs([m.id]);
+  }, [removeMsgs]);
 
   const signalTyping = useCallback(() => {
     const now = Date.now();
@@ -239,6 +659,15 @@ export default function App() {
     voice.leave();
     wipe();
     setNotice('Session fermée. Les messages ont été effacés.');
+  }, [wipe]);
+
+  /** Retour à l'accueil : on quitte proprement la session sans la détruire pour les autres. */
+  const goHome = useCallback(() => {
+    rt.send({ t: 'leave' });
+    voice.leave();
+    rt.close();
+    wipe();
+    window.location.assign('/');
   }, [wipe]);
 
   const kick = useCallback((p: Participant) => {
@@ -257,20 +686,63 @@ export default function App() {
   const toggleCall = useCallback(() => {
     if (voice.state.active) return voice.leave();
     setCallInvite(null);
-    voice.join('Appel de session');
+    voice.join();
     rt.send({ t: 'call:invite' });
   }, []);
 
   const joinCall = useCallback(() => {
     setCallInvite(null);
-    voice.join('Appel de session');
+    voice.join();
+  }, []);
+
+  const savePseudo = useCallback((name: string) => {
+    const clean = name.replace(/\s+/g, ' ').trim().slice(0, 24);
+    if (!clean) return;
+    localStorage.setItem('seyra.pseudo', clean);
+    setPseudo(clean);
+    const selfId = stateRef.current.session?.selfId;
+    if (selfId) {
+      setSession((s) => (s ? { ...s, selfName: clean } : s));
+      setParticipants((prev) => prev.map((x) => (x.id === selfId ? { ...x, name: clean } : x)));
+    }
+    rt.send({ t: 'rename', name: clean });
+    setAskRename(false);
   }, []);
 
   /* ---------------- view ---------------- */
   if (phase !== 'session' || !session) {
     return (
       <>
-        <Landing onCreate={create} onJoin={join} busy={busy} error={error} notice={notice} />
+        <Landing
+          onCreate={create}
+          onJoin={join}
+          busy={busy}
+          error={error}
+          notice={notice}
+          pseudo={pseudo}
+          onPseudo={(v) => { setPseudo(v); localStorage.setItem('seyra.pseudo', v.trim()); }}
+          prefillCode={prefillCode}
+        />
+        {lockedCode && (
+          <Modal title="Session protégée" onClose={() => { setLockedCode(''); setLockedPwd(''); }} width={400}>
+            <p className="muted">Cette session demande un mot de passe. Il doit vous avoir été communiqué avec le code.</p>
+            <div className="modal-field">
+              <input
+                autoFocus
+                type="password"
+                value={lockedPwd}
+                maxLength={64}
+                onChange={(e) => setLockedPwd(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && lockedPwd) { const c = lockedCode; setLockedCode(''); join(c, lockedPwd); } }}
+                placeholder="Mot de passe de la session"
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => { setLockedCode(''); setLockedPwd(''); }}>Annuler</button>
+              <button className="btn primary" disabled={!lockedPwd} onClick={() => { const c = lockedCode; setLockedCode(''); join(c, lockedPwd); setLockedPwd(''); }}>Rejoindre</button>
+            </div>
+          </Modal>
+        )}
         {toast && <div className="toast">{toast}</div>}
       </>
     );
@@ -289,8 +761,13 @@ export default function App() {
         copied={copied}
         onClose={() => setAskClose(true)}
         onKick={(p) => setAskKick(p)}
+        onInvite={() => setShowInvite(true)}
+        onSettings={() => { setShowSettings(true); setSideOpen(false); }}
         onHide={() => setSideOpen(false)}
         open={sideOpen}
+        onRename={() => { setRenameValue(session.selfName || pseudo); setAskRename(true); }}
+        voiceById={Object.fromEntries(vstate.peers.map((x) => [x.id, x]))}
+        selfVoice={vstate.active ? { muted: vstate.muted, deaf: vstate.deafened } : null}
       />
       {sideOpen && <div className="scrim" onClick={() => setSideOpen(false)} />}
 
@@ -302,8 +779,16 @@ export default function App() {
           notices={notices}
           participants={participants}
           selfId={session.selfId}
-          decrypt={decrypt}
+          open={open}
           onSend={send}
+          onSendVoice={sendVoice}
+          onSendFile={sendFile}
+          fileUrls={fileUrls}
+          fileProgress={fileProgress}
+          onNotify={flash}
+          reactions={reactions}
+          onReact={reactTo}
+          onDelete={deleteMsg}
           onTyping={signalTyping}
           typingName={typed}
           onCall={toggleCall}
@@ -312,15 +797,48 @@ export default function App() {
           onJoinCall={joinCall}
           onDismissCall={() => setCallInvite(null)}
           connection={connection}
+          onHome={goHome}
+          onShareScreen={() => voice.toggleScreen()}
+          sharing={vstate.sharing}
+          shareStream={vstate.screen}
         />
       </main>
 
       <VoiceDock
         state={vstate}
+        selfName={session.selfName}
+        nameOf={(id) => participants.find((x) => x.id === id)?.name || 'Invité'}
         onMute={() => voice.toggleMute()}
         onDeafen={() => voice.toggleDeafen()}
         onLeave={() => voice.leave()}
       />
+
+      {vstate.screen && (
+        <ShareTile stream={vstate.screen} name={session.selfName} local onStop={() => voice.stopScreen(true)} />
+      )}
+      {vstate.peers.filter((p) => p.screen).map((p) => (
+        <ShareTile key={p.id} stream={p.screen!} name={p.name} />
+      ))}
+
+      {askRename && (
+        <Modal title="Votre pseudo" onClose={() => setAskRename(false)} width={400}>
+          <p className="muted">Les autres participants le verront. Vous pouvez le changer à tout moment.</p>
+          <div className="modal-field">
+            <input
+              autoFocus
+              value={renameValue}
+              maxLength={24}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') savePseudo(renameValue); }}
+              placeholder="Votre pseudo"
+            />
+          </div>
+          <div className="modal-actions">
+            <button className="btn ghost" onClick={() => setAskRename(false)}>Annuler</button>
+            <button className="btn primary" onClick={() => savePseudo(renameValue)} disabled={!renameValue.trim()}>Enregistrer</button>
+          </div>
+        </Modal>
+      )}
 
       {showCode && (
         <Modal title="Session ouverte" onClose={() => setShowCode(false)} width={440}>
@@ -329,8 +847,17 @@ export default function App() {
             <code>{code}</code>
             <button className="btn ghost" onClick={copyCode}><IconCopy size={16} /> {copied ? 'Copié' : 'Copier'}</button>
           </div>
+          <InviteBox code={code} onFlash={flash} />
           <p className="hint-line"><IconLock size={13} /> Ne le partagez que par un canal de confiance.</p>
           <button className="btn primary wide" onClick={() => setShowCode(false)}>C'est parti</button>
+        </Modal>
+      )}
+
+      {showInvite && (
+        <Modal title="Inviter" onClose={() => setShowInvite(false)} width={460}>
+          <p className="muted">Le lien et le QR code ouvrent l'app avec le code déjà rempli.</p>
+          <InviteBox code={code} onFlash={flash} />
+          <button className="btn primary wide" onClick={() => setShowInvite(false)}>Fermer</button>
         </Modal>
       )}
 
@@ -354,25 +881,29 @@ export default function App() {
         </Modal>
       )}
 
+      {showSettings && (
+        <Settings prefs={prefs} onChange={updatePrefs} sessionWall={sessionWall} onSetWall={setWall} onClose={() => setShowSettings(false)} />
+      )}
+
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
 
-function beep() {
+function beep(freq = 760, dur = 0.3) {
   try {
     const ctx = new AudioContext();
     const note = (t: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.value = 760;
+      osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, ctx.currentTime + t);
       gain.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime + t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + dur);
       osc.connect(gain).connect(ctx.destination);
       osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + 0.32);
+      osc.stop(ctx.currentTime + t + dur + 0.02);
     };
     note(0); note(0.38);
     setTimeout(() => ctx.close().catch(() => {}), 1400);

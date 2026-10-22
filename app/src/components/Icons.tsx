@@ -18,6 +18,12 @@ export const IconPhone = ({ size, className, strokeWidth = 1.7 }: P) => (
   </svg>
 );
 
+export const IconChevron = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M5 9l7 7 7-7" />
+  </svg>
+);
+
 export const IconVideo = ({ size, className, strokeWidth = 1.7 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <rect x="3" y="6" width="12.5" height="12" rx="3.2" />
@@ -151,6 +157,22 @@ export const IconBack = ({ size, className, strokeWidth = 1.9 }: P) => (
   </svg>
 );
 
+export const IconHome = ({ size, className, strokeWidth = 1.8 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M4 10.6 12 4l8 6.6" />
+    <path d="M6 9.6V20h12V9.6" />
+    <path d="M10 20v-5.4h4V20" />
+  </svg>
+);
+
+export const IconScreenShare = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <rect x="3" y="4.5" width="18" height="12.5" rx="2.4" />
+    <path d="M8.5 20.5h7M12 17v3.5" />
+    <path d="M9 11.5 12 8l3 3.5M12 8v6.2" />
+  </svg>
+);
+
 export const IconShield = ({ size, className, strokeWidth = 1.7 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <path d="M12 3 5 5.8v5.4c0 4.3 2.9 8.1 7 9.3 4.1-1.2 7-5 7-9.3V5.8L12 3Z" />
@@ -162,6 +184,91 @@ export const IconCopy = ({ size, className, strokeWidth = 1.7 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <rect x="8.5" y="8.5" width="12" height="12" rx="2.6" />
     <path d="M15.5 5.4V4.8A2.3 2.3 0 0 0 13.2 2.5H5.8A2.3 2.3 0 0 0 3.5 4.8v7.4a2.3 2.3 0 0 0 2.3 2.3h.6" />
+  </svg>
+);
+
+export const IconPencil = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+    <path d="m13.5 6.5 4 4" />
+  </svg>
+);
+
+export const IconReply = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M9.5 6.5 4.5 11.5l5 5" />
+    <path d="M4.5 11.5h8.7a6.3 6.3 0 0 1 6.3 6.3v1.7" />
+  </svg>
+);
+
+export const IconTrash = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M4.5 6.5h15" />
+    <path d="M9.5 6.5V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v1.5" />
+    <path d="M6.7 6.5l.8 12.2a1.9 1.9 0 0 0 1.9 1.8h5.2a1.9 1.9 0 0 0 1.9-1.8l.8-12.2" />
+    <path d="M10.2 10.3v5.4M13.8 10.3v5.4" />
+  </svg>
+);
+
+export const IconTimer = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <circle cx="12" cy="13.6" r="7.4" />
+    <path d="M12 10.2v3.6l2.3 1.5" />
+    <path d="M9.6 2.8h4.8" />
+  </svg>
+);
+
+export const IconPlay = ({ size = 22, className }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M8.2 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5a1 1 0 0 1-1.5-.87Z" />
+  </svg>
+);
+
+export const IconPause = ({ size = 22, className }: P) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <rect x="6.6" y="5" width="3.9" height="14" rx="1.4" />
+    <rect x="13.5" y="5" width="3.9" height="14" rx="1.4" />
+  </svg>
+);
+
+export const IconPaperclip = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M20 11.5 12.2 19.3a4.6 4.6 0 0 1-6.5-6.5l8.2-8.2a3.1 3.1 0 0 1 4.4 4.4l-8.2 8.2a1.6 1.6 0 0 1-2.2-2.2l7.6-7.6" />
+  </svg>
+);
+
+export const IconFile = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M13.5 3.5H7a2.3 2.3 0 0 0-2.3 2.3v12.4A2.3 2.3 0 0 0 7 20.5h10a2.3 2.3 0 0 0 2.3-2.3V9.3l-5.8-5.8Z" />
+    <path d="M13.5 3.5v5.8h5.8" />
+  </svg>
+);
+
+export const IconImage = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2.6" />
+    <circle cx="8.5" cy="9.5" r="1.6" />
+    <path d="m4 17 4.6-4.6 3.2 3.2 3-3L20 17.2" />
+  </svg>
+);
+
+export const IconVideoFile = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <rect x="2.8" y="6" width="13" height="12" rx="2.6" />
+    <path d="M15.8 11.2 21.2 8v8l-5.4-3.2" />
+  </svg>
+);
+
+export const IconDownload = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5" />
+    <path d="M4.5 19.5h15" />
+  </svg>
+);
+
+export const IconArrowDown = ({ size, className, strokeWidth = 1.9 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M12 5v14M6 13l6 6 6-6" />
   </svg>
 );
 

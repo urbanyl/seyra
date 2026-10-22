@@ -1,8 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
+import { MAX_FILE, formatSize } from '../lib/files';
 import { dayLabel, timeOf } from '../lib/format';
-import type { Msg, Notice, Participant } from '../lib/types';
-import { IconLock, IconPhone, IconSend, IconSmile, IconUsers, IconX } from './Icons';
+import type { Envelope, FileMeta, Msg, Notice, Participant, Reactions, ReplyTo, VoiceClip } from '../lib/types';
+import { IconArrowDown, IconCopy, IconFile, IconHome, IconImage, IconLock, IconMic, IconPaperclip, IconPhone, IconReply, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton } from './ui';
+import FileBubble from './FileBubble';
+import VoicePlayer from './VoicePlayer';
 
 type Props = {
   code: string;
@@ -10,8 +15,16 @@ type Props = {
   notices: Notice[];
   participants: Participant[];
   selfId: string;
-  decrypt: (m: Msg) => string | null;
-  onSend: (text: string) => void;
+  open: (m: Msg) => Envelope | null;
+  onSend: (text: string, reply: ReplyTo | null, ttl: number | null) => void;
+  onSendVoice: (clip: VoiceClip, reply: ReplyTo | null, ttl: number | null) => void;
+  onSendFile: (file: File, compress: number | null, reply: ReplyTo | null, ttl: number | null) => void;
+  fileUrls: Record<string, string>;
+  fileProgress: Record<string, number>;
+  onNotify: (text: string) => void;
+  reactions: Reactions;
+  onReact: (msgId: string, emoji: string) => void;
+  onDelete: (m: Msg) => void;
   onTyping: () => void;
   typingName?: string;
   onCall: () => void;
@@ -21,39 +34,97 @@ type Props = {
   onDismissCall: () => void;
   connection: 'online' | 'offline' | 'connecting';
   onOpenSide: () => void;
+  onHome: () => void;
+  onShareScreen: () => void;
+  sharing: boolean;
+  shareStream: MediaStream | null;
 };
 
 const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🤔', '👍', '🙏', '🔥', '💙', '✨', '🎧', '📌', '✅'];
+const REACTS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅'];
+const TTL_OPTIONS: [number | null, string, string][] = [
+  [null, 'Permanent', ''],
+  [30, '30 secondes', '30 s'],
+  [60, '1 minute', '1 min'],
+  [300, '5 minutes', '5 min'],
+  [900, '15 minutes', '15 min'],
+  [3600, '1 heure', '1 h'],
+];
 
 export default function ChatPane(p: Props) {
   const [draft, setDraft] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [reply, setReply] = useState<ReplyTo | null>(null);
+  const [reactPop, setReactPop] = useState<string | null>(null);
+  const [delArm, setDelArm] = useState<string | null>(null);
+  const [ttl, setTtl] = useState<number | null>(null);
+  const [ttlPop, setTtlPop] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [recMs, setRecMs] = useState<number | null>(null);
+  const [showJump, setShowJump] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
+  const seenTs = useRef(Date.now());
+  const imgInput = useRef<HTMLInputElement>(null);
+  const vidInput = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const imgQuality = useRef<number | null>(0.82);
   const scroller = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const atBottom = useRef(true);
+  const longPress = useRef<number | undefined>(undefined);
+  const delTimer = useRef<number | undefined>(undefined);
+  const flashTimer = useRef<number | undefined>(undefined);
+  const recorder = useRef<AudioRecorder | null>(null);
+  const recTimer = useRef<number | undefined>(undefined);
 
   const byId = useMemo(() => Object.fromEntries(p.participants.map((x) => [x.id, x])), [p.participants]);
   const nameOf = (id: string) => (id === p.selfId ? 'Vous' : byId[id]?.name || 'Invité');
+  const colorOf = (id: string) => COLORS[(byId[id]?.color || 0) % COLORS.length];
+
+  const hasTtl = p.messages.some((m) => !!m.expiresAt);
+  useEffect(() => {
+    if (!hasTtl) return;
+    setNow(Date.now());
+    let stop = 0;
+    const tick = () => {
+      setNow(Date.now());
+      stop = window.setTimeout(tick, 500);
+    };
+    // setTimeout plutôt que setInterval : reste juste après un onglet en veille.
+    stop = window.setTimeout(tick, 500);
+    return () => window.clearTimeout(stop);
+  }, [hasTtl]);
+
+  // Une seconde valeur de temps, mise à jour à chaque trame, pour le décompte.
+  const [openActions, setOpenActions] = useState<string | null>(null);
+
+  const visible = useMemo(
+    () => p.messages.filter((m) => m.kind !== 'react' && m.kind !== 'filechunk' && (!m.expiresAt || m.expiresAt > now)),
+    [p.messages, now],
+  );
 
   const timeline = useMemo(() => {
     const items = [
-      ...p.messages.map((m) => ({ kind: 'msg' as const, ts: m.ts, msg: m })),
+      ...visible.map((m) => ({ kind: 'msg' as const, ts: m.ts, msg: m })),
       ...p.notices.map((n) => ({ kind: 'sys' as const, ts: n.ts, notice: n })),
     ];
     items.sort((a, b) => a.ts - b.ts);
     return items;
-  }, [p.messages, p.notices]);
+  }, [visible, p.notices]);
 
   const shown = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return timeline;
     return timeline.filter((item) => {
       if (item.kind === 'sys') return item.notice.text.toLowerCase().includes(needle);
-      return (p.decrypt(item.msg) || '').toLowerCase().includes(needle);
+      const e = p.open(item.msg);
+      return `${e?.text || ''} ${e?.file?.name || ''}`.toLowerCase().includes(needle);
     });
-  }, [timeline, query, p.decrypt]);
+  }, [timeline, query, p.open]);
 
   useLayoutEffect(() => {
     const el = scroller.current;
@@ -66,27 +137,195 @@ export default function ChatPane(p: Props) {
     if (el) el.scrollTop = el.scrollHeight;
     atBottom.current = true;
     input.current?.focus();
+    return () => {
+      window.clearTimeout(delTimer.current);
+      window.clearTimeout(flashTimer.current);
+      window.clearTimeout(recTimer.current);
+      window.clearTimeout(longPress.current);
+      recorder.current?.cancel();
+      recorder.current = null;
+    };
   }, []);
 
   function onScroll() {
     const el = scroller.current;
     if (!el) return;
-    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    atBottom.current = bottom;
+    if (bottom) seenTs.current = Date.now();
+    setShowJump(!bottom);
+  }
+
+  // Messages reçus pendant qu'on lit plus haut : comptés sur le bouton.
+  const unread = showJump
+    ? p.messages.reduce((n, m) => (m.kind !== 'react' && m.from !== p.selfId && m.ts > seenTs.current ? n + 1 : n), 0)
+    : 0;
+
+  function closePops(e: React.MouseEvent) {
+    const t = e.target as HTMLElement;
+    if (!t.closest('.react-pop') && !t.closest('.msg-actions')) setReactPop(null);
+    if (!t.closest('.ttl-pop') && !t.closest('.ttl-btn')) setTtlPop(false);
+    if (!t.closest('.attach-pop') && !t.closest('.attach-btn')) setAttachOpen(false);
+    if (!t.closest('.msg-actions')) {
+      window.clearTimeout(delTimer.current);
+      setDelArm(null);
+    }
+    // Le tap sur la bulle ouvre/ferme les actions ; un tap ailleurs les referme.
+    const bubble = t.closest('.bubble');
+    if (!bubble) setOpenActions(null);
+  }
+
+  function startReply(m: Msg, text: string) {
+    setReactPop(null);
+    setOpenActions(null);
+    setReply({ id: m.id, from: m.from, text });
+    input.current?.focus();
+  }
+
+  function armDelete(m: Msg) {
+    if (delArm === m.id) {
+      window.clearTimeout(delTimer.current);
+      setDelArm(null);
+      setOpenActions(null);
+      p.onDelete(m);
+      return;
+    }
+    window.clearTimeout(delTimer.current);
+    setDelArm(m.id);
+    delTimer.current = window.setTimeout(() => setDelArm(null), 3000);
+  }
+
+  function jumpTo(id: string) {
+    const el = document.getElementById('m' + id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFlash(id);
+    window.clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setFlash(null), 1600);
   }
 
   function send() {
     const text = draft.trim();
     if (!text) return;
-    p.onSend(text);
+    p.onSend(text, reply, ttl);
     setDraft('');
+    setReply(null);
     setEmojiOpen(false);
+    setAttachOpen(false);
     if (input.current) input.current.style.height = 'auto';
     atBottom.current = true;
     input.current?.focus();
   }
 
+  /* ---------------- fichiers ---------------- */
+
+  function pickImage(quality: number | null) {
+    imgQuality.current = quality;
+    setAttachOpen(false);
+    imgInput.current?.click();
+  }
+
+  function pickInput(ref: React.RefObject<HTMLInputElement | null>) {
+    setAttachOpen(false);
+    ref.current?.click();
+  }
+
+  function onPicked(e: React.ChangeEvent<HTMLInputElement>, compress: number | null) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    const willCompress = compress !== null && /^image\//.test(f.type) && !/gif|svg/i.test(f.type);
+    // Une photo destinée à la compression peut être lourde au départ : c'est le
+    // résultat compressé qui doit tenir sous la limite (vérifié dans sendFile).
+    const ceiling = willCompress ? 60 * 1024 * 1024 : MAX_FILE;
+    if (f.size > ceiling) {
+      p.onNotify(willCompress
+        ? `Image trop lourde pour être compressée (${formatSize(f.size)}).`
+        : `Trop lourd : ${formatSize(f.size)}. Maximum ${formatSize(MAX_FILE)}.`);
+      return;
+    }
+    p.onSendFile(f, compress, reply, ttl);
+    setReply(null);
+    atBottom.current = true;
+  }
+
+  /** Ctrl+V : une image (ou un fichier) copié dans le presse-papiers part directement. */
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const it of items) {
+      if (it.kind !== 'file') continue;
+      const f = it.getAsFile();
+      if (f) files.push(f);
+    }
+    if (!files.length) return;
+    e.preventDefault();
+    for (const f of files.slice(0, 5)) {
+      const isImage = /^image\//.test(f.type);
+      const name = f.name || (isImage ? 'copie.png' : 'copie');
+      const file = f.name ? f : new File([f], name, { type: f.type || 'application/octet-stream' });
+      const compress = isImage && !/gif|svg/i.test(f.type) ? 0.82 : null;
+      const ceiling = compress !== null ? 60 * 1024 * 1024 : MAX_FILE;
+      if (file.size > ceiling) {
+        p.onNotify(compress !== null
+          ? `Image trop lourde pour être compressée (${formatSize(file.size)}).`
+          : `Trop lourd : ${formatSize(file.size)}. Maximum ${formatSize(MAX_FILE)}.`);
+        continue;
+      }
+      p.onSendFile(file, compress, reply, ttl);
+      setReply(null);
+      atBottom.current = true;
+    }
+  }
+
+  /* ---------------- messages vocaux ---------------- */
+
+  async function startRec() {
+    if (recorder.current) return;
+    const r = new AudioRecorder();
+    try {
+      await r.start();
+    } catch {
+      p.onNotify('Micro indisponible. Autorisez l’accès au microphone.');
+      return;
+    }
+    recorder.current = r;
+    setRecMs(0);
+    setEmojiOpen(false);
+    setReactPop(null);
+    setOpenActions(null);
+    const tick = () => {
+      const ms = r.elapsed();
+      setRecMs(ms);
+      if (ms >= MAX_VOICE_MS) void sendRec();
+      else recTimer.current = window.setTimeout(tick, 200);
+    };
+    recTimer.current = window.setTimeout(tick, 200);
+  }
+
+  async function sendRec() {
+    const r = recorder.current;
+    window.clearTimeout(recTimer.current);
+    recorder.current = null;
+    setRecMs(null);
+    if (!r) return;
+    const clip = await r.stop();
+    if (!clip) return;
+    p.onSendVoice(clip, reply, ttl);
+    setReply(null);
+    atBottom.current = true;
+  }
+
+  function cancelRec() {
+    window.clearTimeout(recTimer.current);
+    recorder.current?.cancel();
+    recorder.current = null;
+    setRecMs(null);
+  }
+
   return (
-    <section className="pane">
+    <section className="pane" onClick={closePops}>
       <header className="pane-head">
         <div className="stack">
           {p.participants.slice(0, 3).map((x) => (
@@ -101,12 +340,16 @@ export default function ChatPane(p: Props) {
           </p>
         </div>
         <div className="pane-actions">
+          <IconButton label="Accueil" onClick={p.onHome}><IconHome size={19} /></IconButton>
           <IconButton label="Participants" className="mobile-only" onClick={p.onOpenSide}><IconUsers size={19} /></IconButton>
           <IconButton label="Rechercher" active={searchOpen} onClick={() => { setSearchOpen((v) => !v); setQuery(''); }}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
               <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.2 4.2" />
             </svg>
           </IconButton>
+          <button className={`call-btn share-btn ${p.sharing ? 'on' : ''}`} onClick={p.onShareScreen} title={p.sharing ? "Arrêter le partage d'écran" : "Partager l'écran"} disabled={!p.inVoice}>
+            <IconScreenShare size={18} />
+          </button>
           <button className={`call-btn ${p.inVoice ? 'on' : ''}`} onClick={p.onCall} title={p.inVoice ? "Quitter l'appel" : 'Appel vocal'}>
             <IconPhone size={18} />
           </button>
@@ -157,28 +400,145 @@ export default function ChatPane(p: Props) {
           }
 
           const m = item.msg;
-          const text = p.decrypt(m);
+          const env = p.open(m);
+          const audio = env?.audio || null;
+          const file = env?.file || null;
+          const text = env && typeof env.text === 'string' ? env.text : null;
+          const quote = env?.reply || null;
+          const forged = !!env?.from && env.from !== m.from;
           const mine = m.from === p.selfId;
           const author = byId[m.from];
           const grouped = !!(prev && prev.kind === 'msg' && prev.msg.from === m.from && m.ts - prev.msg.ts < 5 * 60000 && !showDay);
+          const chips = p.reactions[m.id];
+          const armed = delArm === m.id;
+          const left = m.expiresAt ? Math.max(0, m.expiresAt - now) : 0;
+          const ttlLabel = formatCountdown(left);
+          const revealed = openActions === m.id;
 
           return (
-            <div key={m.id}>
+            <div key={m.id} id={'m' + m.id} className={`msg-wrap ${flash === m.id ? 'flash' : ''}`}>
               {showDay && <div className="day-sep"><span>{dayLabel(item.ts)}</span></div>}
               <div className={`msg ${mine ? 'out' : 'in'} ${grouped ? 'grouped' : ''}`}>
                 {!mine && !grouped && (
-                  <span className="msg-author" style={{ color: COLORS[(author?.color || 0) % COLORS.length] }}>{nameOf(m.from)}</span>
+                  <span className="msg-author" style={{ color: colorOf(m.from) }}>{nameOf(m.from)}</span>
                 )}
-                <div className="bubble">
-                  {text === null ? (
+                <div
+                  className={`bubble ${revealed ? 'revealed' : ''} ${audio ? 'has-voice' : file ? 'has-voice has-file' : ''}`}
+                  onContextMenu={(e) => { e.preventDefault(); setReactPop(null); setOpenActions(m.id); }}
+                  onPointerDown={(e) => {
+                    if (e.pointerType !== 'touch') return;
+                    window.clearTimeout(longPress.current);
+                    longPress.current = window.setTimeout(() => {
+                      setReactPop(null);
+                      setOpenActions(m.id);
+                    }, 450);
+                  }}
+                  onPointerUp={() => window.clearTimeout(longPress.current)}
+                  onPointerMove={() => window.clearTimeout(longPress.current)}
+                  onPointerCancel={() => window.clearTimeout(longPress.current)}
+                >
+                  <div className="msg-actions" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" title="Répondre" onClick={() => startReply(m,
+                      file ? (file.kind === 'image' ? 'Photo' : file.kind === 'video' ? 'Vidéo' : file.name)
+                        : audio ? 'Message vocal' : text || '')}>
+                      <IconReply size={15} />
+                    </button>
+                    <button type="button" title="Ajouter une réaction" onClick={() => setReactPop((v) => (v === m.id ? null : m.id))}>
+                      <IconSmile size={15} />
+                    </button>
+                    {text !== null && !audio && (
+                      <button
+                        type="button"
+                        title="Copier"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(text).then(
+                            () => p.onNotify('Message copié.'),
+                            () => p.onNotify('Copie impossible.'),
+                          );
+                          setOpenActions(null);
+                        }}
+                      >
+                        <IconCopy size={15} />
+                      </button>
+                    )}
+                    {mine && (audio || file || text !== null) && (
+                      <button
+                        type="button"
+                        className={armed ? 'arm' : ''}
+                        title={armed ? 'Confirmer la suppression' : 'Supprimer le message'}
+                        onClick={() => armDelete(m)}
+                      >
+                        <IconTrash size={15} />
+                      </button>
+                    )}
+                  </div>
+
+                  {reactPop === m.id && (
+                    <div className="react-pop">
+                      {REACTS.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          className={(chips?.[e] || []).includes(p.selfId) ? 'on' : ''}
+                          onClick={() => { p.onReact(m.id, e); setReactPop(null); setOpenActions(null); }}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {quote && (
+                    <button type="button" className="reply-quote" onClick={(e) => { e.stopPropagation(); jumpTo(quote.id); }}>
+                      <strong style={{ color: colorOf(quote.from) }}>{nameOf(quote.from)}</strong>
+                      <span>{quote.text.slice(0, 140)}</span>
+                    </button>
+                  )}
+
+                  {forged && (
+                    <span className="forged" title="L’auteur annoncé par le serveur ne correspond pas à celui scellé dans le message">
+                      auteur non vérifié
+                    </span>
+                  )}
+
+                  {file ? (
+                    <FileBubble
+                      meta={file}
+                      url={p.fileUrls[file.fid]}
+                      progress={p.fileProgress[file.fid]}
+                      onOpen={(url, name) => setPreview({ url, name })}
+                    />
+                  ) : audio ? (
+                    <VoicePlayer clip={audio} />
+                  ) : text === null ? (
                     <span className="locked"><IconLock size={13} /> illisible</span>
                   ) : m.kind === 'call' ? (
                     <span className="call-log"><IconPhone size={14} /> {text}</span>
                   ) : (
-                    <span className="bubble-text">{text}</span>
+                    <span className="bubble-text">{linkify(text)}</span>
+                  )}
+
+                  {m.expiresAt && left > 0 && (
+                    <span className="ttl-badge" title="Message temporaire"><IconTimer size={11} /> {ttlLabel}</span>
                   )}
                   <time>{timeOf(m.ts)}</time>
                 </div>
+
+                {chips && (
+                  <div className="reactions">
+                    {Object.entries(chips).map(([emoji, users]) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className={`chip ${users.includes(p.selfId) ? 'mine' : ''}`}
+                        title={users.map(nameOf).join(', ')}
+                        onClick={() => p.onReact(m.id, emoji)}
+                      >
+                        {emoji}<em>{users.length}</em>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -187,34 +547,274 @@ export default function ChatPane(p: Props) {
         {p.typingName && <div className="typing"><span /><span /><span /> {p.typingName} écrit…</div>}
       </div>
 
+      {reply && (
+        <div className="reply-bar">
+          <div>
+            <strong>Répondre à {nameOf(reply.from)}</strong>
+            <span>{reply.text.slice(0, 120)}</span>
+          </div>
+          <button type="button" title="Annuler la réponse" onClick={() => setReply(null)}><IconX size={16} /></button>
+        </div>
+      )}
+
       <div className="composer">
-        {emojiOpen && (
+        {recMs === null && emojiOpen && (
           <div className="emoji-pop">
             {EMOJIS.map((e) => (
               <button key={e} onClick={() => { setDraft((d) => d + e); input.current?.focus(); }}>{e}</button>
             ))}
           </div>
         )}
-        <IconButton label="Émojis" onClick={() => setEmojiOpen((v) => !v)} active={emojiOpen}><IconSmile size={21} /></IconButton>
-        <textarea
-          ref={input}
-          value={draft}
-          rows={1}
-          placeholder="Écrivez un message chiffré…"
-          onChange={(e) => {
-            setDraft(e.target.value);
-            p.onTyping();
-            e.target.style.height = 'auto';
-            e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-          }}
-        />
-        <button className={`send ${draft.trim() ? 'ready' : ''}`} onClick={send} title="Envoyer"><IconSend size={20} /></button>
+
+        {recMs === null && (
+          <div className="attach-wrap">
+            <button
+              type="button"
+              className={`icon-btn attach-btn ${attachOpen ? 'active' : ''}`}
+              onClick={() => { setAttachOpen((v) => !v); setEmojiOpen(false); setTtlPop(false); }}
+              title="Joindre"
+              aria-label="Joindre un fichier"
+            >
+              <IconPaperclip size={20} />
+            </button>
+            {attachOpen && (
+              <div className="attach-pop">
+                <button type="button" onClick={() => pickImage(0.6)}>
+                  <IconImage size={18} /><span>Photo · légère</span><em>0,6</em>
+                </button>
+                <button type="button" onClick={() => pickImage(0.82)}>
+                  <IconImage size={18} /><span>Photo · équilibrée</span><em>0,82</em>
+                </button>
+                <button type="button" onClick={() => pickImage(0.95)}>
+                  <IconImage size={18} /><span>Photo · qualité max</span><em>0,95</em>
+                </button>
+                <button type="button" onClick={() => pickImage(null)}>
+                  <IconImage size={18} /><span>Photo · originale</span><em>∞</em>
+                </button>
+                <button type="button" onClick={() => pickInput(vidInput)}>
+                  <IconVideoFile size={18} /><span>Vidéo</span><em>{formatSize(MAX_FILE)}</em>
+                </button>
+                <button type="button" onClick={() => pickInput(fileInput)}>
+                  <IconFile size={18} /><span>Fichier</span><em>{formatSize(MAX_FILE)}</em>
+                </button>
+              </div>
+            )}
+            <input ref={imgInput} type="file" accept="image/*" hidden onChange={(e) => onPicked(e, imgQuality.current)} />
+            <input ref={vidInput} type="file" accept="video/*" hidden onChange={(e) => onPicked(e, null)} />
+            <input ref={fileInput} type="file" hidden onChange={(e) => onPicked(e, null)} />
+          </div>
+        )}
+
+        {recMs === null && (
+          <IconButton label="Émojis" onClick={() => setEmojiOpen((v) => !v)} active={emojiOpen}><IconSmile size={21} /></IconButton>
+        )}
+
+        {recMs === null && (
+          <div className="ttl-wrap">
+            {ttlPop && (
+              <div className="ttl-pop">
+                {TTL_OPTIONS.map(([v, label, short]) => (
+                  <button
+                    key={String(v)}
+                    type="button"
+                    className={ttl === v ? 'on' : ''}
+                    onClick={() => { setTtl(v); setTtlPop(false); }}
+                    title={v ? 'Ce message disparaîtra pour tout le monde après ce délai' : 'Ce message reste dans la session'}
+                  >
+                    {label}
+                    <em className="ttl-hint">{v ? short : '∞'}</em>
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className={`icon-btn ttl-btn ${ttl ? 'active' : ''}`}
+              onClick={() => setTtlPop((v) => !v)}
+              title="Durée du message"
+              aria-label="Durée du message"
+            >
+              <IconTimer size={20} />
+              {ttl !== null && <b className="ttl-flag">{TTL_OPTIONS.find(([v]) => v === ttl)?.[2]}</b>}
+            </button>
+          </div>
+        )}
+
+        {recMs !== null ? (
+          <div className="rec-bar">
+            <span className="rec-dot" />
+            <span className="rec-time">{formatTime(recMs / 1000)}</span>
+            <span className="rec-hint">Message vocal…</span>
+            <button type="button" className="rec-cancel" onClick={cancelRec} title="Annuler" aria-label="Annuler l’enregistrement">
+              <IconTrash size={18} />
+            </button>
+            <button type="button" className="send ready" onClick={sendRec} title="Envoyer" aria-label="Envoyer le message vocal">
+              <IconSend size={20} />
+            </button>
+          </div>
+        ) : (
+          <>
+            <textarea
+              ref={input}
+              value={draft}
+              rows={1}
+              placeholder={reply ? 'Répondre…' : 'Message chiffré…'}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                p.onTyping();
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+                if (e.key === 'Escape' && reply) setReply(null);
+              }}
+              onPaste={onPaste}
+            />
+            {draft.trim() ? (
+              <button className="send ready" onClick={send} title="Envoyer" aria-label="Envoyer"><IconSend size={20} /></button>
+            ) : (
+              <button className="send" onClick={startRec} title="Message vocal" aria-label="Enregistrer un message vocal">
+                <IconMic size={21} />
+              </button>
+            )}
+          </>
+        )}
       </div>
+
+      {showJump && (
+        <button
+          type="button"
+          className={`jump-bottom ${unread ? 'has-unread' : ''}`}
+          onClick={() => {
+            const el = scroller.current;
+            if (el) el.scrollTop = el.scrollHeight;
+            seenTs.current = Date.now();
+            setShowJump(false);
+          }}
+          aria-label={unread ? `${unread} nouveau${unread > 1 ? 'x' : ''} message${unread > 1 ? 's' : ''}` : 'Aller au dernier message'}
+        >
+          <IconArrowDown size={unread ? 16 : 18} />
+          {unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
+        </button>
+      )}
+
+      {preview && (
+        <div className="lightbox" onClick={() => setPreview(null)} role="dialog" aria-label={preview.name}>
+          <img src={preview.url} alt={preview.name} />
+          <button type="button" className="lightbox-close" onClick={() => setPreview(null)} aria-label="Fermer">
+            <IconX size={20} />
+          </button>
+          <a className="lightbox-dl" href={preview.url} download={preview.name} onClick={(e) => e.stopPropagation()}>
+            Télécharger
+          </a>
+        </div>
+      )}
     </section>
   );
 }
 
+/** Vignette de partage d'écran : la vidéo est muette (le son passe par l'appel). */
+export function ShareTile({ stream, name, onStop, local }: { stream: MediaStream; name: string; onStop?: () => void; local?: boolean }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ dx: number; dy: number } | null>(null);
+  const [mini, setMini] = useState(false);
+  const [full, setFull] = useState(false);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.srcObject = stream;
+    el.play().catch(() => {});
+    return () => { el.srcObject = null; };
+  }, [stream]);
+
+  const onDown = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const el = box.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+  };
+  const onMove = (e: React.PointerEvent) => {
+    if (!drag.current || full) return;
+    const el = box.current;
+    const w = el?.offsetWidth || 400;
+    const h = el?.offsetHeight || 260;
+    const x = Math.min(Math.max(8, e.clientX - drag.current.dx), Math.max(8, window.innerWidth - w - 8));
+    const y = Math.min(Math.max(8, e.clientY - drag.current.dy), Math.max(8, window.innerHeight - h - 8));
+    setPos({ x, y });
+  };
+  const onUp = (e: React.PointerEvent) => {
+    if (!drag.current) return;
+    drag.current = null;
+    box.current?.classList.remove('dragging');
+    try { box.current?.releasePointerCapture(e.pointerId); } catch { /* déjà relâché */ }
+  };
+
+  const geom = full ? undefined : pos ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' } : undefined;
+  const label = local ? 'Votre écran' : `${name} partage son écran`;
+
+  if (mini) {
+    return (
+      <button className="share-chip" onClick={() => setMini(false)} title="Revenir au partage d'écran">
+        <IconScreenShare size={15} /> {local ? 'Votre partage' : `${name} partage`}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={`share-tile ${full ? 'full' : ''}`}
+      ref={box}
+      style={geom}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      title={full ? undefined : 'Glissez pour déplacer'}
+    >
+      <video ref={ref} autoPlay playsInline muted onClick={() => setFull((f) => !f)} />
+      <div className="share-bar">
+        <span><IconScreenShare size={14} /> {label}</span>
+        <span className="share-ctrl">
+          <button type="button" onClick={() => setFull((f) => !f)} title={full ? 'Réduire' : 'Voir en grand'}>{full ? 'Réduire' : 'Agrandir'}</button>
+          <button type="button" onClick={() => setMini(true)} title="Masquer">Masquer</button>
+          {onStop && <button type="button" className="stop" onClick={onStop}>Arrêter</button>}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function linkify(text: string): ReactNode[] {
+  return text.split(/(https?:\/\/[^\s<>"']+)/gi).map((p, i) =>
+    /^https?:\/\//i.test(p) ? (
+      <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => e.stopPropagation()}>{p}</a>
+    ) : (
+      p
+    ),
+  );
+}
+
 const COLORS = ['#2f8bff', '#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#facc15', '#60a5fa'];
+
+/** Décompte exact et lisible : M:SS au-dessus d'une minute, sinon N s. */
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  if (total >= 3600) {
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    return m > 0 ? `${h} h ${m} min` : `${h} h`;
+  }
+  if (total >= 60) {
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+  return `${total} s`;
+}

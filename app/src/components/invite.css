@@ -1,0 +1,49 @@
+.invite-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #202c33;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.invite-link {
+  display: block;
+  font-size: 13px;
+  word-break: break-all;
+  color: #e9edef;
+}
+
+.invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.invite-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  background: #202c33;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.invite-qr img {
+  display: block;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.invite-qr-loading,
+.invite-qr-error {
+  margin: 0;
+  font-size: 13px;
+  color: #8696a0;
+  text-align: center;
+}
+
+.invite-qr-error {
+  color: #f15c6d;
+}
