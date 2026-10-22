@@ -22,14 +22,21 @@ export const THEMES: { id: string; name: string; accent: string; accentDark: str
   { id: 'light', name: 'Clair', accent: '#0a84ff', accentDark: '#2563eb', bubbleOut: '#bfe0ff', bg: '#eef2f6', head: '#ffffff', field: '#e4eaf0', bubbleIn: '#ffffff' },
 ];
 
+/* Fonds de conversation : motifs vectoriels légers (pas d'animation, pas de CPU).
+ * Chaque fond se règle en contraste avec le thème via --chat-wall. */
+const svg = (w: number, h: number, body: string) =>
+  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'%3E${body}%3C/svg%3E")`;
+
 export const WALLPAPERS: { id: string; name: string; css: string }[] = [
-  { id: 'none', name: 'Aucun', css: 'none' },
-  { id: 'dots', name: 'Points', css: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='2' cy='2' r='1.2' fill='%23ffffff' fill-opacity='0.05'/%3E%3C/svg%3E\")" },
-  { id: 'grid', name: 'Grille', css: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M0 0h28v28H0z' fill='none' stroke='%23ffffff' stroke-opacity='0.05'/%3E%3C/svg%3E\")" },
-  { id: 'waves', name: 'Vagues', css: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40'%3E%3Cpath d='M0 30c20-20 40-20 60 0s40 20 60 0' fill='none' stroke='%23ffffff' stroke-opacity='0.05' stroke-width='1.4'/%3E%3C/svg%3E\")" },
-  { id: 'bubbles', name: 'Bulles', css: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.05'%3E%3Ccircle cx='24' cy='30' r='14'/%3E%3Ccircle cx='90' cy='80' r='22'/%3E%3Ccircle cx='60' cy='110' r='8'/%3E%3C/g%3E%3C/svg%3E\")" },
-  { id: 'glow', name: 'Halo', css: 'radial-gradient(circle at 30% 20%, rgba(0,178,255,0.10), transparent 55%), radial-gradient(circle at 78% 75%, rgba(43,82,242,0.12), transparent 55%)' },
-  { id: 'aurora', name: 'Aurore', css: 'linear-gradient(135deg, rgba(0,178,255,0.10), transparent 40%), linear-gradient(315deg, rgba(167,139,250,0.12), transparent 45%)' },
+  { id: 'none', name: 'Uni', css: 'none' },
+  { id: 'dots', name: 'Points', css: svg(22, 22, "%3Ccircle cx='2' cy='2' r='1.3' fill='%23ffffff' fill-opacity='0.09'/%3E") },
+  { id: 'grid', name: 'Grille', css: svg(32, 32, "%3Cpath d='M0 0h32v32H0z' fill='none' stroke='%23ffffff' stroke-opacity='0.07'/%3E") },
+  { id: 'waves', name: 'Vagues', css: svg(96, 48, "%3Cpath d='M0 36c24-24 48-24 72 0s48 24 72 0' fill='none' stroke='%2300b2ff' stroke-opacity='0.13' stroke-width='1.5'/%3E") },
+  { id: 'bubbles', name: 'Bulles', css: svg(140, 140, "%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.08'%3E%3Ccircle cx='28' cy='34' r='16'/%3E%3Ccircle cx='104' cy='92' r='26'/%3E%3Ccircle cx='70' cy='128' r='9'/%3E%3C/g%3E") },
+  { id: 'stripes', name: 'Rayures', css: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 14px)' },
+  { id: 'nebula', name: 'Nébuleuse', css: 'radial-gradient(640px 380px at 15% 10%, rgba(0,178,255,0.22), transparent 70%), radial-gradient(560px 360px at 90% 90%, rgba(43,82,242,0.26), transparent 70%), radial-gradient(420px 300px at 60% 40%, rgba(167,139,250,0.14), transparent 70%)' },
+  { id: 'aurora', name: 'Aurore', css: 'linear-gradient(160deg, rgba(0,178,255,0.14) 0%, transparent 38%), linear-gradient(330deg, rgba(52,211,153,0.10) 0%, transparent 42%), linear-gradient(200deg, rgba(167,139,250,0.12) 0%, transparent 46%)' },
+  { id: 'glow', name: 'Halo', css: 'radial-gradient(circle at 30% 20%, rgba(0,178,255,0.12), transparent 55%), radial-gradient(circle at 78% 75%, rgba(43,82,242,0.14), transparent 55%)' },
 ];
 
 const KEY = 'seyra.prefs.v1';

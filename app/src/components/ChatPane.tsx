@@ -4,7 +4,7 @@ import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
 import { dayLabel, timeOf } from '../lib/format';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Reactions, ReplyTo, VoiceClip } from '../lib/types';
-import { IconArrowDown, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPhone, IconReply, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import { IconArrowDown, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPhone, IconPin, IconReply, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
@@ -38,6 +38,8 @@ type Props = {
   onShareScreen: () => void;
   sharing: boolean;
   shareStream: MediaStream | null;
+  pinned: string[];
+  onTogglePin: (msgId: string) => void;
 };
 
 const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🤔', '👍', '🙏', '🔥', '💙', '✨', '🎧', '📌', '✅'];
@@ -119,6 +121,21 @@ export default function ChatPane(p: Props) {
     () => p.messages.filter((m) => m.kind !== 'react' && m.kind !== 'filechunk' && (!m.expiresAt || m.expiresAt > now)),
     [p.messages, now],
   );
+
+  // Messages épinglés, avec un aperçu déchiffré (le serveur n'a que des identifiants).
+  const pinnedItems = useMemo(() => {
+    const out: { m: Msg; author: string; preview: string }[] = [];
+    for (const id of p.pinned) {
+      const m = p.messages.find((x) => x.id === id && !x.expiresAt);
+      if (!m) continue;
+      const env = p.open(m);
+      const text = env?.text || (env?.file ? env.file.name : env?.audio ? 'Message vocal' : '');
+      if (!text) continue;
+      out.push({ m, author: p.participants.find((x) => x.id === m.from)?.name || 'Invité', preview: text.length > 90 ? text.slice(0, 90) + '…' : text });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.pinned, p.messages, p.participants]);
 
   const timeline = useMemo(() => {
     const items = [
@@ -386,6 +403,25 @@ export default function ChatPane(p: Props) {
         </div>
       )}
 
+      {pinnedItems.length > 0 && (
+        <div className="pin-bar" role="region" aria-label="Messages épinglés">
+          <IconPin size={15} />
+          <button
+            type="button"
+            className="pin-text"
+            onClick={() => document.getElementById('m-' + pinnedItems[pinnedItems.length - 1].m.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            title="Aller au message épinglé"
+          >
+            <strong>{pinnedItems[pinnedItems.length - 1].author}</strong>
+            <span>{pinnedItems[pinnedItems.length - 1].preview}</span>
+          </button>
+          {pinnedItems.length > 1 && <em className="pin-count">+{pinnedItems.length - 1}</em>}
+          <button type="button" className="pin-x" title="Désépingler" aria-label="Désépingler" onClick={() => p.onTogglePin(pinnedItems[pinnedItems.length - 1].m.id)}>
+            <IconX size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="messages" ref={scroller} onScroll={onScroll}>
         <div className="e2e-note">
           <IconLock size={13} /> Chiffré sur cet appareil avec la clé dérivée du code. Le serveur ne voit rien.
@@ -431,7 +467,7 @@ export default function ChatPane(p: Props) {
           return (
             <div key={m.id} id={'m' + m.id} className={`msg-wrap ${flash === m.id ? 'flash' : ''}`}>
               {showDay && <div className="day-sep"><span>{dayLabel(item.ts)}</span></div>}
-              <div className={`msg ${mine ? 'out' : 'in'} ${grouped ? 'grouped' : ''}`}>
+              <div id={'m-' + m.id} className={`msg ${mine ? 'out' : 'in'} ${grouped ? 'grouped' : ''} ${p.pinned.includes(m.id) ? 'pinned' : ''}`}>
                 {!mine && !grouped && (
                   <span className="msg-author" style={{ color: colorOf(m.from) }}>{nameOf(m.from)}</span>
                 )}
@@ -455,6 +491,9 @@ export default function ChatPane(p: Props) {
                       file ? (file.kind === 'image' ? 'Photo' : file.kind === 'video' ? 'Vidéo' : file.name)
                         : audio ? 'Message vocal' : text || '')}>
                       <IconReply size={15} />
+                    </button>
+                    <button type="button" title={p.pinned.includes(m.id) ? 'Désépingler' : 'Épingler'} className={p.pinned.includes(m.id) ? 'on' : ''} onClick={() => { p.onTogglePin(m.id); setOpenActions(null); }}>
+                      <IconPin size={15} />
                     </button>
                     <button type="button" title="Ajouter une réaction" onClick={() => setReactPop((v) => (v === m.id ? null : m.id))}>
                       <IconSmile size={15} />
@@ -528,7 +567,7 @@ export default function ChatPane(p: Props) {
                   ) : m.kind === 'call' ? (
                     <span className="call-log"><IconPhone size={14} /> {text}</span>
                   ) : (
-                    <span className="bubble-text">{linkify(text)}</span>
+                    <span className="bubble-text">{linkify(text, p.participants.find((x) => x.id === p.selfId)?.name)}</span>
                   )}
 
                   {m.expiresAt && left > 0 && (
@@ -828,14 +867,19 @@ export function ShareTile({ stream, name, onStop, onClose, local }: {
   );
 }
 
-function linkify(text: string): ReactNode[] {
-  return text.split(/(https?:\/\/[^\s<>"']+)/gi).map((p, i) =>
-    /^https?:\/\//i.test(p) ? (
-      <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => e.stopPropagation()}>{p}</a>
-    ) : (
-      p
-    ),
-  );
+/** Liens cliquables et mentions @pseudo. Votre propre pseudo est mis en évidence. */
+function linkify(text: string, me?: string): ReactNode[] {
+  const meLow = (me || '').trim().toLowerCase();
+  return text.split(/(https?:\/\/[^\s<>"']+|@[^\s@<>"']{1,24})/gi).map((p, i) => {
+    if (/^https?:\/\//i.test(p)) {
+      return <a key={i} href={p} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => e.stopPropagation()}>{p}</a>;
+    }
+    if (p.startsWith('@') && p.length > 1) {
+      const mine = meLow && p.slice(1).toLowerCase() === meLow;
+      return <span key={i} className={mine ? 'mention mention-me' : 'mention'}>{p}</span>;
+    }
+    return p;
+  });
 }
 
 const COLORS = ['#2f8bff', '#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#facc15', '#60a5fa'];

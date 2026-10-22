@@ -16,6 +16,12 @@ import { applyPrefs, loadPrefs, savePrefs, WALLPAPERS, type Prefs } from './lib/
 import type { ChunkBody, Envelope, FileMeta, Msg, Notice, Participant, ReactBody, Reactions, ReplyTo, SessionInfo, VoiceClip } from './lib/types';
 import { voice, type VoiceState } from './lib/voice';
 
+/** Contrôle scellé : réaction ou épingle. Jamais visible du serveur. */
+type ControlBody = {
+  react?: { rid?: unknown; emoji?: unknown; on?: unknown };
+  pin?: { mid?: unknown; on?: unknown };
+};
+
 type Phase = 'landing' | 'session';
 
 /** Lit #join=CODE au chargement. Le fragment ne part jamais vers le serveur. */
@@ -89,6 +95,18 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+
+  // « ? » ouvre l'aide des raccourcis, sauf quand on écrit dans un champ.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+      if (e.key === '?' && !typing && !e.ctrlKey && !e.metaKey) setShowHelp((v) => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const [sessionWall, setSessionWall] = useState<string | null>(null);
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
   const [fileProgress, setFileProgress] = useState<Record<string, number>>({});
@@ -216,6 +234,15 @@ export default function App() {
     expTimers.current.set(m.id, t);
   }, [removeMsgs]);
 
+  /* Messages épinglés : liste ordonnée d'identifiants, mise à jour par contrôles scellés. */
+  const [pinned, setPinned] = useState<string[]>([]);
+  const applyPin = useCallback((mid: string, on: boolean) => {
+    setPinned((prev) => {
+      const rest = prev.filter((x) => x !== mid);
+      return on ? [...rest, mid] : rest;
+    });
+  }, []);
+
   const applyReact = useCallback((uid: string, rid: string, emoji: string, on: boolean) => {
     if (!emoji || !uid) return;
     setReactions((prev) => {
@@ -228,6 +255,14 @@ export default function App() {
       return next;
     });
   }, []);
+
+  /* Contrôles scellés (kind 'react') : réactions et épingles. */
+  const applyControl = useCallback((from: string, b: ControlBody) => {
+    if (b.react && typeof b.react.rid === 'string') {
+      applyReact(from, b.react.rid, String(b.react.emoji || ''), !!b.react.on);
+    }
+    if (b.pin && typeof b.pin.mid === 'string') applyPin(b.pin.mid, !!b.pin.on);
+  }, [applyReact, applyPin]);
 
   useEffect(() => {
     if (!window.location.hash.startsWith('#join=')) return;
@@ -249,6 +284,7 @@ export default function App() {
     setParticipants([]);
     setMessages([]);
     setReactions({});
+    setPinned([]);
     for (const t of expTimers.current.values()) window.clearTimeout(t);
     expTimers.current.clear();
     // Libère les aperçus de fichiers (blob URLs) et les tampons de morceaux.
@@ -312,10 +348,8 @@ export default function App() {
           for (const msg of all) {
             if (msg.kind === 'react') {
               if (k) {
-                const b = openBody(msg.cipher, msg.nonce, k) as { react?: { rid?: unknown; emoji?: unknown; on?: unknown } } | null;
-                if (b && b.react && typeof b.react.rid === 'string') {
-                  applyReact(msg.from, b.react.rid, String(b.react.emoji || ''), !!b.react.on);
-                }
+                const b = openBody(msg.cipher, msg.nonce, k) as ControlBody | null;
+                if (b) applyControl(msg.from, b);
               }
               continue;
             }
@@ -401,10 +435,8 @@ export default function App() {
           const k = keyRef.current;
           if (msg.kind === 'react') {
             if (k) {
-              const b = openBody(msg.cipher, msg.nonce, k) as { react?: { rid?: unknown; emoji?: unknown; on?: unknown } } | null;
-              if (b && b.react && typeof b.react.rid === 'string') {
-                applyReact(msg.from, b.react.rid, String(b.react.emoji || ''), !!b.react.on);
-              }
+              const b = openBody(msg.cipher, msg.nonce, k) as ControlBody | null;
+              if (b) applyControl(msg.from, b);
             }
             break;
           }
@@ -422,7 +454,16 @@ export default function App() {
           if (msg.expiresAt && msg.expiresAt <= Date.now()) break;
           setMessages((prev) => prev.some((x) => x.id === msg.id) ? prev : [...prev, msg]);
           scheduleExpiry(msg);
-          if (prefsRef.current.sound && msg.from !== stateRef.current.session?.selfId) beep(520, 0.12);
+          const fromOther = msg.from !== stateRef.current.session?.selfId;
+          if (fromOther && msg.kind === 'text' && k) {
+            // Mention : quelqu'un vous cite. Le son est dédié et ne dépend pas du réglage général.
+            const b = openBody(msg.cipher, msg.nonce, k) as { text?: string } | null;
+            const me = stateRef.current.session?.selfName;
+            if (b?.text && me && mentionsName(b.text, me)) beep(880, 0.16);
+            else if (prefsRef.current.sound) beep(520, 0.12);
+          } else if (prefsRef.current.sound && fromOther) {
+            beep(520, 0.12);
+          }
           break;
         }
 
@@ -633,6 +674,16 @@ export default function App() {
     return { text: typeof b.text === 'string' ? b.text : undefined, audio, file, reply, from };
   }, [key]);
 
+  const togglePin = useCallback((msgId: string) => {
+    const cur = stateRef.current;
+    const k = keyRef.current;
+    if (!cur.session || !k) return;
+    const on = !(cur.pinned || []).includes(msgId);
+    const { cipher, nonce } = sealBody({ pin: { mid: msgId, on } } as ControlBody, k);
+    applyPin(msgId, on);
+    rt.send({ t: 'msg', kind: 'react', cipher, nonce });
+  }, [applyPin]);
+
   const reactTo = useCallback((msgId: string, emoji: string) => {
     const cur = stateRef.current;
     const k = keyRef.current;
@@ -826,6 +877,8 @@ export default function App() {
           connection={connection}
           onHome={goHome}
           onShareScreen={() => voice.toggleScreen()}
+          pinned={pinned}
+          onTogglePin={togglePin}
           sharing={vstate.sharing}
           shareStream={vstate.screen}
         />
@@ -914,6 +967,19 @@ export default function App() {
         </Modal>
       )}
 
+      {showHelp && (
+        <Modal title="Raccourcis" onClose={() => setShowHelp(false)} width={420}>
+          <dl className="help-list">
+            <dt><kbd>Entrée</kbd></dt><dd>Envoyer le message</dd>
+            <dt><kbd>Maj</kbd> + <kbd>Entrée</kbd></dt><dd>Nouvelle ligne</dd>
+            <dt><kbd>Ctrl</kbd> + <kbd>F</kbd></dt><dd>Rechercher dans la session</dd>
+            <dt><kbd>Ctrl</kbd> + <kbd>V</kbd></dt><dd>Coller une image ou un fichier</dd>
+            <dt><kbd>Échap</kbd></dt><dd>Fermer une fenêtre, quitter le plein écran</dd>
+            <dt><kbd>?</kbd></dt><dd>Afficher cette aide</dd>
+          </dl>
+        </Modal>
+      )}
+
       {showSettings && (
         <Settings prefs={prefs} onChange={updatePrefs} sessionWall={sessionWall} onSetWall={setWall} onClose={() => setShowSettings(false)} />
       )}
@@ -921,6 +987,13 @@ export default function App() {
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
+}
+
+/** Vrai si le texte cite @nom (insensible à la casse, nom entier). */
+export function mentionsName(text: string, name: string): boolean {
+  const n = name.trim().toLowerCase();
+  if (!n) return false;
+  return text.toLowerCase().split(/\s+/).some((w) => w.replace(/[.,!?;:)]+$/, '') === '@' + n);
 }
 
 function beep(freq = 760, dur = 0.3) {

@@ -194,6 +194,13 @@ export const IconPencil = ({ size, className, strokeWidth = 1.7 }: P) => (
   </svg>
 );
 
+export const IconPin = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M9 3.5h6l-1 5.5 3 3v1.5H7V12l3-3-1-5.5Z" />
+    <path d="M12 13.5V21" />
+  </svg>
+);
+
 export const IconReply = ({ size, className, strokeWidth = 1.7 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <path d="M9.5 6.5 4.5 11.5l5 5" />

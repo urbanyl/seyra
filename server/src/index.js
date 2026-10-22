@@ -477,6 +477,12 @@ function serveStatic(req, res, url) {
   const isHome = p === '/' || p === '/index.html';
   const isApp = p === '/app' || p === '/app/';
   const isSecurity = p === '/securite' || p === '/securite/';
+  const isNews = p === '/nouveautes' || p === '/nouveautes/';
+  if (isNews) {
+    return stream(path.join(PUBLIC_DIR, 'index.html'), res, {
+      ...META, title: 'Nouveautés — Seyra 2.0', description: 'Ce qui change dans Seyra 2.0 : épingles, mentions, partage d’écran et nouvelle interface.', url: `${SITE}/nouveautes`,
+    });
+  }
   if (isHome || isApp || isSecurity || p === '/rejoindre') {
     const meta = isHome
       ? { ...META, url: `${SITE}/` }

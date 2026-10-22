@@ -70,6 +70,15 @@ export default function Home() {
         </nav>
       </header>
 
+      <a className="v2-announce" href="/nouveautes">
+        <span className="v2-badge">Seyra 2.0</span>
+        <span className="v2-text">
+          <strong>Nouvelle version disponible</strong>
+          Messages épinglés, mentions, partage d’écran plus souple, nouveaux fonds et une interface refaite.
+        </span>
+        <span className="v2-go">Découvrir →</span>
+      </a>
+
       <section className="home-hero">
         <div className="hero-copy">
           <p className="eyebrow">Messagerie privée, sans compte</p>
