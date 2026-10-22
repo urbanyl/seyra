@@ -2,14 +2,27 @@ import { SeyraMark } from './Icons';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.2',
+    date: 'octobre 2026',
+    title: 'Caméra, édition et animateurs',
+    items: [
+      'Caméra pendant un appel, jusqu’à 4 personnes, en 640 × 360. Bouton dédié dans la bulle d’appel.',
+      'Édition de vos messages texte, avec la mention « modifié ». Seul l’auteur peut modifier.',
+      'Accusés de lecture, choisis à la création de la session. Invisibles si l’option est désactivée.',
+      'Animateurs : le propriétaire en désigne, et ils peuvent retirer un invité.',
+      'Recherche filtrable par expéditeur et par type : photos, vidéos, fichiers, vocaux, sondages.',
+      'Nouvelle page d’accueil et nouvelle page de nouveautés.',
+    ],
+  },
+  {
     version: '2.1.1',
     date: 'octobre 2026',
     title: 'Corrections',
     items: [
-      'Désépingler fonctionne : un second clic retire bien le message des épingles, chez tous les participants.',
-      'Mentions avec un pseudo à espaces (par exemple « @Invité 1 ») sont reconnues en entier.',
+      'Désépingler fonctionne : un second clic retire le message des épingles, chez tous les participants.',
+      'Mentions avec un pseudo à espaces (« @Invité 1 ») sont reconnues en entier.',
       'En-tête de session lisible sur téléphone étroit.',
-      'Déploiement : types et tests passent avant chaque mise en ligne, et le site ne répond qu’une fois le serveur prêt.',
+      'Déploiement : types et tests passent avant chaque mise en ligne.',
     ],
   },
   {
@@ -17,9 +30,8 @@ const RELEASES: { version: string; date: string; title: string; items: string[] 
     date: 'octobre 2026',
     title: 'Sondages et fil de discussion',
     items: [
-      'Sondages : tapez /sondage Question | option | option. Le vote est chiffré et le décompte est visible de tous.',
+      'Sondages : tapez /sondage Question | option | option. Le vote est chiffré, le décompte visible de tous.',
       'Fil de discussion : un message qui a des réponses affiche un bouton « Voir le fil ».',
-      'Tests automatisés (Vitest) sur le pseudo, les mentions, les codes et les sondages.',
     ],
   },
   {
@@ -27,13 +39,12 @@ const RELEASES: { version: string; date: string; title: string; items: string[] 
     date: 'octobre 2026',
     title: 'Seyra 2.0',
     items: [
-      'Messages épinglés : un message important reste visible en haut de la session, pour tous.',
-      'Mentions @pseudo : surbrillance et son dédié quand on vous cite.',
-      'Partage d’écran refait : fermer, masquer, plein écran et rouvrir, avec le son coupé quand c’est fermé.',
+      'Messages épinglés, visibles en haut de la session pour tous.',
+      'Mentions @pseudo, avec surbrillance et son dédié.',
+      'Partage d’écran refait : fermer, masquer, plein écran et rouvrir, son coupé quand c’est fermé.',
       'Fonds de conversation redessinés, mode clair lisible, réglages regroupés.',
-      'Panneau de session : durée, messages, fichiers et lien d’invitation en un geste.',
+      'Panneau de session : durée, messages, fichiers et lien d’invitation.',
       'Recherche avec Ctrl+F, aide des raccourcis avec ?.',
-      'Sessions récentes sur cet appareil (opt-in, rien n’est envoyé).',
     ],
   },
   {
@@ -62,7 +73,7 @@ const RELEASES: { version: string; date: string; title: string; items: string[] 
 
 export default function Changelog() {
   return (
-    <div className="changelog">
+    <div className="changelog home">
       <header className="home-nav">
         <a className="home-brand" href="/">
           <SeyraMark size={32} />
@@ -75,23 +86,27 @@ export default function Changelog() {
       </header>
 
       <main className="cl-main">
-        <p className="eyebrow">Nouveautés</p>
+        <p className="section-kicker">Nouveautés</p>
         <h1>Ce qui change</h1>
-        <p className="cl-lede">Chaque version est testée en production avant publication.</p>
+        <p className="cl-lede">Chaque version est testée avant publication. La plus récente est en haut.</p>
 
-        {RELEASES.map((r, i) => (
-          <section key={r.version} className={`cl-release ${i === 0 ? 'latest' : ''}`}>
-            <div className="cl-meta">
-              <span className="cl-version">{r.version}</span>
-              <span className="cl-date">{r.date}</span>
-              {i === 0 && <span className="cl-new">Dernière</span>}
-            </div>
-            <h2>{r.title}</h2>
-            <ul>
-              {r.items.map((it) => <li key={it}>{it}</li>)}
-            </ul>
-          </section>
-        ))}
+        <div className="cl-timeline">
+          {RELEASES.map((r, i) => (
+            <section key={r.version} className={`cl-release ${i === 0 ? 'latest' : ''}`}>
+              <div className="cl-card">
+                <div className="cl-meta">
+                  <span className="cl-version">{r.version}</span>
+                  <span>{r.date}</span>
+                  {i === 0 && <span className="cl-new">Dernière</span>}
+                </div>
+                <h2>{r.title}</h2>
+                <ul>
+                  {r.items.map((it) => <li key={it}>{it}</li>)}
+                </ul>
+              </div>
+            </section>
+          ))}
+        </div>
 
         <a className="btn-primary cl-cta" href="/app">Ouvrir une session</a>
       </main>

@@ -4,7 +4,7 @@ import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
 import { dayLabel, mentionPattern, timeOf } from '../lib/format';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
-import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPencil, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton, Modal } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
@@ -42,7 +42,33 @@ type Props = {
   onTogglePin: (msgId: string) => void;
   votes: Votes;
   onVote: (pollId: string, opt: number) => void;
+  onEdit: (m: Msg, text: string) => void;
+  receipts: boolean;
+  readers: Record<string, number>;
 };
+
+/** Édition d'un message texte : seul l'auteur y accède. */
+function EditModal({ initial, onClose, onSave }: { initial: string; onClose: () => void; onSave: (text: string) => void }) {
+  const [value, setValue] = useState(initial);
+  const clean = value.trim();
+  return (
+    <Modal title="Modifier le message" onClose={onClose} width={460}>
+      <textarea
+        className="edit-area"
+        autoFocus
+        value={value}
+        maxLength={2000}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && clean && clean !== initial) { e.preventDefault(); onSave(clean); } }}
+      />
+      <p className="edit-hint">Les autres participants verront le texte modifié, avec la mention « modifié ». L'original n'est pas conservé.</p>
+      <div className="modal-actions">
+        <button className="btn ghost" onClick={onClose}>Annuler</button>
+        <button className="btn primary" disabled={!clean || clean === initial} onClick={() => onSave(clean)}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
+}
 
 /** Sondage à choix unique : barres proportionnelles, clic = vote (re-clic = retrait). */
 function PollCard({ poll, votes, selfId, nameOf, onVote }: {
@@ -71,6 +97,24 @@ function PollCard({ poll, votes, selfId, nameOf, onVote }: {
 }
 
 const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🤔', '👍', '🙏', '🔥', '💙', '✨', '🎧', '📌', '✅'];
+
+type TypeFilter = 'text' | 'photo' | 'video' | 'file' | 'voice' | 'poll';
+const TYPE_LABELS: Record<TypeFilter, string> = {
+  text: 'Texte', photo: 'Photos', video: 'Vidéos', file: 'Fichiers', voice: 'Vocaux', poll: 'Sondages',
+};
+
+/** Vrai si le message correspond au type demandé (contenu déchiffré localement). */
+function matchesType(t: TypeFilter, m: Msg, e: Envelope | null): boolean {
+  if (m.kind === 'react' || m.kind === 'filechunk' || m.kind === 'call') return false;
+  switch (t) {
+    case 'text': return !!e?.text && !e.file && !e.audio && !e.poll;
+    case 'photo': return e?.file?.kind === 'image';
+    case 'video': return e?.file?.kind === 'video';
+    case 'file': return !!e?.file && e.file.kind === 'file';
+    case 'voice': return !!e?.audio;
+    case 'poll': return !!e?.poll;
+  }
+}
 const REACTS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅'];
 const TTL_OPTIONS: [number | null, string, string][] = [
   [null, 'Permanent', ''],
@@ -86,6 +130,9 @@ export default function ChatPane(p: Props) {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [editing, setEditing] = useState<{ m: Msg; text: string } | null>(null);
+  const [fromFilter, setFromFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter | ''>('');
   const [reply, setReply] = useState<ReplyTo | null>(null);
   const [reactPop, setReactPop] = useState<string | null>(null);
   const [delArm, setDelArm] = useState<string | null>(null);
@@ -189,15 +236,20 @@ export default function ChatPane(p: Props) {
     return items;
   }, [visible, p.notices]);
 
+  const filtering = !!(query.trim() || fromFilter || typeFilter);
   const shown = useMemo(() => {
+    if (!filtering) return timeline;
     const needle = query.trim().toLowerCase();
-    if (!needle) return timeline;
     return timeline.filter((item) => {
-      if (item.kind === 'sys') return item.notice.text.toLowerCase().includes(needle);
+      if (item.kind === 'sys') return !needle && !fromFilter && !typeFilter && item.notice.text.toLowerCase().includes(needle);
       const e = p.open(item.msg);
+      if (fromFilter && item.msg.from !== fromFilter) return false;
+      if (typeFilter && !matchesType(typeFilter, item.msg, e)) return false;
+      if (!needle) return true;
       return `${e?.text || ''} ${e?.file?.name || ''}`.toLowerCase().includes(needle);
     });
-  }, [timeline, query, p.open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeline, query, fromFilter, typeFilter, filtering, p.open]);
 
   useLayoutEffect(() => {
     const el = scroller.current;
@@ -431,9 +483,21 @@ export default function ChatPane(p: Props) {
 
       {searchOpen && (
         <div className="search chat-search">
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher dans la session" />
-          {query && <em>{shown.length} résultat(s)</em>}
-          <button onClick={() => { setSearchOpen(false); setQuery(''); }}><IconX size={15} /></button>
+          <div className="search-row">
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher dans la session" />
+            <button className="search-close" aria-label="Fermer la recherche" onClick={() => { setSearchOpen(false); setQuery(''); setFromFilter(''); setTypeFilter(''); }}><IconX size={15} /></button>
+          </div>
+          <div className="search-filters">
+            <select value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} aria-label="Filtrer par expéditeur">
+              <option value="">Tous les expéditeurs</option>
+              {p.participants.map((x) => <option key={x.id} value={x.id}>{x.id === p.selfId ? 'Vous' : x.name}</option>)}
+            </select>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as TypeFilter | '')} aria-label="Filtrer par type">
+              <option value="">Tous les types</option>
+              {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+            </select>
+          </div>
+          {filtering && <em className="search-count">{shown.length} résultat{shown.length > 1 ? 's' : ''}</em>}
         </div>
       )}
 
@@ -535,6 +599,11 @@ export default function ChatPane(p: Props) {
                         <IconThread size={15} />
                       </button>
                     )}
+                    {mine && text !== null && !audio && !file && !env?.poll && (
+                      <button type="button" title="Modifier" onClick={() => { setEditing({ m, text }); setOpenActions(null); }}>
+                        <IconPencil size={15} />
+                      </button>
+                    )}
                     <button type="button" title="Répondre" onClick={() => startReply(m,
                       file ? (file.kind === 'image' ? 'Photo' : file.kind === 'video' ? 'Vidéo' : file.name)
                         : audio ? 'Message vocal' : text || '')}>
@@ -629,7 +698,17 @@ export default function ChatPane(p: Props) {
                   {m.expiresAt && left > 0 && (
                     <span className="ttl-badge" title="Message temporaire"><IconTimer size={11} /> {ttlLabel}</span>
                   )}
+                  {env?.edited && <em className="edited">modifié</em>}
                   <time>{timeOf(m.ts)}</time>
+                  {mine && p.receipts && (() => {
+                    const seenBy = Object.keys(p.readers).filter((uid) => uid !== p.selfId && p.readers[uid] >= m.ts);
+                    const names = seenBy.map((uid) => byId[uid]?.name || 'Invité');
+                    return (
+                      <span className={`read-state ${seenBy.length ? 'seen' : ''}`} title={names.length ? 'Lu par ' + names.join(', ') : 'Pas encore lu'}>
+                        {seenBy.length ? `Vu · ${seenBy.length}` : 'Envoyé'}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 {chips && (
@@ -805,6 +884,14 @@ export default function ChatPane(p: Props) {
           <IconArrowDown size={unread ? 16 : 18} />
           {unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
         </button>
+      )}
+
+      {editing && (
+        <EditModal
+          initial={editing.text}
+          onClose={() => setEditing(null)}
+          onSave={(t) => { p.onEdit(editing.m, t); setEditing(null); }}
+        />
       )}
 
       {rootMsg && (

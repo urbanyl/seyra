@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { formatCodeInput } from '../lib/format';
-import { IconBack, IconLock, IconPlus, IconUsers, SeyraMark } from './Icons';
+import { IconBack, IconCheck, IconLock, IconPlus, IconUsers, SeyraMark } from './Icons';
 
 export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo, onPseudo, prefillCode }: {
-  onCreate: (opts: { password?: string; history?: boolean }) => void;
+  onCreate: (opts: { password?: string; history?: boolean; receipts?: boolean }) => void;
   onJoin: (code: string, password?: string) => void;
   busy: boolean;
   error: string;
@@ -17,6 +17,7 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
   const [password, setPassword] = useState('');
   const [usePassword, setUsePassword] = useState(false);
   const [history, setHistory] = useState(false);
+  const [receipts, setReceipts] = useState(false);
 
   return (
     <div className="landing">
@@ -73,8 +74,18 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
                 ? 'Les personnes qui rejoignent verront les messages déjà envoyés.'
                 : 'Par défaut, un nouvel arrivant ne voit rien de ce qui a été dit avant son arrivée.'}
             </p>
+            <label className={`pwd-toggle ${receipts ? 'on' : ''}`}>
+              <input type="checkbox" checked={receipts} onChange={(e) => setReceipts(e.target.checked)} />
+              <IconCheck size={15} />
+              <span>Accusés de lecture</span>
+            </label>
+            <p className="field-hint opt-hint">
+              {receipts
+                ? 'Chaque participant voit qui a lu les messages. Ce choix est visible de tous.'
+                : 'Désactivés : personne ne voit qui a lu quoi.'}
+            </p>
             <div className="landing-actions">
-              <button className="choice" onClick={() => onCreate({ password: usePassword ? password : undefined, history })} disabled={busy || (usePassword && password.length < 4)}>
+              <button className="choice" onClick={() => onCreate({ password: usePassword ? password : undefined, history, receipts })} disabled={busy || (usePassword && password.length < 4)}>
                 <span className="choice-icon"><IconPlus size={20} /></span>
                 <span className="choice-text">
                   <strong>Ouvrir une session</strong>

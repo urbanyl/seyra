@@ -87,6 +87,8 @@ function createRoom(id) {
     ownerId: null,
     pwd: false, // la session annonce (sans le connaître) qu'un mot de passe est requis
     history: false, // par défaut, un nouvel arrivant ne voit pas ce qui a été dit avant
+    receipts: false, // accusés de lecture : choisis à la création, visibles de tous
+    mods: new Set(), // animateurs (désignés par le propriétaire)
     wall: null, // fond de conversation partagé (identifiant d'un motif prédéfini)
     banned: new Set(), // IP bannies de cette session
     clients: new Map(), // clientId -> participant
@@ -151,6 +153,9 @@ function leaveRoom(p, reason = 'left') {
   if (!room) return;
   room.clients.delete(p.id);
   broadcast(room, p.id, { t: 'peer:left', reason, participant: { id: p.id, name: p.name } });
+  room.mods.delete(p.id);
+  p.camId = null;
+  p.screenId = null;
   if (p.voice) {
     p.voice = false;
     broadcast(room, p.id, { t: 'voice:peer-leave', room: room.id, userId: p.id });
@@ -159,7 +164,7 @@ function leaveRoom(p, reason = 'left') {
   if (room.clients.size === 0) room.emptySince = Date.now();
 }
 
-function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory) {
+function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts) {
   if (typeof roomId !== 'string' || !/^[a-f0-9]{24,64}$/.test(roomId)) {
     return send(ws, { t: 'session:error', code: 'bad-code', message: 'Code de session invalide.' });
   }
@@ -172,6 +177,7 @@ function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory) {
     room.ownerId = p.id;
     room.pwd = !!wantPwd;
     room.history = !!wantHistory;
+    room.receipts = !!wantReceipts;
   }
   // La session exige un mot de passe : le serveur ne peut pas le vérifier (il ne
   // le connaît pas), il se contente de dire au client qu'il doit en fournir un.
@@ -203,6 +209,8 @@ function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory) {
     // (pour qu'il retrouve son fil après une reconnexion). Les autres arrivent vierges.
     messages: room.history || p.id === room.ownerId ? room.messages : [],
     createdAt: room.createdAt,
+    receipts: room.receipts,
+    mods: [...room.mods],
     wall: room.wall,
   });
   broadcast(room, p.id, { t: 'peer:joined', participant: { id: p.id, name: p.name, color: p.color } });
@@ -234,7 +242,7 @@ wss.on('connection', (ws, req) => {
     if (!m || typeof m.t !== 'string') return;
 
     if (m.t === 'open' || m.t === 'join') {
-      return join(ws, p, m.roomId, m.t, m.name, !!m.pwd, !!m.hist);
+      return join(ws, p, m.roomId, m.t, m.name, !!m.pwd, !!m.hist, !!m.receipts);
     }
     if (!p.room) return;
 
@@ -264,7 +272,7 @@ wss.on('connection', (ws, req) => {
       const nonce = String(m.nonce || '');
       const rawKind = m.kind;
       const kind = rawKind === 'call' || rawKind === 'react' || rawKind === 'voice'
-        || rawKind === 'file' || rawKind === 'filechunk' ? rawKind : 'text';
+        || rawKind === 'file' || rawKind === 'filechunk' || rawKind === 'ack' ? rawKind : 'text';
       const limit = kind === 'voice' ? MAX_CIPHER_VOICE : kind === 'filechunk' ? MAX_CIPHER_CHUNK : MAX_CIPHER_TEXT;
       if (!cipher || cipher.length > limit || !nonce) return;
 
@@ -275,6 +283,14 @@ wss.on('connection', (ws, req) => {
       // Les morceaux ont leur propre budget : un fichier en envoie plusieurs d'un coup.
       if (kind === 'filechunk') { if (--p.chunkBudget < 0) return; }
       else if (--p.budget < 0) return;
+
+      // Accusé de lecture : relayé à la volée, jamais stocké (il n'encombre pas l'historique).
+      if (kind === 'ack') {
+        if (!room.receipts) return;
+        const ackRaw = JSON.stringify({ t: 'msg', msg: { id: crypto.randomUUID(), from: p.id, cipher, nonce, kind, ts: now } });
+        for (const other of room.clients.values()) if (other.id !== p.id && other.ws.readyState === 1) other.ws.send(ackRaw);
+        return;
+      }
 
       // Mémoire bornée par session : un fichier peut peser lourd, on refuse au plafond.
       if (room.bytes + cipher.length > MAX_ROOM_BYTES) return;
@@ -331,10 +347,24 @@ wss.on('connection', (ws, req) => {
       return leaveRoom(p);
     }
 
-    if (m.t === 'kick') {
+    // Animateurs : seul le propriétaire les désigne ou les retire.
+    if (m.t === 'role') {
       if (p.id !== room.ownerId) return;
+      const targetId = String(m.id || '');
+      if (!room.clients.has(targetId) || targetId === room.ownerId) return;
+      if (m.on) room.mods.add(targetId); else room.mods.delete(targetId);
+      return broadcast(room, null, { t: 'role:set', id: targetId, on: !!m.on });
+    }
+
+    if (m.t === 'kick') {
+      // Le propriétaire retire qui il veut ; un animateur retire seulement un invité.
+      const isOwner = p.id === room.ownerId;
+      const isMod = room.mods.has(p.id);
+      if (!isOwner && !isMod) return;
       const target = room.clients.get(String(m.id || ''));
       if (!target || target.id === p.id) return;
+      if (!isOwner && (target.id === room.ownerId || room.mods.has(target.id))) return;
+      room.mods.delete(target.id);
       room.banned.add(target.ip);
       send(target.ws, { t: 'session:kicked' });
       leaveRoom(target, 'kicked');
@@ -349,12 +379,12 @@ wss.on('connection', (ws, req) => {
       }
       const peers = [...room.clients.values()]
         .filter((o) => o.voice && o.id !== p.id)
-        .map((o) => ({ id: o.id, name: o.name, muted: !!o.muted, deaf: !!o.deaf }));
+        .map((o) => ({ id: o.id, name: o.name, muted: !!o.muted, deaf: !!o.deaf, camId: o.camId || null, screenId: o.screenId || null }));
       p.voice = true;
       p.muted = !!m.muted;
       p.deaf = !!m.deaf;
       send(ws, { t: 'voice:peers', room: room.id, peers });
-      broadcast(room, p.id, { t: 'voice:peer-join', room: room.id, userId: p.id, name: p.name, muted: p.muted, deaf: p.deaf });
+      broadcast(room, p.id, { t: 'voice:peer-join', room: room.id, userId: p.id, name: p.name, muted: p.muted, deaf: p.deaf, camId: p.camId || null, screenId: p.screenId || null });
       return;
     }
     if (m.t === 'voice:leave') {
@@ -368,7 +398,11 @@ wss.on('connection', (ws, req) => {
       if (!p.voice) return;
       p.muted = !!m.muted;
       p.deaf = !!m.deaf;
-      return broadcast(room, p.id, { t: 'voice:state', userId: p.id, muted: p.muted, deaf: p.deaf });
+      // Identifiants de flux vidéo (caméra, écran) : le récepteur sait quel flux est lequel.
+      const id = (v) => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : null);
+      p.camId = id(m.camId);
+      p.screenId = id(m.screenId);
+      return broadcast(room, p.id, { t: 'voice:state', userId: p.id, muted: p.muted, deaf: p.deaf, camId: p.camId, screenId: p.screenId });
     }
     if (m.t === 'voice:signal') {
       const target = room.clients.get(String(m.to));
@@ -445,7 +479,7 @@ const SEC_HEADERS = {
   'referrer-policy': 'no-referrer',
   'cross-origin-opener-policy': 'same-origin',
   'cross-origin-resource-policy': 'same-origin',
-  'permissions-policy': 'camera=(), geolocation=(), microphone=(self), display-capture=(self), interest-cohort=()',
+  'permissions-policy': 'camera=(self), geolocation=(), microphone=(self), display-capture=(self), interest-cohort=()',
   'x-permitted-cross-domain-policies': 'none',
 };
 

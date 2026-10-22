@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceState } from '../lib/voice';
-import { IconChevron, IconHeadset, IconMic, IconMicOff, IconPhoneOff } from './Icons';
+import { IconCamera, IconChevron, IconHeadset, IconMic, IconMicOff, IconPhoneOff } from './Icons';
 import { Avatar } from './ui';
 
 const POS_KEY = 'seyra.voiceDock.pos';
 
-export default function VoiceDock({ state, selfName, nameOf, onMute, onDeafen, onLeave }: {
+export default function VoiceDock({ state, selfName, nameOf, onMute, onDeafen, onCamera, onLeave }: {
+  onCamera: () => void;
   state: VoiceState;
   selfName: string;
   nameOf: (id: string) => string;
@@ -138,6 +139,15 @@ export default function VoiceDock({ state, selfName, nameOf, onMute, onDeafen, o
         >
           <IconHeadset size={20} />
           <span>{state.deafened ? 'Casque coupé' : 'Casque'}</span>
+        </button>
+        <button
+          className={`vbtn ${state.camera ? 'cam-on' : 'off'}`}
+          onClick={onCamera}
+          aria-pressed={state.camera}
+          title={state.camera ? 'Couper la caméra' : 'Activer la caméra'}
+        >
+          <IconCamera size={20} />
+          <span>{state.camera ? 'Caméra' : 'Caméra coupée'}</span>
         </button>
         <button className="hangup" onClick={onLeave} title="Quitter l'appel">
           <IconPhoneOff size={20} />

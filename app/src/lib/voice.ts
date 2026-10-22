@@ -23,10 +23,15 @@ type Peer = {
   analyser: AnalyserNode | null;
   screen: MediaStream | null;
   screenMuted: boolean;
+  cam: MediaStream | null;
+  videos: { stream: MediaStream; sid: string; track: MediaStreamTrack }[];
+  stateKnown: boolean;
+  camKey: string | null;
+  screenKey: string | null;
   disconnectTimer?: number;
 };
 
-export type VoicePeer = { id: string; name: string; muted: boolean; deaf: boolean; speaking: boolean; connected: boolean; screen: MediaStream | null; screenMuted: boolean };
+export type VoicePeer = { id: string; name: string; muted: boolean; deaf: boolean; speaking: boolean; connected: boolean; screen: MediaStream | null; screenMuted: boolean; cam: MediaStream | null };
 
 export type VoiceState = {
   active: boolean;
@@ -36,12 +41,14 @@ export type VoiceState = {
   selfSpeaking: boolean;
   sharing: boolean;
   screen: MediaStream | null;
+  camera: boolean;
+  cam: MediaStream | null;
   error: string | null;
 };
 
 const DEFAULT_ICE: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }];
 
-const EMPTY: VoiceState = { active: false, muted: false, deafened: false, peers: [], selfSpeaking: false, sharing: false, screen: null, error: null };
+const EMPTY: VoiceState = { active: false, muted: false, deafened: false, peers: [], selfSpeaking: false, sharing: false, screen: null, camera: false, cam: null, error: null };
 
 class VoiceManager {
   state: VoiceState = { ...EMPTY };
@@ -56,7 +63,7 @@ class VoiceManager {
   private micBeforeDeaf = true;
   private connectedPeers = new Set<string>();
   private screen: MediaStream | null = null;
-  private screenSender: RTCRtpSender | null = null;
+  private cam: MediaStream | null = null;
 
   setMe(id: string) { this.uid = id; }
   setIce(servers: RTCIceServer[] | undefined) { if (servers?.length) this.ice = servers; }
@@ -68,9 +75,10 @@ class VoiceManager {
     this.state = {
       ...this.state,
       screen: this.screen,
+      cam: this.cam,
       peers: [...this.peers.values()].map((p) => ({
         id: p.id, name: p.name, muted: p.muted, deaf: p.deaf, speaking: p.speaking,
-        connected: this.connectedPeers.has(p.id), screen: p.screen, screenMuted: p.screenMuted,
+        connected: this.connectedPeers.has(p.id), screen: p.screen, screenMuted: p.screenMuted, cam: p.cam,
       })),
     };
     for (const fn of this.listeners) fn(this.state);
@@ -78,8 +86,42 @@ class VoiceManager {
 
   private send(obj: Record<string, unknown>) { rt.send(obj); }
 
+  /** Identifiant de flux nettoyé (le serveur n'accepte que [A-Za-z0-9_-]). */
+  private clean(id: string | undefined | null) { return id ? id.replace(/[^A-Za-z0-9_-]/g, '') || null : null; }
+
   private sendState() {
-    this.send({ t: 'voice:state', muted: this.state.muted, deaf: this.state.deafened });
+    this.send({
+      t: 'voice:state', muted: this.state.muted, deaf: this.state.deafened,
+      camId: this.clean(this.cam?.id), screenId: this.clean(this.screen?.id),
+    });
+  }
+
+  /** Associe les flux vidéo d'un pair à leur rôle (caméra ou écran) selon les identifiants annoncés. */
+  private resolveVideos(p: Peer) {
+    let cam: MediaStream | null = null;
+    let screen: MediaStream | null = null;
+    for (const v of p.videos) {
+      if (v.track.readyState !== 'live') continue;
+      if (p.stateKnown) {
+        if (p.camKey && v.sid === p.camKey) cam = v.stream;
+        else if (p.screenKey && v.sid === p.screenKey) screen = v.stream;
+      } else {
+        // Avant la première annonce d'état, on range par défaut dans l'écran (comportement précédent).
+        screen = v.stream;
+      }
+    }
+    p.cam = cam;
+    p.screen = screen;
+  }
+
+  /** Enregistre les identifiants de flux annoncés par un pair. */
+  private setKeys(id: string, camId?: string | null, screenId?: string | null) {
+    const p = this.peers.get(id);
+    if (!p) return;
+    p.stateKnown = true;
+    p.camKey = this.clean(camId) ?? null;
+    p.screenKey = this.clean(screenId) ?? null;
+    this.resolveVideos(p);
   }
 
   /** Petit signal sonore généré localement : [fréquence Hz, début s, durée s]. */
@@ -130,6 +172,7 @@ class VoiceManager {
   leave() {
     if (this.state.active) this.playLeave();
     this.stopScreen(false);
+    this.stopCam();
     for (const id of [...this.peers.keys()]) this.removePeer(id);
     this.send({ t: 'voice:leave' });
     this.local?.getTracks().forEach((t) => t.stop());
@@ -185,29 +228,28 @@ class VoiceManager {
     this.state = { ...this.state, muted };
   }
 
-  /** Partagé entre tous les pairs : la piste vidéo (et audio) d'écran. */
-  private applyScreenToPeers() {
-    for (const p of this.peers.values()) {
-      const video = this.screen?.getVideoTracks()[0] || null;
-      const audio = this.screen?.getAudioTracks()[0] || null;
-      this.syncSender(p, video, '__screen');
-      this.syncSender(p, audio, '__screenAudio');
-    }
-  }
-
-  private syncSender(p: Peer, track: MediaStreamTrack | null, flag: string) {
+  /** Piste d'un flux (écran ou caméra) envoyée à chaque pair : remplacée ou retirée au besoin. */
+  private syncSender(p: Peer, track: MediaStreamTrack | null, flag: string, stream: MediaStream | null) {
     try {
       const existing = p.pc.getSenders().find((s) => (s as any)[flag]);
-      if (track) {
+      if (track && stream) {
         if (existing) existing.replaceTrack(track);
         else {
-          const sender = p.pc.addTrack(track, this.screen!);
+          const sender = p.pc.addTrack(track, stream);
           (sender as any)[flag] = true;
         }
       } else if (existing) {
         p.pc.removeTrack(existing);
       }
     } catch { /* renegotiation suivante */ }
+  }
+
+  /** Partagé entre tous les pairs : la piste vidéo (et audio) d'écran. */
+  private applyScreenToPeers() {
+    for (const p of this.peers.values()) {
+      this.syncSender(p, this.screen?.getVideoTracks()[0] || null, '__screen', this.screen);
+      this.syncSender(p, this.screen?.getAudioTracks()[0] || null, '__screenAudio', this.screen);
+    }
   }
 
   async shareScreen() {
@@ -222,6 +264,7 @@ class VoiceManager {
       const track = stream.getVideoTracks()[0];
       track.addEventListener('ended', () => this.stopScreen(true));
       this.emit({ sharing: true });
+      this.sendState();
     } catch {
       /* partage refusé ou annulé */
     }
@@ -237,7 +280,57 @@ class VoiceManager {
       }
     }
     this.emit({ sharing: false });
-    void signal;
+    if (signal) this.sendState();
+  }
+
+  /* ---------- caméra ---------- */
+
+  /** Au-delà de ce nombre de participants, la vidéo caméra est refusée (maillage). */
+  static readonly MAX_CAM = 4;
+
+  private applyCamToPeers() {
+    for (const p of this.peers.values()) {
+      this.syncSender(p, this.cam?.getVideoTracks()[0] || null, '__cam', this.cam);
+    }
+  }
+
+  async startCam() {
+    if (!this.state.active || this.cam) return;
+    if (this.peers.size + 1 > VoiceManager.MAX_CAM) {
+      this.emit({ error: `Vidéo disponible jusqu'à ${VoiceManager.MAX_CAM} personnes dans l'appel.` });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 15, max: 20 } },
+        audio: false,
+      });
+      this.cam = stream;
+      this.applyCamToPeers();
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => this.stopCam());
+      this.emit({ camera: true, error: null });
+      this.sendState();
+    } catch {
+      this.emit({ error: 'Caméra refusée ou indisponible.' });
+    }
+  }
+
+  stopCam() {
+    if (!this.cam) return;
+    this.cam.getTracks().forEach((t) => t.stop());
+    this.cam = null;
+    for (const p of this.peers.values()) {
+      for (const s of p.pc.getSenders()) {
+        if ((s as any).__cam) { try { p.pc.removeTrack(s); } catch {} }
+      }
+    }
+    this.emit({ camera: false });
+    this.sendState();
+  }
+
+  toggleCam() {
+    if (this.cam) this.stopCam();
+    else void this.startCam();
   }
 
   toggleScreen() {
@@ -371,6 +464,11 @@ class VoiceManager {
       analyser: null,
       screen: null,
       screenMuted: false,
+      cam: null,
+      videos: [],
+      stateKnown: false,
+      camKey: null,
+      screenKey: null,
     };
     this.peers.set(id, peer);
 
@@ -378,6 +476,10 @@ class VoiceManager {
       for (const track of this.local.getAudioTracks()) pc.addTrack(track, this.local);
     } else {
       pc.addTransceiver('audio', { direction: 'recvonly' });
+    }
+    if (this.cam && this.cam.getVideoTracks()[0]) {
+      const ct = pc.addTrack(this.cam.getVideoTracks()[0], this.cam);
+      (ct as any).__cam = true;
     }
     if (this.screen) {
       const vt = pc.addTrack(this.screen.getVideoTracks()[0], this.screen);
@@ -407,12 +509,18 @@ class VoiceManager {
 
     pc.ontrack = (e) => {
       if (e.track.kind === 'video') {
-        const stream = new MediaStream([e.track]);
-        peer.screen = stream;
-        e.track.addEventListener('ended', () => {
-          peer.screen = null;
+        // La piste vidéo garde l'identifiant du flux d'origine : caméra ou écran, selon l'annonce.
+        const sid = this.clean(e.streams[0]?.id) || '';
+        const entry = { stream: new MediaStream([e.track]), sid, track: e.track };
+        peer.videos.push(entry);
+        const drop = () => {
+          peer.videos = peer.videos.filter((v) => v !== entry);
+          this.resolveVideos(peer);
           this.emit();
-        });
+        };
+        e.track.addEventListener('ended', drop);
+        e.track.addEventListener('mute', () => { this.resolveVideos(peer); this.emit(); });
+        this.resolveVideos(peer);
         this.emit();
         return;
       }
@@ -514,13 +622,18 @@ class VoiceManager {
     switch (msg.t) {
       case 'voice:peers':
         if (!this.state.active) return;
-        for (const p of (msg.peers || []) as { id: string; name: string; muted: boolean; deaf: boolean }[]) {
-          if (p.id !== this.uid) this.ensurePeer(p.id, p.name, p.muted, p.deaf);
+        for (const p of (msg.peers || []) as { id: string; name: string; muted: boolean; deaf: boolean; camId?: string | null; screenId?: string | null }[]) {
+          if (p.id === this.uid) continue;
+          this.ensurePeer(p.id, p.name, p.muted, p.deaf);
+          this.setKeys(p.id, p.camId, p.screenId);
         }
+        this.emit();
         break;
       case 'voice:peer-join':
         if (!this.state.active || msg.userId === this.uid) return;
         this.ensurePeer(msg.userId, msg.name || 'Invité', msg.muted, msg.deaf);
+        this.setKeys(msg.userId, msg.camId, msg.screenId);
+        this.emit();
         break;
       case 'voice:peer-leave':
         this.removePeer(msg.userId);
@@ -530,6 +643,7 @@ class VoiceManager {
         if (p) {
           p.muted = !!msg.muted;
           p.deaf = !!msg.deaf;
+          this.setKeys(msg.userId, msg.camId, msg.screenId);
           this.emit();
         }
         break;

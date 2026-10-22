@@ -10,7 +10,7 @@ export type Msg = {
   cipher: string;
   nonce: string;
   ts: number;
-  kind: 'text' | 'call' | 'react' | 'voice' | 'file' | 'filechunk';
+  kind: 'text' | 'call' | 'react' | 'voice' | 'file' | 'filechunk' | 'ack';
   /** Limite d'expiration pour un message temporaire. */
   expiresAt?: number;
   /** Identifiant de transfert (fichier découpé en morceaux). */
@@ -43,6 +43,8 @@ export type Envelope = {
   file?: FileMeta;
   reply?: ReplyTo | null;
   poll?: Poll;
+  /** Texte remplacé par une édition de l'auteur (affiché avec « modifié »). */
+  edited?: boolean;
   from?: string;
 };
 
@@ -52,11 +54,14 @@ export type Poll = { id: string; q: string; opts: string[] };
 /** Votes : pollId -> participant -> index de l'option choisie. */
 export type Votes = Record<string, Record<string, number>>;
 
-/** Contrôle scellé (kind 'react') : réaction, épingle ou vote. */
+/** Contrôle scellé (kind 'react') : réaction, épingle, vote, édition.
+ *  Le kind 'ack' ne porte que `read` (accusé de lecture, non stocké). */
 export type ControlBody = {
   react?: { rid?: unknown; emoji?: unknown; on?: unknown };
   pin?: { mid?: unknown; on?: unknown };
   vote?: { pid?: unknown; opt?: unknown };
+  edit?: { mid?: unknown; text?: unknown };
+  read?: { ts?: unknown };
 };
 
 /** Un morceau de fichier : base64 brut, scellé séparément. */

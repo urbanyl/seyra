@@ -8,6 +8,7 @@ import { lazy, Suspense } from 'react';
 import './components/invite.css';
 // Le générateur de QR code (qrcode) n'est chargé qu'à l'ouverture de la fenêtre d'invitation.
 const InviteQR = lazy(() => import('./components/InviteQR'));
+import CamTile from './components/CamTile';
 import { IconCopy, IconLock, IconScreenShare, IconX } from './components/Icons';
 import { Modal } from './components/ui';
 import { cleanPseudo, formatCodeInput, mentionsName } from './lib/format';
@@ -238,6 +239,11 @@ export default function App() {
   pinnedRef.current = pinned;
   /* Sondages : votes par participant. */
   const [votes, setVotes] = useState<Votes>({});
+  /* Éditions (texte de remplacement par message), accusés de lecture, animateurs. */
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const [readers, setReaders] = useState<Record<string, number>>({});
+  const [mods, setMods] = useState<string[]>([]);
+  const [receipts, setReceipts] = useState(false);
   const applyPin = useCallback((mid: string, on: boolean) => {
     setPinned((prev) => {
       const rest = prev.filter((x) => x !== mid);
@@ -259,7 +265,7 @@ export default function App() {
   }, []);
 
   /* Contrôles scellés (kind 'react') : réactions et épingles. */
-  const applyControl = useCallback((from: string, b: ControlBody) => {
+  const applyControl = useCallback((from: string, b: ControlBody, lookup?: (id: string) => Msg | undefined) => {
     if (b.react && typeof b.react.rid === 'string') {
       applyReact(from, b.react.rid, String(b.react.emoji || ''), !!b.react.on);
     }
@@ -272,6 +278,19 @@ export default function App() {
         if (opt < 0) delete bucket[from]; else bucket[from] = opt;
         return { ...prev, [pid]: bucket };
       });
+    }
+    // Édition : seul l'auteur du message peut le réécrire (l'expéditeur est fixé par le serveur).
+    if (b.edit && typeof b.edit.mid === 'string' && typeof b.edit.text === 'string') {
+      const target = (lookup || ((id: string) => stateRef.current.messages.find((x: Msg) => x.id === id)))(b.edit.mid);
+      if (target && target.from === from && target.kind === 'text') {
+        const text = b.edit.text.slice(0, 2000);
+        setEdits((prev) => ({ ...prev, [b.edit!.mid as string]: text }));
+      }
+    }
+    // Accusé de lecture : le plus récent message vu par chaque participant.
+    if (b.read && typeof b.read.ts === 'number') {
+      const ts = b.read.ts;
+      setReaders((prev) => (prev[from] && prev[from] >= ts ? prev : { ...prev, [from]: ts }));
     }
   }, [applyReact, applyPin]);
 
@@ -352,16 +371,19 @@ export default function App() {
           setOwnerId(m.ownerId || null);
           setSessionWall(typeof m.wall === 'string' ? m.wall : null);
           setParticipants(m.participants || []);
+          setMods(Array.isArray(m.mods) ? m.mods : []);
+          setReceipts(!!m.receipts);
           // Fusionne l'historique reçu, applique les réactions, ignore ce qui a expiré.
           const map = new Map((stateRef.current.messages as Msg[]).map((x) => [x.id, x]));
           for (const msg of (m.messages || []) as Msg[]) map.set(msg.id, msg);
           const all = [...map.values()].sort((a, b) => a.ts - b.ts);
+          const byId = (id: string) => map.get(id);
           const visible: Msg[] = [];
           for (const msg of all) {
             if (msg.kind === 'react') {
               if (k) {
                 const b = openBody(msg.cipher, msg.nonce, k) as ControlBody | null;
-                if (b) applyControl(msg.from, b);
+                if (b) applyControl(msg.from, b, byId);
               }
               continue;
             }
@@ -442,9 +464,21 @@ export default function App() {
           }
           break;
 
+        case 'role:set':
+          setMods((prev) => (m.on ? [...new Set([...prev, m.id])] : prev.filter((x) => x !== m.id)));
+          break;
+
         case 'msg': {
           const msg = m.msg as Msg;
           const k = keyRef.current;
+          if (msg.kind === 'ack') {
+            // Accusé de lecture : relayé, jamais stocké par le serveur.
+            if (k) {
+              const b = openBody(msg.cipher, msg.nonce, k) as ControlBody | null;
+              if (b) applyControl(msg.from, b);
+            }
+            break;
+          }
           if (msg.kind === 'react') {
             if (k) {
               const b = openBody(msg.cipher, msg.nonce, k) as ControlBody | null;
@@ -537,7 +571,7 @@ export default function App() {
   }, []);
 
   /* ---------------- actions ---------------- */
-  const start = useCallback(async (display: string, mode: 'open' | 'join', password = '', history = false) => {
+  const start = useCallback(async (display: string, mode: 'open' | 'join', password = '', history = false, receiptsOn = false) => {
     setBusy(true);
     setError('');
     setNotice('');
@@ -549,7 +583,7 @@ export default function App() {
       pending.current = { mode, key, roomId, display, password };
       rt.connect();
       await rt.ready();
-      rt.send({ t: mode, roomId, name: pseudoRef.current.trim(), pwd: password ? 1 : 0, hist: history ? 1 : 0 });
+      rt.send({ t: mode, roomId, name: pseudoRef.current.trim(), pwd: password ? 1 : 0, hist: history ? 1 : 0, receipts: receiptsOn ? 1 : 0 });
       window.clearTimeout(joinTimer.current);
       joinTimer.current = window.setTimeout(() => {
         if (pending.current) {
@@ -565,7 +599,7 @@ export default function App() {
     }
   }, []);
 
-  const create = useCallback((opts: { password?: string; history?: boolean }) => start(newCode(), 'open', opts?.password || '', !!opts?.history), [start]);
+  const create = useCallback((opts: { password?: string; history?: boolean; receipts?: boolean }) => start(newCode(), 'open', opts?.password || '', !!opts?.history, !!opts?.receipts), [start]);
   const join = useCallback((raw: string, password?: string) => start(normalizeCode(raw), 'join', password || '', false), [start]);
 
   const send = useCallback((text: string, reply: ReplyTo | null, ttl: number | null) => {
@@ -712,6 +746,49 @@ export default function App() {
     const from = typeof b.from === 'string' ? b.from : undefined;
     return { text: typeof b.text === 'string' ? b.text : undefined, audio, file, reply, from, poll };
   }, [key]);
+
+  /** Vue d'un message : texte d'origine, remplacé par l'édition le cas échéant. */
+  const openView = useCallback((m: Msg): Envelope | null => {
+    const e = open(m);
+    if (!e) return null;
+    const t = edits[m.id];
+    return t !== undefined ? { ...e, text: t, edited: true } : e;
+  }, [open, edits]);
+
+  /** Édition : seul l'auteur peut modifier un message texte (contrôle scellé, vérifié à la réception). */
+  const editMsg = useCallback((m: Msg, text: string) => {
+    const cur = stateRef.current;
+    const k = keyRef.current;
+    if (!cur.session || !k || m.from !== cur.session.selfId || m.kind !== 'text') return;
+    const clean = text.trim().slice(0, 2000);
+    if (!clean) return;
+    const { cipher, nonce } = sealBody({ edit: { mid: m.id, text: clean } } as ControlBody, k);
+    setEdits((prev) => ({ ...prev, [m.id]: clean }));
+    rt.send({ t: 'msg', kind: 'react', cipher, nonce });
+  }, []);
+
+  /* Accusés de lecture : quand la session est au premier plan, on signale le plus récent
+   * message reçu des autres. Envoyés en kind 'ack' : relayés, jamais stockés. */
+  const lastAck = useRef(0);
+  const ackTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!receipts || phase !== 'session' || !session) return;
+    const latest = messages.reduce((mx, m) => (m.from !== session.selfId && ['text', 'voice', 'file', 'call'].includes(m.kind) && m.ts > mx ? m.ts : mx), 0);
+    if (!latest || latest <= lastAck.current) return;
+    window.clearTimeout(ackTimer.current);
+    ackTimer.current = window.setTimeout(() => {
+      if (document.visibilityState !== 'visible' || !keyRef.current) return;
+      lastAck.current = latest;
+      const { cipher, nonce } = sealBody({ read: { ts: latest } } as ControlBody, keyRef.current);
+      rt.send({ t: 'msg', kind: 'ack', cipher, nonce });
+    }, 800);
+    return () => window.clearTimeout(ackTimer.current);
+  }, [messages, receipts, phase, session]);
+
+  /** Animateurs : le propriétaire désigne ou retire. */
+  const setMod = useCallback((id: string, on: boolean) => {
+    rt.send({ t: 'role', id, on });
+  }, []);
 
   const togglePin = useCallback((msgId: string) => {
     const cur = stateRef.current;
@@ -872,6 +949,8 @@ export default function App() {
         copied={copied}
         onClose={() => setAskClose(true)}
         onKick={(p) => setAskKick(p)}
+        mods={mods}
+        onSetMod={setMod}
         onInvite={() => setShowInvite(true)}
         onSettings={() => { setShowSettings(true); setSideOpen(false); }}
         onHide={() => setSideOpen(false)}
@@ -894,7 +973,10 @@ export default function App() {
           notices={notices}
           participants={participants}
           selfId={session.selfId}
-          open={open}
+          open={openView}
+          onEdit={editMsg}
+          receipts={receipts}
+          readers={readers}
           onSend={send}
           onSendVoice={sendVoice}
           onSendFile={sendFile}
@@ -929,8 +1011,19 @@ export default function App() {
         nameOf={(id) => participants.find((x) => x.id === id)?.name || 'Invité'}
         onMute={() => voice.toggleMute()}
         onDeafen={() => voice.toggleDeafen()}
+        onCamera={() => voice.toggleCam()}
         onLeave={() => voice.leave()}
       />
+
+      {/* Caméras de l'appel : la sienne et celles des autres, sur un rail à gauche. */}
+      {(vstate.cam || vstate.peers.some((p) => p.cam)) && (
+        <div className="cam-rail">
+          {vstate.cam && <CamTile stream={vstate.cam} name={session.selfName} local />}
+          {vstate.peers.filter((p) => p.cam).map((p) => (
+            <CamTile key={'c' + p.id} stream={p.cam!} name={p.name} />
+          ))}
+        </div>
+      )}
 
       {vstate.screen && (
         <ShareTile stream={vstate.screen} name={session.selfName} local onStop={() => voice.stopScreen(true)} onClose={() => voice.stopScreen(true)} />
