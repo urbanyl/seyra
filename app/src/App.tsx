@@ -231,6 +231,9 @@ export default function App() {
 
   /* Messages épinglés : liste ordonnée d'identifiants, mise à jour par contrôles scellés. */
   const [pinned, setPinned] = useState<string[]>([]);
+  // Lecture synchrone dans togglePin (les callbacks ne doivent pas garder un état périmé).
+  const pinnedRef = useRef<string[]>([]);
+  pinnedRef.current = pinned;
   /* Sondages (votes par participant) et note partagée (dernière version gagne). */
   const [votes, setVotes] = useState<Votes>({});
   const [note, setNote] = useState<{ text: string; ts: number }>({ text: '', ts: 0 });
@@ -731,7 +734,7 @@ export default function App() {
     const cur = stateRef.current;
     const k = keyRef.current;
     if (!cur.session || !k) return;
-    const on = !(cur.pinned || []).includes(msgId);
+    const on = !pinnedRef.current.includes(msgId);
     const { cipher, nonce } = sealBody({ pin: { mid: msgId, on } } as ControlBody, k);
     applyPin(msgId, on);
     rt.send({ t: 'msg', kind: 'react', cipher, nonce });
