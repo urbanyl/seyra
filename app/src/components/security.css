@@ -162,3 +162,35 @@
   .doc-sec p, .doc-sec li { font-size: 15px; }
   .doc-code { font-size: 11.5px; padding: 13px 14px; }
 }
+
+/* ---------- Seyra 2.0 : mise en page du dossier ---------- */
+.doc-wrap { max-width: 1120px; }
+.doc-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 36px; }
+.doc-kpis div {
+  padding: 16px 18px; border-radius: 14px; background: linear-gradient(160deg, rgba(0,178,255,0.12), rgba(43,82,242,0.06));
+  border: 1px solid rgba(0,178,255,0.22);
+}
+.doc-kpis strong { display: block; font-size: 22px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.doc-kpis span { font-size: 13px; color: var(--h-muted); }
+
+.doc-layout { display: block; }
+.doc-main { min-width: 0; }
+.doc-layout .doc-toc {
+  display: flex; flex-wrap: wrap; gap: 6px; background: none; border: none; padding: 0; margin: 0 0 8px;
+}
+.doc-layout .doc-toc a {
+  padding: 6px 11px; border-radius: 999px; border: 1px solid var(--h-line); background: var(--h-panel);
+  font-size: 13px; color: var(--h-muted);
+}
+.doc-layout .doc-toc a:hover { color: #fff; border-color: var(--h-green); }
+
+@media (min-width: 1000px) {
+  .doc-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 56px; align-items: start; }
+  .doc-layout .doc-toc {
+    position: sticky; top: 24px; flex-direction: column; flex-wrap: nowrap; gap: 2px;
+    background: var(--h-panel); border: 1px solid var(--h-line); border-radius: 14px; padding: 12px;
+  }
+  .doc-layout .doc-toc a { border: none; background: none; border-radius: 8px; padding: 7px 10px; }
+  .doc-layout .doc-toc a:hover { background: rgba(255,255,255,0.05); border: none; }
+}
+@media (max-width: 640px) { .doc-kpis { grid-template-columns: 1fr; } }

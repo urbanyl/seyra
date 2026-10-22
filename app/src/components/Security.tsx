@@ -50,13 +50,20 @@ export default function Security() {
       </header>
 
       <article className="doc-wrap">
-        <p className="eyebrow">Dossier technique</p>
+        <p className="eyebrow">Dossier technique · mis à jour avec Seyra 2.0</p>
         <h1>Sécurité : ce que Seyra fait, ce qu’il ne fait pas</h1>
         <p className="doc-lede">
           Pas de slogans. Un modèle de menace, des primitives, des chiffres, et les trous assumés.
           Si tu cherches une page marketing qui promet l’inviolabilité, elle n’est pas ici.
         </p>
 
+        <div className="doc-kpis">
+          <div><strong>59,3 bits</strong><span>d’entropie du code</span></div>
+          <div><strong>XSalsa20</strong><span>Poly1305, scellement authentifié</span></div>
+          <div><strong>0 octet</strong><span>de contenu en clair côté serveur</span></div>
+        </div>
+
+        <div className="doc-layout">
         <nav className="doc-toc">
           <a href="#menace">1. Modèle de menace</a>
           <a href="#code">2. Le code est la clé</a>
@@ -71,6 +78,7 @@ export default function Security() {
           <a href="#verifier">11. Vérifier soi-même</a>
           <a href="#chiffres">12. Récapitulatif</a>
         </nav>
+        <div className="doc-main">
 
         <Section id="menace" n="01" title="Modèle de menace">
           <p>
@@ -407,6 +415,8 @@ frame-ancestors 'none';`}</pre>
         <div className="doc-end">
           <p>Dernière mise à jour : octobre 2026.</p>
           <a className="btn-primary" href="/app">Ouvrir une session</a>
+        </div>
+        </div>
         </div>
       </article>
 

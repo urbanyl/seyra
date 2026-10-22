@@ -836,3 +836,5 @@ h1, h2, h3, p { margin: 0; }
 .help-list dt { white-space: nowrap; }
 .help-list dd { margin: 0; color: var(--muted); font-size: 14px; }
 kbd { font: 12px ui-monospace, Consolas, monospace; padding: 3px 7px; border-radius: 6px; background: var(--field); border: 1px solid var(--line); color: var(--txt); }
+.msg.out .mention { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.msg.out .mention-me { background: rgba(255,255,255,0.22); }
