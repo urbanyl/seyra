@@ -4,6 +4,17 @@ import LangMenu from './LangMenu';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.4.2',
+    date: 'October 2026',
+    title: 'Typing that does not stutter',
+    items: [
+      'The text field is now uncontrolled: a keystroke no longer triggers any React render.',
+      'Cracked earth background is rasterised once into an image instead of running a live SVG filter over the whole screen.',
+      'Animated background uses fewer columns on phones and no longer forces a GPU layer per column.',
+      'The anti-capture blur no longer fires when the keyboard opens or the focus moves between fields.',
+    ],
+  },
+  {
     version: '2.4.1',
     date: 'October 2026',
     title: 'Faster typing on phones',

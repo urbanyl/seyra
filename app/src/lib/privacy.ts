@@ -88,8 +88,13 @@ export function installPrivacyShield() {
     }
   };
 
-  const onFocus = () => hide();
+  // Ouvrir le clavier ou changer de champ ne doit pas flouter l'�cran.
+  let lastFocus = 0;
+  const onFocus = () => { lastFocus = Date.now(); hide(); };
   const onBlur = () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && el.closest && el.closest('input, textarea, [contenteditable="true"]')) return;
+    if (Date.now() - lastFocus < 1500) return;
     app()?.classList.add('seyra-blur');
     window.setTimeout(() => app()?.classList.remove('seyra-blur'), 400);
   };

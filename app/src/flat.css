@@ -194,12 +194,11 @@
 
 /* ---------- fond � terre craquel�e � ---------- */
 .cracks-wall {
-  position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.28;
-  background-color: var(--chat-bg);
+  position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.55;
+  background-color: var(--chat-bg); background-repeat: repeat; contain: strict;
 }
 .cracks-wall.mini { opacity: 1; border-radius: inherit; }
 /* la couleur des fissures suit l'accent du th�me */
-.cracks-defs feFlood { flood-color: var(--accent); }
 .wall-swatch .cracks-wall { opacity: 0.6; }
 
 /* fonds d'aplats (les d�grad�s ont �t� retir�s plus haut) */
@@ -415,4 +414,13 @@
   .composer textarea { min-height: 40px; padding: 9px 10px; }
   .composer .icon-btn, .composer .send { width: 38px; height: 38px; flex: none; }
   .composer-wrap .mention-list { max-height: 46vh; }
+}
+
+/* ---------- perf mobile : moins de couches à composer ---------- */
+.matrix-wall { contain: strict; }
+@media (max-width: 860px) {
+  .matrix-col { will-change: auto; }
+  .matrix-wall { opacity: 0.14; }
+  /* le fond ne doit pas être repeint quand on tape */
+  .pane.with-wall .matrix-wall, .cracks-wall { transform: translateZ(0); }
 }

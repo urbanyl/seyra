@@ -16,7 +16,15 @@ const STREAM = CHARS.repeat(3);
 export default function MatrixWall({ mini = false }: { mini?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(0);
-  const step = mini ? 6 : 14;
+  // Mobile : colonnes plus larges = moins de couches animées.
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 860px)');
+    const fn = () => setNarrow(mq.matches);
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+  const step = mini ? 6 : narrow ? 26 : 14;
 
   useEffect(() => {
     const el = ref.current;

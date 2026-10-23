@@ -74,7 +74,8 @@ const TTL_OPTIONS: [number | null, string, string][] = [
 
 export default function Composer(p: Props) {
   const t = useT();
-  const [draft, setDraft] = useState('');
+  // Champ non contrôlé : une frappe ne déclenche aucun rendu React.
+  const [hasText, setHasText] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [ttl, setTtl] = useState<number | null>(null);
   const [ttlPop, setTtlPop] = useState(false);
@@ -100,11 +101,11 @@ export default function Composer(p: Props) {
   const lastTyping = useRef(0);
 
   const mention = useMemo(() => {
-    const at = mentionCaret >= 0 ? activeMention(draft, mentionCaret) : null;
+    const at = mentionCaret >= 0 ? activeMention(input.current?.value ?? '', mentionCaret) : null;
     if (!at) return { at: null as null | { start: number; query: string }, list: [] as Participant[] };
     const others = p.participants.filter((x) => x.id !== p.selfId);
     return { at, list: suggestMentions(others, at.query) };
-  }, [draft, mentionCaret, p.participants, p.selfId]);
+  }, [mentionCaret, p.participants, p.selfId]);
   useEffect(() => { setMentionIdx(0); }, [mention.at?.query]);
 
   useEffect(() => {
@@ -146,11 +147,12 @@ export default function Composer(p: Props) {
   /** Insère « @Nom » à la place de la saisie en cours, suivi d'un espace. */
   function pickMention(member: Participant | undefined) {
     if (!member || !mention.at) return;
-    const before = draft.slice(0, mention.at.start);
-    const after = draft.slice(mentionCaret);
+    const cur = input.current?.value ?? '';
+    const before = cur.slice(0, mention.at.start);
+    const after = cur.slice(mentionCaret);
     const next = before + '@' + member.name + ' ' + after;
     const pos = (before + '@' + member.name + ' ').length;
-    setDraft(next);
+    setText(next);
     setMentionCaret(-1);
     requestAnimationFrame(() => {
       const el = input.current;
@@ -181,8 +183,20 @@ export default function Composer(p: Props) {
     });
   }
 
+  /** Écrit dans le champ sans passer par l'état React. */
+  function setText(next: string) {
+    const el = input.current;
+    if (!el) return;
+    el.value = next;
+    const filled = next.trim().length > 0;
+    if (filled !== hasText) setHasText(filled);
+    setMentionCaret(-1);
+    autosize(el);
+    el.focus();
+  }
+
   function send() {
-    const text = draft.trim();
+    const text = (input.current?.value ?? '').trim();
     if (!text) return;
     // Commande sondage mal écrite : on la refuse et on dit pourquoi, au lieu de l'envoyer en texte brut.
     if (isPollCommand(text) && !parsePoll(text)) {
@@ -191,14 +205,14 @@ export default function Composer(p: Props) {
     }
     if (whisperTo) p.onWhisper(text, whisperTo);
     else p.onSend(text, p.reply, ttl);
-    setDraft('');
+    setText('');
     setWhisperTo('');
     setTtl(null);
     setMentionCaret(-1);
     setEmojiOpen(false);
     setAttachOpen(false);
     setTtlPop(false);
-    if (input.current) input.current.style.height = 'auto';
+    if (input.current) input.current.style.height = '';
     lastHeight.current = 0;
     p.onSent();
     input.current?.focus();
@@ -347,7 +361,7 @@ export default function Composer(p: Props) {
         {recMs === null && emojiOpen && (
           <div className="emoji-pop">
             {EMOJIS.map((e) => (
-              <button key={e} onClick={() => { setDraft((d) => d + e); input.current?.focus(); }}>{e}</button>
+              <button key={e} onClick={() => setText((input.current?.value ?? '') + e)}>{e}</button>
             ))}
           </div>
         )}
@@ -363,7 +377,7 @@ export default function Composer(p: Props) {
             >
               <IconLock size={19} />
             </button>
-            <VoiceType lang={voiceLang} onAppend={(txt) => { setDraft((d) => d + txt); input.current?.focus(); }} disabled={!!recMs} />
+            <VoiceType lang={voiceLang} onAppend={(txt) => setText((input.current?.value ?? '') + txt)} disabled={!!recMs} />
           </>
         )}
 
@@ -409,7 +423,7 @@ export default function Composer(p: Props) {
                     <button type="button" className={whisperTo ? 'on' : ''} onClick={() => { toggleWhisper(); setAttachOpen(false); }}>
                       <IconLock size={18} /><span>{t('whisper.toggle')}</span>
                     </button>
-                    <VoiceType lang={voiceLang} onAppend={(txt) => { setDraft((d) => d + txt); input.current?.focus(); }} disabled={!!recMs} />
+                    <VoiceType lang={voiceLang} onAppend={(txt) => setText((input.current?.value ?? '') + txt)} disabled={!!recMs} />
                     {TTL_OPTIONS.map(([v, label, short]) => (
                       <button
                         key={String(v)}
@@ -482,14 +496,19 @@ export default function Composer(p: Props) {
           <>
             <textarea
               ref={input}
-              value={draft}
               rows={1}
               placeholder={p.reply ? t('chat.reply') : t('chat.placeholder')}
               onChange={(e) => {
-                setDraft(e.target.value);
-                setMentionCaret(e.target.selectionStart);
+                // Aucun setState pour le texte : seulement l'état « vide / non vide »
+                // et la mention en cours, qui change rarement.
+                const el = e.currentTarget;
+                const val = el.value;
+                const filled = val.trim().length > 0;
+                if (filled !== hasText) setHasText(filled);
+                if (val.includes('@')) setMentionCaret(el.selectionStart);
+                else if (mentionCaret !== -1) setMentionCaret(-1);
                 notifyTyping();
-                autosize(e.target);
+                autosize(el);
               }}
               onKeyDown={(e) => {
                 if (mention.list.length) {
@@ -505,7 +524,7 @@ export default function Composer(p: Props) {
               onKeyUp={(e) => { if (!['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) setMentionCaret((e.target as HTMLTextAreaElement).selectionStart); }}
               onPaste={onPaste}
             />
-            {draft.trim() ? (
+            {hasText ? (
               <button className="send ready" onClick={send} title={t("chat.send")} aria-label={t("chat.send")}>
                 <IconSend size={20} />
                 {compact && ttl !== null && <b className="ttl-flag">{TTL_OPTIONS.find(([v]) => v === ttl)?.[2]}</b>}
