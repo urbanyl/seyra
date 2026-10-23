@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
 import { activeMention, dayLabel, mentionPattern, suggestMentions, timeOf } from '../lib/format';
+import { useT } from '../lib/i18n';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
 import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPencil, IconPoll, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton, Modal } from './ui';
@@ -49,36 +50,37 @@ type Props = {
 
 /** Formulaire de sondage : une question, 2 à 6 options. Envoie la même commande que /sondage. */
 function PollBuilder({ onClose, onCreate }: { onClose: () => void; onCreate: (command: string) => void }) {
+  const t = useT();
   const [question, setQuestion] = useState('');
   const [opts, setOpts] = useState<string[]>(['', '']);
   const command = buildPollCommand(question, opts);
   const setOpt = (i: number, v: string) => setOpts((prev) => prev.map((x, k) => (k === i ? v : x)));
   return (
-    <Modal title="Nouveau sondage" onClose={onClose} width={460}>
+    <Modal title={t('poll.new')} onClose={onClose} width={460}>
       <label className="poll-field">
-        <span>Question</span>
-        <input autoFocus value={question} maxLength={200} placeholder="Pizza ce soir ?" onChange={(e) => setQuestion(e.target.value)} />
+        <span>{t('poll.question')}</span>
+        <input autoFocus value={question} maxLength={200} placeholder={t('poll.example')} onChange={(e) => setQuestion(e.target.value)} />
       </label>
       <div className="poll-field">
-        <span>Options</span>
+        <span>{t('poll.options')}</span>
         {opts.map((o, i) => (
           <div key={i} className="poll-opt-row">
             <input value={o} maxLength={120} placeholder={`Option ${i + 1}`} onChange={(e) => setOpt(i, e.target.value)} />
             {opts.length > 2 && (
-              <button type="button" className="poll-rm" aria-label={`Retirer l'option ${i + 1}`} onClick={() => setOpts((prev) => prev.filter((_, k) => k !== i))}>
+              <button type="button" className="poll-rm" aria-label={t('poll.removeOption')} onClick={() => setOpts((prev) => prev.filter((_, k) => k !== i))}>
                 <IconX size={14} />
               </button>
             )}
           </div>
         ))}
         {opts.length < 6 && (
-          <button type="button" className="poll-add" onClick={() => setOpts((prev) => [...prev, ''])}>+ Ajouter une option</button>
+          <button type="button" className="poll-add" onClick={() => setOpts((prev) => [...prev, ''])}>+ {t('poll.add')}</button>
         )}
       </div>
-      <p className="edit-hint">Le vote est chiffré. Chaque participant peut voter, et cliquer à nouveau retire son vote.</p>
+      <p className="edit-hint">{t('poll.hint')}</p>
       <div className="modal-actions">
-        <button className="btn ghost" onClick={onClose}>Annuler</button>
-        <button className="btn primary" disabled={!command} onClick={() => command && onCreate(command)}>Créer le sondage</button>
+        <button className="btn ghost" onClick={onClose}>{t('common.cancel')}</button>
+        <button className="btn primary" disabled={!command} onClick={() => command && onCreate(command)}>{t('poll.create')}</button>
       </div>
     </Modal>
   );
@@ -86,10 +88,11 @@ function PollBuilder({ onClose, onCreate }: { onClose: () => void; onCreate: (co
 
 /** Édition d'un message texte : seul l'auteur y accède. */
 function EditModal({ initial, onClose, onSave }: { initial: string; onClose: () => void; onSave: (text: string) => void }) {
+  const t = useT();
   const [value, setValue] = useState(initial);
   const clean = value.trim();
   return (
-    <Modal title="Modifier le message" onClose={onClose} width={460}>
+    <Modal title={t('edit.title')} onClose={onClose} width={460}>
       <textarea
         className="edit-area"
         autoFocus
@@ -98,10 +101,10 @@ function EditModal({ initial, onClose, onSave }: { initial: string; onClose: () 
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && clean && clean !== initial) { e.preventDefault(); onSave(clean); } }}
       />
-      <p className="edit-hint">Les autres participants verront le texte modifié, avec la mention « modifié ». L'original n'est pas conservé.</p>
+      <p className="edit-hint">{t('edit.hint')}</p>
       <div className="modal-actions">
-        <button className="btn ghost" onClick={onClose}>Annuler</button>
-        <button className="btn primary" disabled={!clean || clean === initial} onClick={() => onSave(clean)}>Enregistrer</button>
+        <button className="btn ghost" onClick={onClose}>{t('common.cancel')}</button>
+        <button className="btn primary" disabled={!clean || clean === initial} onClick={() => onSave(clean)}>{t('common.save')}</button>
       </div>
     </Modal>
   );
@@ -163,6 +166,7 @@ const TTL_OPTIONS: [number | null, string, string][] = [
 ];
 
 export default function ChatPane(p: Props) {
+  const t = useT();
   const [draft, setDraft] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -235,7 +239,7 @@ export default function ChatPane(p: Props) {
   const recTimer = useRef<number | undefined>(undefined);
 
   const byId = useMemo(() => Object.fromEntries(p.participants.map((x) => [x.id, x])), [p.participants]);
-  const nameOf = (id: string) => (id === p.selfId ? 'Vous' : byId[id]?.name || 'Invité');
+  const nameOf = (id: string) => (id === p.selfId ? t('chat.you') : byId[id]?.name || t('chat.guest'));
   const colorOf = (id: string) => COLORS[(byId[id]?.color || 0) % COLORS.length];
 
   const hasTtl = p.messages.some((m) => !!m.expiresAt);
@@ -269,7 +273,7 @@ export default function ChatPane(p: Props) {
       const env = p.open(m);
       const text = env?.text || (env?.file ? env.file.name : env?.audio ? 'Message vocal' : '');
       if (!text) continue;
-      out.push({ m, author: p.participants.find((x) => x.id === m.from)?.name || 'Invité', preview: text.length > 90 ? text.slice(0, 90) + '…' : text });
+      out.push({ m, author: p.participants.find((x) => x.id === m.from)?.name || t('chat.guest'), preview: text.length > 90 ? text.slice(0, 90) + '…' : text });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -526,10 +530,10 @@ export default function ChatPane(p: Props) {
           ))}
         </div>
         <div className="pane-title">
-          <h2>Session privée</h2>
+          <h2>{t('chat.sessionTitle')}</h2>
           <p>
-            <IconUsers size={12} /> {p.participants.length} connecté{p.participants.length > 1 ? 's' : ''}
-            <i className={`live ${p.connection}`} /> {p.connection === 'online' ? 'en ligne' : p.connection === 'connecting' ? 'connexion…' : 'hors ligne'}
+            <IconUsers size={12} /> {p.participants.length} {t('chat.connected')}
+            <i className={`live ${p.connection}`} /> {p.connection === 'online' ? t('chat.online') : p.connection === 'connecting' ? t('chat.connecting') : t('chat.offline')}
           </p>
         </div>
         <div className="pane-actions">
@@ -551,20 +555,20 @@ export default function ChatPane(p: Props) {
       {searchOpen && (
         <div className="search chat-search">
           <div className="search-row">
-            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher dans la session" />
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('chat.search')} />
             <button className="search-close" aria-label="Fermer la recherche" onClick={() => { setSearchOpen(false); setQuery(''); setFromFilter(''); setTypeFilter(''); }}><IconX size={15} /></button>
           </div>
           <div className="search-filters">
             <select value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} aria-label="Filtrer par expéditeur">
-              <option value="">Tous les expéditeurs</option>
-              {p.participants.map((x) => <option key={x.id} value={x.id}>{x.id === p.selfId ? 'Vous' : x.name}</option>)}
+              <option value="">{t('chat.allSenders')}</option>
+              {p.participants.map((x) => <option key={x.id} value={x.id}>{x.id === p.selfId ? t('chat.you') : x.name}</option>)}
             </select>
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as TypeFilter | '')} aria-label="Filtrer par type">
-              <option value="">Tous les types</option>
+              <option value="">{t('chat.allTypes')}</option>
               {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
             </select>
           </div>
-          {filtering && <em className="search-count">{shown.length} résultat{shown.length > 1 ? 's' : ''}</em>}
+          {filtering && <em className="search-count">{shown.length} {t('chat.results')}</em>}
         </div>
       )}
 
@@ -572,13 +576,13 @@ export default function ChatPane(p: Props) {
         <div className="call-banner">
           <IconPhone size={15} />
           <span>{p.callInvite.name} a lancé un appel vocal</span>
-          <button className="btn primary small" onClick={p.onJoinCall}>Rejoindre</button>
+          <button className="btn primary small" onClick={p.onJoinCall}>{t('join.join')}</button>
           <button className="btn ghost small" onClick={p.onDismissCall}>Ignorer</button>
         </div>
       )}
 
       {pinnedItems.length > 0 && (
-        <div className="pin-bar" role="region" aria-label="Messages épinglés">
+        <div className="pin-bar" role="region" aria-label={t('chat.pinnedList')}>
           <IconPin size={15} />
           <button
             type="button"
@@ -598,13 +602,13 @@ export default function ChatPane(p: Props) {
 
       <div className="messages" ref={scroller} onScroll={onScroll}>
         <div className="e2e-note">
-          <IconLock size={13} /> Chiffré sur cet appareil avec la clé dérivée du code. Le serveur ne voit rien.
+          <IconLock size={13} /> {t('chat.e2e')}
         </div>
 
         {shown.length === 0 && (
           <Empty
-            title={query ? 'Aucun résultat' : 'Session ouverte'}
-            text={query ? 'Essayez un autre mot.' : 'Partagez le code pour inviter quelqu’un. Tout disparaît quand la session se ferme.'}
+            title={query ? t('chat.noResult') : t('chat.open')}
+            text={query ? t('chat.tryOther') : t('chat.openHint')}
             icon={<IconLock size={30} />}
           />
         )}
@@ -671,7 +675,7 @@ export default function ChatPane(p: Props) {
                         <IconPencil size={15} />
                       </button>
                     )}
-                    <button type="button" title="Répondre" onClick={() => startReply(m,
+                    <button type="button" title={t('chat.replyTo')} onClick={() => startReply(m,
                       file ? (file.kind === 'image' ? 'Photo' : file.kind === 'video' ? 'Vidéo' : file.name)
                         : audio ? 'Message vocal' : text || '')}>
                       <IconReply size={15} />
@@ -685,7 +689,7 @@ export default function ChatPane(p: Props) {
                     {text !== null && !audio && (
                       <button
                         type="button"
-                        title="Copier"
+                        title={t('chat.copy')}
                         onClick={() => {
                           navigator.clipboard?.writeText(text).then(
                             () => p.onNotify('Message copié.'),
@@ -804,7 +808,7 @@ export default function ChatPane(p: Props) {
       {reply && (
         <div className="reply-bar">
           <div>
-            <strong>Répondre à {nameOf(reply.from)}</strong>
+            <strong>{t('chat.replyingTo')} {nameOf(reply.from)}</strong>
             <span>{reply.text.slice(0, 120)}</span>
           </div>
           <button type="button" title="Annuler la réponse" onClick={() => setReply(null)}><IconX size={16} /></button>
@@ -813,7 +817,7 @@ export default function ChatPane(p: Props) {
 
       <div className="composer-wrap">
       {mention.list.length > 0 && recMs === null && (
-        <ul className="mention-list" role="listbox" aria-label="Participants à mentionner">
+        <ul className="mention-list" role="listbox" aria-label={t('chat.mentionList')}>
           {mention.list.map((m, i) => (
             <li key={m.id} role="option" aria-selected={i === mentionIdx}>
               <button
@@ -934,7 +938,7 @@ export default function ChatPane(p: Props) {
               ref={input}
               value={draft}
               rows={1}
-              placeholder={reply ? 'Répondre…' : 'Message chiffré…'}
+              placeholder={reply ? t('chat.reply') : t('chat.placeholder')}
               onChange={(e) => {
                 setDraft(e.target.value);
                 setMentionCaret(e.target.selectionStart);
@@ -1001,7 +1005,7 @@ export default function ChatPane(p: Props) {
       )}
 
       {rootMsg && (
-        <Modal title="Fil de discussion" onClose={() => setThreadRoot(null)} width={460}>
+        <Modal title={t('thread.title')} onClose={() => setThreadRoot(null)} width={460}>
           <div className="thread-root">
             <span className="thread-label">Message d’origine</span>
             <p>{(() => { const e = p.open(rootMsg); return e?.text || (e?.poll ? '📊 ' + e.poll.q : e?.file ? e.file.name : e?.audio ? 'Message vocal' : '…'); })()}</p>
@@ -1016,8 +1020,8 @@ export default function ChatPane(p: Props) {
             ))}
           </div>
           <div className="modal-actions">
-            <button className="btn ghost" onClick={() => setThreadRoot(null)}>Fermer</button>
-            <button className="btn primary" onClick={() => { const e = p.open(rootMsg); startReply(rootMsg, e?.text || e?.poll?.q || 'Message'); setThreadRoot(null); }}>Répondre</button>
+            <button className="btn ghost" onClick={() => setThreadRoot(null)}>{t('common.close')}</button>
+            <button className="btn primary" onClick={() => { const e = p.open(rootMsg); startReply(rootMsg, e?.text || e?.poll?.q || ''); setThreadRoot(null); }}>{t('chat.replyTo')}</button>
           </div>
         </Modal>
       )}

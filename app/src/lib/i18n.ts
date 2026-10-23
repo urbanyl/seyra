@@ -318,9 +318,150 @@ const DICT: Record<Lang, Dict> = { en, fr, zh, ru, ko };
 // langue du document au chargement
 if (typeof document !== 'undefined') document.documentElement.lang = current;
 
-/* Libell�s des motifs de fond (ajout�s apr�s le dictionnaire principal). */
+/* Libell�s des motifs de fond (ajout�s apr�s le dictionnaire principal). */
 Object.assign(DICT.en, { 'wall.none': 'Plain', 'wall.dots': 'Dots', 'wall.grid': 'Grid', 'wall.lines': 'Lines', 'wall.cross': 'Crosses', 'wall.bubbles': 'Bubbles', 'wall.waves': 'Waves', 'wall.arcs': 'Arcs' });
 Object.assign(DICT.fr, { 'wall.none': 'Uni', 'wall.dots': 'Points', 'wall.grid': 'Grille', 'wall.lines': 'Lignes', 'wall.cross': 'Croix', 'wall.bubbles': 'Bulles', 'wall.waves': 'Vagues', 'wall.arcs': 'Arcs' });
 Object.assign(DICT.zh, { 'wall.none': '??', 'wall.dots': '??', 'wall.grid': '??', 'wall.lines': '??', 'wall.cross': '??', 'wall.bubbles': '??', 'wall.waves': '??', 'wall.arcs': '??' });
 Object.assign(DICT.ru, { 'wall.none': '??????????', 'wall.dots': '?????', 'wall.grid': '?????', 'wall.lines': '?????', 'wall.cross': '????????', 'wall.bubbles': '??????', 'wall.waves': '?????', 'wall.arcs': '????' });
 Object.assign(DICT.ko, { 'wall.none': '??', 'wall.dots': '?', 'wall.grid': '??', 'wall.lines': '?', 'wall.cross': '??', 'wall.bubbles': '??', 'wall.waves': '??', 'wall.arcs': '?' });
+
+Object.assign(DICT.en, { 'wall.signature': 'Signature' });
+Object.assign(DICT.fr, { 'wall.signature': 'Signature' });
+Object.assign(DICT.zh, { 'wall.signature': '??' });
+Object.assign(DICT.ru, { 'wall.signature': '?????????' });
+Object.assign(DICT.ko, { 'wall.signature': '????' });
+
+/* Chaîne de l'application (session, recherche, dates). */
+Object.assign(DICT.en, {
+  "chat.sessionTitle": "Private session",
+  "chat.connected": "connected",
+  "chat.online": "online",
+  "chat.connecting": "connecting…",
+  "chat.offline": "offline",
+  "chat.results": "results",
+  "chat.e2e": "Encrypted on this device with the key derived from the code. The server sees nothing.",
+  "chat.noResult": "No results",
+  "chat.open": "Session open",
+  "chat.tryOther": "Try another word.",
+  "chat.openHint": "Share the code to invite someone. Everything disappears when the session closes.",
+  "chat.guest": "Guest",
+  "app.remove": "Remove",
+  "app.copied": "Copied",
+  "time.today": "Today",
+  "time.yesterday": "Yesterday"
+});
+Object.assign(DICT.fr, {
+  "chat.sessionTitle": "Session privée",
+  "chat.connected": "connecté",
+  "chat.online": "en ligne",
+  "chat.connecting": "connexion…",
+  "chat.offline": "hors ligne",
+  "chat.results": "résultats",
+  "chat.e2e": "Chiffré sur cet appareil avec la clé dérivée du code. Le serveur ne voit rien.",
+  "chat.noResult": "Aucun résultat",
+  "chat.open": "Session ouverte",
+  "chat.tryOther": "Essayez un autre mot.",
+  "chat.openHint": "Partagez le code pour inviter quelqu’un. Tout disparaît quand la session se ferme.",
+  "chat.guest": "Invité",
+  "app.remove": "Retirer",
+  "app.copied": "Copié",
+  "time.today": "Aujourd’hui",
+  "time.yesterday": "Hier"
+});
+Object.assign(DICT.zh, {
+  "chat.sessionTitle": "私密会话",
+  "chat.connected": "人在线",
+  "chat.online": "在线",
+  "chat.connecting": "连接中…",
+  "chat.offline": "离线",
+  "chat.results": "条结果",
+  "chat.e2e": "使用由代码派生的密钥在本设备加密。服务器看不到任何内容。",
+  "chat.noResult": "无结果",
+  "chat.open": "会话已开启",
+  "chat.tryOther": "换个词试试。",
+  "chat.openHint": "分享代码即可邀请他人。关闭会话后全部消失。",
+  "chat.guest": "访客",
+  "app.remove": "移除",
+  "app.copied": "已复制",
+  "time.today": "今天",
+  "time.yesterday": "昨天"
+});
+Object.assign(DICT.ru, {
+  "chat.sessionTitle": "Приватная сессия",
+  "chat.connected": "на связи",
+  "chat.online": "в сети",
+  "chat.connecting": "подключение…",
+  "chat.offline": "не в сети",
+  "chat.results": "результатов",
+  "chat.e2e": "Зашифровано на этом устройстве ключом, выведенным из кода. Сервер ничего не видит.",
+  "chat.noResult": "Ничего не найдено",
+  "chat.open": "Сессия открыта",
+  "chat.tryOther": "Попробуйте другое слово.",
+  "chat.openHint": "Поделитесь кодом, чтобы пригласить. Всё исчезнет при закрытии сессии.",
+  "chat.guest": "Гость",
+  "app.remove": "Удалить",
+  "app.copied": "Скопировано",
+  "time.today": "Сегодня",
+  "time.yesterday": "Вчера"
+});
+Object.assign(DICT.ko, {
+  "chat.sessionTitle": "비공개 세션",
+  "chat.connected": "명 접속",
+  "chat.online": "온라인",
+  "chat.connecting": "연결 중…",
+  "chat.offline": "오프라인",
+  "chat.results": "개 결과",
+  "chat.e2e": "코드에서 만든 키로 이 기기에서 암호화합니다. 서버는 아무것도 보지 못합니다.",
+  "chat.noResult": "결과 없음",
+  "chat.open": "세션 열림",
+  "chat.tryOther": "다른 단어를 입력해 보세요.",
+  "chat.openHint": "코드를 공유해 초대하세요. 세션을 닫으면 모두 사라집니다.",
+  "chat.guest": "게스트",
+  "app.remove": "내보내기",
+  "app.copied": "복사됨",
+  "time.today": "오늘",
+  "time.yesterday": "어제"
+});
+
+Object.assign(DICT.en, {
+  "poll.new": "New poll",
+  "poll.question": "Question",
+  "poll.options": "Options",
+  "poll.removeOption": "Remove option",
+  "poll.add": "Add an option",
+  "poll.hint": "Votes are encrypted. Each participant can vote, and clicking again removes their vote.",
+  "poll.create": "Create poll",
+  "edit.title": "Edit message",
+  "edit.hint": "Others will see the edited text, marked “edited”. The original is not kept.",
+  "chat.replyTo": "Reply",
+  "chat.copy": "Copy",
+  "chat.replyingTo": "Replying to",
+  "chat.mentionList": "Participants to mention",
+  "chat.pinnedList": "Pinned messages",
+  "thread.title": "Thread",
+  "thread.root": "Original message"
+});
+Object.assign(DICT.fr, {
+  "poll.new": "Nouveau sondage",
+  "poll.question": "Question",
+  "poll.options": "Options",
+  "poll.removeOption": "Retirer l’option",
+  "poll.add": "Ajouter une option",
+  "poll.hint": "Le vote est chiffré. Chaque participant peut voter, et cliquer à nouveau retire son vote.",
+  "poll.create": "Créer le sondage",
+  "edit.title": "Modifier le message",
+  "edit.hint": "Les autres verront le texte modifié, avec la mention « modifié ». L’original n’est pas conservé.",
+  "chat.replyTo": "Répondre",
+  "chat.copy": "Copier",
+  "chat.replyingTo": "Répondre à",
+  "chat.mentionList": "Participants à mentionner",
+  "chat.pinnedList": "Messages épinglés",
+  "thread.title": "Fil de discussion",
+  "thread.root": "Message d’origine"
+});
+
+Object.assign(DICT.en, { 'poll.example': 'Pizza tonight?' });
+Object.assign(DICT.fr, { 'poll.example': 'Pizza ce soir ?' });
+
+Object.assign(DICT.en, { 'settings.tip': 'Tip: the screen button in the header shares your screen during a call.' });
+Object.assign(DICT.fr, { 'settings.tip': 'Astuce : le bouton écran dans l’en-tête partage votre écran pendant un appel.' });

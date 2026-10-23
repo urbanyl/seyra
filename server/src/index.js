@@ -191,7 +191,7 @@ function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts) 
   if (p.room) leaveRoom(p);
   room.cycles += 1;
   p.room = room;
-  p.name = cleanName(rawName) || `Invité ${room.cycles}`;
+  p.name = cleanName(rawName) || `Guest ${room.cycles}`;
   p.color = room.cycles % 8;
   room.clients.set(p.id, p);
   room.emptySince = 0;

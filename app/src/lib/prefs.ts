@@ -23,32 +23,46 @@ export const THEMES: { id: string; name: string; accent: string; accentDark: str
   { id: 'light', name: 'Clair', accent: '#0a84ff', accentDark: '#2563eb', bubbleOut: '#bfe0ff', bg: '#eef2f6', head: '#ffffff', field: '#e4eaf0', bubbleIn: '#ffffff' },
 ];
 
-/* Fonds de conversation : motifs vectoriels originaux, sans dégradé.
- * Trait fin, contraste faible, pour ne jamais gêner la lecture. */
-const svg = (w: number, h: number, body: string) =>
-  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'%3E${body}%3C/svg%3E")`;
+/* Fond de conversation : motif géométrique fourni par l'utilisateur, réadapté aux
+ * couleurs de Seyra. Une seule entrée pour l'instant, la suivante viendra après.
+ * `background` (raccourci complet) est posé sur .messages : positions et tailles
+ * font partie de la valeur. */
+const S = '60px';
+const C1 = 'var(--wall-c1)';
+const C2 = 'var(--wall-c2)';
+const DISC = `radial-gradient(25% 25% at 25% 25%, ${C1} 99%, rgba(0, 0, 0, 0) 101%)`;
 
 export const WALLPAPERS: { id: string; name: string; css: string }[] = [
-  { id: 'none', name: 'wall.none', css: 'none' },
-  { id: 'dots', name: 'wall.dots', css: svg(24, 24, "%3Ccircle cx='2' cy='2' r='1.4' fill='%23ffffff' fill-opacity='0.08'/%3E") },
-  { id: 'grid', name: 'wall.grid', css: svg(32, 32, "%3Cpath d='M0 0h32v32H0z' fill='none' stroke='%23ffffff' stroke-opacity='0.06'/%3E") },
-  { id: 'lines', name: 'wall.lines', css: svg(24, 24, "%3Cpath d='M0 23.5h24' fill='none' stroke='%23ffffff' stroke-opacity='0.06'/%3E") },
-  { id: 'cross', name: 'wall.cross', css: svg(28, 28, "%3Cpath d='M14 7v14M7 14h14' fill='none' stroke='%2300b2ff' stroke-opacity='0.10'/%3E") },
-  { id: 'bubbles', name: 'wall.bubbles', css: svg(140, 140, "%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.07'%3E%3Ccircle cx='28' cy='34' r='16'/%3E%3Ccircle cx='104' cy='92' r='26'/%3E%3Ccircle cx='70' cy='128' r='9'/%3E%3C/g%3E") },
-  { id: 'waves', name: 'wall.waves', css: svg(96, 48, "%3Cpath d='M0 36c24-24 48-24 72 0s48 24 72 0' fill='none' stroke='%2300b2ff' stroke-opacity='0.11' stroke-width='1.5'/%3E") },
-  { id: 'arcs', name: 'wall.arcs', css: svg(120, 120, "%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.06'%3E%3Cpath d='M0 120a60 60 0 0 1 120 0'/%3E%3Cpath d='M0 120a90 90 0 0 1 180 0'/%3E%3C/g%3E") },
+  {
+    id: 'signature',
+    name: 'wall.signature',
+    css:
+            `${DISC} ${S} ${S} / calc(2 * ${S}) calc(2 * ${S}), ` +
+      `${DISC} 0 0 / calc(2 * ${S}) calc(2 * ${S}), ` +
+      `radial-gradient(50% 50%, ${C2} 98%, rgba(0, 0, 0, 0)) 0 0 / ${S} ${S}, ` +
+      `repeating-conic-gradient(${C2} 0 50%, ${C1} 0 100%) calc(0.5 * ${S}) 0 / calc(2 * ${S}) ${S}`,
+  },
 ];
 const KEY = 'seyra.prefs.v1';
 
 const DEFAULTS: Prefs = {
   theme: 'seyra',
-  wallpaper: 'dots',
+  wallpaper: 'signature',
   customWall: '',
   density: 'comfortable',
   fontScale: 'normal',
   discreet: false,
   sound: false,
 };
+
+/** Mélange deux couleurs hexadécimales (t = part de b, 0..1). */
+function mixHex(a: string, b: string, t: number): string {
+  const pa = a.replace('#', '');
+  const pb = b.replace('#', '');
+  const ch = (s: string, i: number) => parseInt(s.slice(i, i + 2), 16);
+  const out = [0, 2, 4].map((i) => Math.round(ch(pa, i) * (1 - t) + ch(pb, i) * t));
+  return '#' + out.map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+}
 
 export function loadPrefs(): Prefs {
   try {
@@ -86,6 +100,9 @@ export function applyPrefs(p: Prefs) {
   root.dataset.fs = p.fontScale || 'normal';
   root.dataset.discreet = p.discreet ? 'on' : 'off';
 
-  const wall = p.customWall || (WALLPAPERS.find((w) => w.id === p.wallpaper)?.css ?? 'none');
+  // Le motif reprend le fond du thème et une pointe de son accent : il change donc avec le thème.
+  root.style.setProperty('--wall-c1', theme.bg);
+  root.style.setProperty('--wall-c2', mixHex(theme.bg, theme.accent, 0.13));
+  const wall = p.customWall || (WALLPAPERS.find((w) => w.id === p.wallpaper)?.css ?? WALLPAPERS[0].css);
   root.style.setProperty('--chat-wall', wall);
 }

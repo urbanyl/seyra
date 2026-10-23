@@ -22,10 +22,13 @@
   --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.28);
   --radius: 10px;
   --r-md: 14px;
+  /* couleurs du motif de fond : le fond sombre et un bleu du logo, assombri */
+  --wall-c1: #0f1419;
+  --wall-c2: #12324d;
 }
 
 /* suppression systÃ©matique des dÃ©gradÃ©s, flous et ombres lourdes */
-*, *::before, *::after {
+*:not(.messages):not(.wall-swatch), *::before, *::after {
   background-image: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -113,7 +116,7 @@
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* ---------- sélecteur de langue ---------- */
+/* ---------- sï¿½lecteur de langue ---------- */
 .lang { position: relative; }
 .lang-btn {
   display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 10px;
@@ -138,10 +141,11 @@
   .lang-list { right: auto; left: 0; }
 }
 
-/* motif de fond de conversation : seul élément autorisé à garder une image */
-.messages { background-image: var(--chat-wall, none) !important; }
+/* motif de fond de conversation : seul ï¿½lï¿½ment autorisï¿½ ï¿½ garder une image */
+.messages { background: var(--chat-wall, var(--chat-bg)) !important; }
+.wall-swatch { background-color: var(--head) !important; }
 
-/* marque cliquable du panneau : même traitement que la barre de l'accueil */
+/* marque cliquable du panneau : mï¿½me traitement que la barre de l'accueil */
 .side-brand {
   display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
   padding: 2px 6px 2px 0; margin: -2px 0; border-radius: 10px; text-align: left; color: var(--txt);
@@ -150,3 +154,6 @@
 .side-brand div { min-width: 0; }
 .side-brand strong { display: block; font-size: 15px; font-weight: 600; }
 .side-brand span { font-size: 12.5px; color: var(--muted); }
+
+/* aperÃ§u du motif : plus grand, et le motif dÃ©marre au coin */
+.wall-swatch { width: 74px; height: 54px; background-size: auto !important; background-position: 0 0 !important; }

@@ -1,5 +1,13 @@
+import { getLang, t } from './i18n';
+
+/** Locale de la langue choisie, pour les heures et les dates. */
+function localeOf(): string {
+  const l = getLang();
+  return l === 'fr' ? 'fr-FR' : l === 'zh' ? 'zh-CN' : l === 'ru' ? 'ru-RU' : l === 'ko' ? 'ko-KR' : 'en-GB';
+}
+
 export function timeOf(ts: number) {
-  return new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return new Date(ts).toLocaleTimeString(localeOf(), { hour: '2-digit', minute: '2-digit' });
 }
 
 export function dayLabel(ts: number) {
@@ -7,9 +15,9 @@ export function dayLabel(ts: number) {
   const today = new Date();
   const y = new Date(); y.setDate(today.getDate() - 1);
   const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  if (same(d, today)) return "Aujourd'hui";
-  if (same(d, y)) return 'Hier';
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (same(d, today)) return t(getLang(), 'time.today');
+  if (same(d, y)) return t(getLang(), 'time.yesterday');
+  return d.toLocaleDateString(localeOf(), { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 export function shortWhen(ts: number) {
@@ -17,8 +25,8 @@ export function shortWhen(ts: number) {
   const today = new Date();
   if (d.toDateString() === today.toDateString()) return timeOf(ts);
   const diff = (today.getTime() - d.getTime()) / 864e5;
-  if (diff < 7) return d.toLocaleDateString('fr-FR', { weekday: 'long' });
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  if (diff < 7) return d.toLocaleDateString(localeOf(), { weekday: 'long' });
+  return d.toLocaleDateString(localeOf(), { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 export const AVATAR_COLORS = [
@@ -67,7 +75,7 @@ export function formatCodeInput(value: string) {
   return raw.replace(/(.{4})(?=.)/g, '$1-');
 }
 
-/** Mention en cours de saisie : texte après le dernier « @ » placé en début de mot, avant le curseur. */
+/** Mention en cours de saisie : texte aprï¿½s le dernier ï¿½ @ ï¿½ placï¿½ en dï¿½but de mot, avant le curseur. */
 export function activeMention(text: string, caret: number): { start: number; query: string } | null {
   const before = text.slice(0, caret);
   const at = before.lastIndexOf('@');
