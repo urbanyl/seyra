@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { base64ToBlob, formatTime, type VoiceClip } from '../lib/audio';
 import { IconPause, IconPlay } from './Icons';
+import { useT } from '../lib/i18n';
 
 const BARS = 24;
 
 export default function VoicePlayer({ clip }: { clip: VoiceClip }) {
+  const t = useT();
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(clip.dur || 0);
@@ -66,7 +68,7 @@ export default function VoicePlayer({ clip }: { clip: VoiceClip }) {
       <span className="voice-time">{formatTime(cur > 0 || playing ? cur : total)}</span>
 
       {failed ? (
-        <span className="voice-err" title="Ce navigateur ne peut pas lire cet ancien format">illisible</span>
+        <span className="voice-err" title={t("voice.oldFormat")}>{t("voice.unreadable")}</span>
       ) : (
         <audio
           ref={audio}

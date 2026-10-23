@@ -117,6 +117,7 @@ function EditModal({ initial, onClose, onSave }: { initial: string; onClose: () 
 function PollCard({ poll, votes, selfId, nameOf, onVote }: {
   poll: Poll; votes: Record<string, number>; selfId: string; nameOf: (id: string) => string; onVote: (opt: number) => void;
 }) {
+  const t = useT();
   const counts = poll.opts.map((_, i) => Object.values(votes).filter((o) => o === i).length);
   const total = Object.keys(votes).length;
   const mine = votes[selfId];
@@ -127,14 +128,14 @@ function PollCard({ poll, votes, selfId, nameOf, onVote }: {
         const pct = total ? Math.round((counts[i] / total) * 100) : 0;
         const voters = Object.keys(votes).filter((uid) => votes[uid] === i).map((uid) => (uid === selfId ? 'vous' : nameOf(uid)));
         return (
-          <button key={i} type="button" className={`poll-opt ${mine === i ? 'mine' : ''}`} onClick={() => onVote(i)} title={voters.join(', ') || 'Aucun vote'}>
+          <button key={i} type="button" className={`poll-opt ${mine === i ? 'mine' : ''}`} onClick={() => onVote(i)} title={voters.join(', ') || t('poll.noVotes')}>
             <span className="poll-bar" style={{ width: pct + '%' }} />
             <span className="poll-label">{mine === i && <IconCheck size={13} />}{o}</span>
             <span className="poll-count">{counts[i]}</span>
           </button>
         );
       })}
-      <em className="poll-total">{total} vote{total > 1 ? 's' : ''} · {mine === undefined ? 'choisissez une option' : 'cliquez à nouveau pour retirer'}</em>
+      <em className="poll-total">{total} {t('poll.votes')} · {mine === undefined ? t('poll.choose') : t('poll.removeVote')}</em>
     </div>
   );
 }
@@ -142,8 +143,8 @@ function PollCard({ poll, votes, selfId, nameOf, onVote }: {
 const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🤔', '👍', '🙏', '🔥', '💙', '✨', '🎧', '📌', '✅'];
 
 type TypeFilter = 'text' | 'photo' | 'video' | 'file' | 'voice' | 'poll';
-const TYPE_LABELS: Record<TypeFilter, string> = {
-  text: 'Texte', photo: 'Photos', video: 'Vidéos', file: 'Fichiers', voice: 'Vocaux', poll: 'Sondages',
+const TYPE_KEYS: Record<TypeFilter, string> = {
+  text: 'type.text', photo: 'type.photo', video: 'type.video', file: 'type.file', voice: 'type.voice', poll: 'type.poll',
 };
 
 /** Vrai si le message correspond au type demandé (contenu déchiffré localement). */
@@ -160,12 +161,12 @@ function matchesType(t: TypeFilter, m: Msg, e: Envelope | null): boolean {
 }
 const REACTS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅'];
 const TTL_OPTIONS: [number | null, string, string][] = [
-  [null, 'Permanent', ''],
-  [30, '30 secondes', '30 s'],
-  [60, '1 minute', '1 min'],
-  [300, '5 minutes', '5 min'],
-  [900, '15 minutes', '15 min'],
-  [3600, '1 heure', '1 h'],
+  [null, 'ttl.perm', ''],
+  [30, 'ttl.s30', '30 s'],
+  [60, 'ttl.m1', '1 min'],
+  [300, 'ttl.m5', '5 min'],
+  [900, 'ttl.m15', '15 min'],
+  [3600, 'ttl.h1', '1 h'],
 ];
 
 export default function ChatPane(p: Props) {
@@ -277,7 +278,7 @@ export default function ChatPane(p: Props) {
       const m = p.messages.find((x) => x.id === id && !x.expiresAt);
       if (!m) continue;
       const env = p.open(m);
-      const text = env?.text || (env?.file ? env.file.name : env?.audio ? 'Message vocal' : '');
+      const text = env?.text || (env?.file ? env.file.name : env?.audio ? t('msg.voice') : '');
       if (!text) continue;
       out.push({ m, author: p.participants.find((x) => x.id === m.from)?.name || t('chat.guest'), preview: text.length > 90 ? text.slice(0, 90) + '…' : text });
     }
@@ -407,7 +408,7 @@ export default function ChatPane(p: Props) {
     if (!text) return;
     // Commande sondage mal écrite : on la refuse et on dit pourquoi, au lieu de l'envoyer en texte brut.
     if (isPollCommand(text) && !parsePoll(text)) {
-      p.onNotify(`Sondage incomplet. Format : ${POLL_FORMAT} (2 options minimum), ou utilisez le bouton Sondage.`);
+      p.onNotify(`${t('poll.incomplete')} ${POLL_FORMAT}`);
       return;
     }
     p.onSend(text, reply, ttl);
@@ -546,7 +547,7 @@ export default function ChatPane(p: Props) {
         </div>
         <div className="pane-actions">
           <IconButton label="Participants" className="mobile-only" onClick={p.onOpenSide}><IconUsers size={19} /></IconButton>
-          <IconButton label="Rechercher" active={searchOpen} onClick={() => { setSearchOpen((v) => !v); setQuery(''); }}>
+          <IconButton label={t("chat.search")} active={searchOpen} onClick={() => { setSearchOpen((v) => !v); setQuery(''); }}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
               <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.2 4.2" />
             </svg>
@@ -554,7 +555,7 @@ export default function ChatPane(p: Props) {
           <button className={`call-btn share-btn ${p.sharing ? 'on' : ''}`} onClick={p.onShareScreen} title={p.sharing ? "Arrêter le partage d'écran" : "Partager l'écran"} disabled={!p.inVoice}>
             <IconScreenShare size={18} />
           </button>
-          <button className={`call-btn ${p.inVoice ? 'on' : ''}`} onClick={p.onCall} title={p.inVoice ? "Quitter l'appel" : 'Appel vocal'}>
+          <button className={`call-btn ${p.inVoice ? 'on' : ''}`} onClick={p.onCall} title={p.inVoice ? t('call.leave') : t('call.voice')}>
             <IconPhone size={18} />
           </button>
         </div>
@@ -564,7 +565,7 @@ export default function ChatPane(p: Props) {
         <div className="search chat-search">
           <div className="search-row">
             <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('chat.search')} />
-            <button className="search-close" aria-label="Fermer la recherche" onClick={() => { setSearchOpen(false); setQuery(''); setFromFilter(''); setTypeFilter(''); }}><IconX size={15} /></button>
+            <button className="search-close" aria-label={t("search.close")} onClick={() => { setSearchOpen(false); setQuery(''); setFromFilter(''); setTypeFilter(''); }}><IconX size={15} /></button>
           </div>
           <div className="search-filters">
             <select value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} aria-label="Filtrer par expéditeur">
@@ -573,7 +574,7 @@ export default function ChatPane(p: Props) {
             </select>
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as TypeFilter | '')} aria-label="Filtrer par type">
               <option value="">{t('chat.allTypes')}</option>
-              {(Object.keys(TYPE_LABELS) as TypeFilter[]).map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+              {(Object.keys(TYPE_KEYS) as TypeFilter[]).map((k) => <option key={k} value={k}>{t(TYPE_KEYS[k])}</option>)}
             </select>
           </div>
           {filtering && <em className="search-count">{shown.length} {t('chat.results')}</em>}
@@ -583,7 +584,7 @@ export default function ChatPane(p: Props) {
       {p.callInvite && !p.inVoice && (
         <div className="call-banner">
           <IconPhone size={15} />
-          <span>{p.callInvite.name} a lancé un appel vocal</span>
+          <span>{t('call.incoming').replace('{name}', p.callInvite.name)}</span>
           <button className="btn primary small" onClick={p.onJoinCall}>{t('join.join')}</button>
           <button className="btn ghost small" onClick={p.onDismissCall}>Ignorer</button>
         </div>
@@ -596,13 +597,13 @@ export default function ChatPane(p: Props) {
             type="button"
             className="pin-text"
             onClick={() => document.getElementById('m-' + pinnedItems[pinnedItems.length - 1].m.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-            title="Aller au message épinglé"
+            title={t('pin.goto')}
           >
             <strong>{pinnedItems[pinnedItems.length - 1].author}</strong>
             <span>{pinnedItems[pinnedItems.length - 1].preview}</span>
           </button>
           {pinnedItems.length > 1 && <em className="pin-count">+{pinnedItems.length - 1}</em>}
-          <button type="button" className="pin-x" title="Désépingler" aria-label="Désépingler" onClick={() => p.onTogglePin(pinnedItems[pinnedItems.length - 1].m.id)}>
+          <button type="button" className="pin-x" title={t('pin.unpin')} aria-label={t('pin.unpin')} onClick={() => p.onTogglePin(pinnedItems[pinnedItems.length - 1].m.id)}>
             <IconX size={14} />
           </button>
         </div>
@@ -679,19 +680,19 @@ export default function ChatPane(p: Props) {
                       </button>
                     )}
                     {mine && text !== null && !audio && !file && !env?.poll && (
-                      <button type="button" title="Modifier" onClick={() => { setEditing({ m, text }); setOpenActions(null); }}>
+                      <button type="button" title={t('edit.action')} onClick={() => { setEditing({ m, text }); setOpenActions(null); }}>
                         <IconPencil size={15} />
                       </button>
                     )}
                     <button type="button" title={t('chat.replyTo')} onClick={() => startReply(m,
-                      file ? (file.kind === 'image' ? 'Photo' : file.kind === 'video' ? 'Vidéo' : file.name)
+                      file ? (file.kind === 'image' ? t('type.photo') : file.kind === 'video' ? t('type.video') : file.name)
                         : audio ? 'Message vocal' : text || '')}>
                       <IconReply size={15} />
                     </button>
-                    <button type="button" title={p.pinned.includes(m.id) ? 'Désépingler' : 'Épingler'} className={p.pinned.includes(m.id) ? 'on' : ''} onClick={() => { p.onTogglePin(m.id); setOpenActions(null); }}>
+                    <button type="button" title={p.pinned.includes(m.id) ? t('pin.unpin') : t('pin.pin')} className={p.pinned.includes(m.id) ? 'on' : ''} onClick={() => { p.onTogglePin(m.id); setOpenActions(null); }}>
                       <IconPin size={15} />
                     </button>
-                    <button type="button" title="Ajouter une réaction" onClick={() => setReactPop((v) => (v === m.id ? null : m.id))}>
+                    <button type="button" title={t('react.add')} onClick={() => setReactPop((v) => (v === m.id ? null : m.id))}>
                       <IconSmile size={15} />
                     </button>
                     {text !== null && !audio && (
@@ -775,7 +776,7 @@ export default function ChatPane(p: Props) {
                   )}
 
                   {m.expiresAt && left > 0 && (
-                    <span className="ttl-badge" title="Message temporaire"><IconTimer size={11} /> {ttlLabel}</span>
+                    <span className="ttl-badge" title={t('ttl.badge')}><IconTimer size={11} /> {ttlLabel}</span>
                   )}
                   {env?.edited && <em className="edited">modifié</em>}
                   <time>{timeOf(m.ts)}</time>
@@ -858,32 +859,32 @@ export default function ChatPane(p: Props) {
               className={`icon-btn attach-btn ${attachOpen ? 'active' : ''}`}
               onClick={() => { setAttachOpen((v) => !v); setEmojiOpen(false); setTtlPop(false); }}
               title="Joindre"
-              aria-label="Joindre un fichier"
+              aria-label={t('attach.file')}
             >
               <IconPaperclip size={20} />
             </button>
             {attachOpen && (
               <div className="attach-pop">
                 <button type="button" onClick={() => pickImage(0.6)}>
-                  <IconImage size={18} /><span>Photo · légère</span><em>0,6</em>
+                  <IconImage size={18} /><span>{t('attach.photoLight')}</span><em>0,6</em>
                 </button>
                 <button type="button" onClick={() => pickImage(0.82)}>
-                  <IconImage size={18} /><span>Photo · équilibrée</span><em>0,82</em>
+                  <IconImage size={18} /><span>{t('attach.photoBalanced')}</span><em>0,82</em>
                 </button>
                 <button type="button" onClick={() => pickImage(0.95)}>
-                  <IconImage size={18} /><span>Photo · qualité max</span><em>0,95</em>
+                  <IconImage size={18} /><span>{t('attach.photoMax')}</span><em>0,95</em>
                 </button>
                 <button type="button" onClick={() => pickImage(null)}>
-                  <IconImage size={18} /><span>Photo · originale</span><em>∞</em>
+                  <IconImage size={18} /><span>{t('attach.photoOriginal')}</span><em>∞</em>
                 </button>
                 <button type="button" onClick={() => pickInput(vidInput)}>
-                  <IconVideoFile size={18} /><span>Vidéo</span><em>{formatSize(MAX_FILE)}</em>
+                  <IconVideoFile size={18} /><span>{t('type.video')}</span><em>{formatSize(MAX_FILE)}</em>
                 </button>
                 <button type="button" onClick={() => pickInput(fileInput)}>
-                  <IconFile size={18} /><span>Fichier</span><em>{formatSize(MAX_FILE)}</em>
+                  <IconFile size={18} /><span>{t('type.file')}</span><em>{formatSize(MAX_FILE)}</em>
                 </button>
                 <button type="button" onClick={() => { setAttachOpen(false); setPollOpen(true); }}>
-                  <IconPoll size={18} /><span>Sondage</span><em>2 à 6</em>
+                  <IconPoll size={18} /><span>{t('poll.new')}</span><em>2–6</em>
                 </button>
               </div>
             )}
@@ -907,9 +908,9 @@ export default function ChatPane(p: Props) {
                     type="button"
                     className={ttl === v ? 'on' : ''}
                     onClick={() => { setTtl(v); setTtlPop(false); }}
-                    title={v ? 'Ce message disparaîtra pour tout le monde après ce délai' : 'Ce message reste dans la session'}
+                    title={v ? t('ttl.titleOn') : t('ttl.titleOff')}
                   >
-                    {label}
+                    {t(label)}
                     <em className="ttl-hint">{v ? short : '∞'}</em>
                   </button>
                 ))}
@@ -932,11 +933,11 @@ export default function ChatPane(p: Props) {
           <div className="rec-bar">
             <span className="rec-dot" />
             <span className="rec-time">{formatTime(recMs / 1000)}</span>
-            <span className="rec-hint">Message vocal…</span>
+            <span className="rec-hint">{t('rec.hint')}</span>
             <button type="button" className="rec-cancel" onClick={cancelRec} title="Annuler" aria-label="Annuler l’enregistrement">
               <IconTrash size={18} />
             </button>
-            <button type="button" className="send ready" onClick={sendRec} title="Envoyer" aria-label="Envoyer le message vocal">
+            <button type="button" className="send ready" onClick={sendRec} title={t("chat.send")} aria-label={t("rec.send")}>
               <IconSend size={20} />
             </button>
           </div>
@@ -969,9 +970,9 @@ export default function ChatPane(p: Props) {
               onPaste={onPaste}
             />
             {draft.trim() ? (
-              <button className="send ready" onClick={send} title="Envoyer" aria-label="Envoyer"><IconSend size={20} /></button>
+              <button className="send ready" onClick={send} title={t("chat.send")} aria-label={t("chat.send")}><IconSend size={20} /></button>
             ) : (
-              <button className="send" onClick={startRec} title="Message vocal" aria-label="Enregistrer un message vocal">
+              <button className="send" onClick={startRec} title={t("chat.voice")} aria-label={t("rec.start")}>
                 <IconMic size={21} />
               </button>
             )}
@@ -1016,7 +1017,7 @@ export default function ChatPane(p: Props) {
         <Modal title={t('thread.title')} onClose={() => setThreadRoot(null)} width={460}>
           <div className="thread-root">
             <span className="thread-label">Message d’origine</span>
-            <p>{(() => { const e = p.open(rootMsg); return e?.text || (e?.poll ? '📊 ' + e.poll.q : e?.file ? e.file.name : e?.audio ? 'Message vocal' : '…'); })()}</p>
+            <p>{(() => { const e = p.open(rootMsg); return e?.text || (e?.poll ? '📊 ' + e.poll.q : e?.file ? e.file.name : e?.audio ? t('msg.voice') : '…'); })()}</p>
           </div>
           <div className="thread-list">
             {(threads[rootMsg.id] || []).map(({ m, env }) => (
@@ -1037,7 +1038,7 @@ export default function ChatPane(p: Props) {
       {preview && (
         <div className="lightbox" onClick={() => setPreview(null)} role="dialog" aria-label={preview.name}>
           <img src={preview.url} alt={preview.name} />
-          <button type="button" className="lightbox-close" onClick={() => setPreview(null)} aria-label="Fermer">
+          <button type="button" className="lightbox-close" onClick={() => setPreview(null)} aria-label={t("common.close")}>
             <IconX size={20} />
           </button>
           <a className="lightbox-dl" href={preview.url} download={preview.name} onClick={(e) => e.stopPropagation()}>
@@ -1053,6 +1054,7 @@ export default function ChatPane(p: Props) {
 export function ShareTile({ stream, name, onStop, onClose, local }: {
   stream: MediaStream; name: string; onStop?: () => void; onClose: () => void; local?: boolean;
 }) {
+  const t = useT();
   const ref = useRef<HTMLVideoElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
@@ -1140,7 +1142,7 @@ export function ShareTile({ stream, name, onStop, onClose, local }: {
               <IconX size={15} />
             </button>
           ) : (
-            <button type="button" className="sc-btn danger" onClick={onClose} title="Fermer : ne plus voir ni entendre ce partage" aria-label="Fermer">
+            <button type="button" className="sc-btn danger" onClick={onClose} title={t("share.close")} aria-label={t("common.close")}>
               <IconX size={15} />
             </button>
           )}

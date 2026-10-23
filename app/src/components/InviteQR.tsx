@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import './invite.css';
+import { useT } from '../lib/i18n';
 
 export default function InviteQR({ url }: { url: string }) {
+  const t = useT();
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -24,11 +26,11 @@ export default function InviteQR({ url }: { url: string }) {
   return (
     <div className="invite-qr">
       {failed ? (
-        <p className="invite-qr-error" role="alert">Impossible de générer le QR code.</p>
+        <p className="invite-qr-error" role="alert">{t('qr.failed')}</p>
       ) : src ? (
-        <img src={src} width={220} height={220} alt="QR code d'invitation" />
+        <img src={src} width={220} height={220} alt={t('qr.alt')} />
       ) : (
-        <p className="invite-qr-loading" role="status">Génération du QR code…</p>
+        <p className="invite-qr-loading" role="status">{t('qr.loading')}</p>
       )}
     </div>
   );

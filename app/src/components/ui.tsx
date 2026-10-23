@@ -1,6 +1,7 @@
 import React from 'react';
 import { AVATAR_COLORS, initials } from '../lib/format';
 import { IconX } from './Icons';
+import { useT } from '../lib/i18n';
 
 export function Avatar({ name, color = 0, avatar, size = 46, online, muted, className = '' }: {
   name: string; color?: number; avatar?: string | null; size?: number; online?: boolean; muted?: boolean; className?: string;
@@ -34,6 +35,7 @@ export function IconButton({ children, label, onClick, active, className = '', t
 export function Modal({ title, children, onClose, width = 470, footer }: {
   title: string; children: React.ReactNode; onClose: () => void; width?: number; footer?: React.ReactNode;
 }) {
+  const t = useT();
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -44,7 +46,7 @@ export function Modal({ title, children, onClose, width = 470, footer }: {
       <div className="modal" style={{ maxWidth: width }}>
         <header>
           <h3>{title}</h3>
-          <IconButton label="Fermer" onClick={onClose}><IconX size={18} /></IconButton>
+          <IconButton label={t('common.close')} onClick={onClose}><IconX size={18} /></IconButton>
         </header>
         <div className="modal-body">{children}</div>
         {footer && <footer>{footer}</footer>}

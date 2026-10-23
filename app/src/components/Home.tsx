@@ -86,6 +86,12 @@ export default function Home() {
             <li>{t('hero.p2')}</li>
             <li>{t('hero.p3')}</li>
           </ul>
+          <div className="hero-specs" aria-label={t('sec.kicker')}>
+            <span>XSalsa20-Poly1305</span>
+            <span>PBKDF2 � 210k</span>
+            <span>DTLS-SRTP</span>
+            <span>128 MB / {t('app.messages')}</span>
+          </div>
         </div>
 
         <div className="hero-visual" aria-hidden="true">
@@ -109,7 +115,7 @@ export default function Home() {
       </section>
 
       <section id="fonctions" className="home-section">
-        <p className="section-kicker">{t('feat.kicker')}</p>
+        <p className="section-kicker"><b>01</b>{t('feat.kicker')}</p>
         <h2>{t('feat.h2')}</h2>
         <div className="grid-feat">
           {FEATURES.map((f) => {
@@ -126,7 +132,7 @@ export default function Home() {
       </section>
 
       <section id="comment" className="home-section alt">
-        <p className="section-kicker">{t('how.kicker')}</p>
+        <p className="section-kicker"><b>02</b>{t('how.kicker')}</p>
         <h2>{t('how.h2')}</h2>
         <ol className="steps">
           {STEPS.map((s) => (
@@ -142,7 +148,7 @@ export default function Home() {
       </section>
 
       <section id="securite" className="home-section">
-        <p className="section-kicker">{t('sec.kicker')}</p>
+        <p className="section-kicker"><b>03</b>{t('sec.kicker')}</p>
         <h2>{t('sec.h2')}</h2>
         <div className="sec-grid">
           {SEC.map((s) => (
@@ -175,8 +181,13 @@ export default function Home() {
       </section>
 
       <footer className="home-foot">
-        <span>Seyra</span>
-        <span>seyra.website</span>
+        <span className="foot-brand">Seyra</span>
+        <nav>
+          <a href="/securite">{t('nav.security')}</a>
+          <a href="/nouveautes">{t('nav.news')}</a>
+          <a href="/app">{t('nav.open')}</a>
+        </nav>
+        <span className="foot-note">seyra.website</span>
       </footer>
     </div>
   );

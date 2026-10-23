@@ -12,6 +12,7 @@ import CamTile from './components/CamTile';
 import { IconCopy, IconLock, IconScreenShare, IconX } from './components/Icons';
 import { Modal } from './components/ui';
 import { cleanPseudo, formatCodeInput, mentionsName } from './lib/format';
+import { useT } from './lib/i18n';
 import { parsePoll } from './lib/poll';
 import { CHUNK, MAX_FILE, base64ToBytes, bytesToBase64, cleanName, compressImage, fileKind, formatSize, isCompressibleImage, stripImageMetadata } from './lib/files';
 import { cryptoReady, deriveSession, newCode, normalizeCode, openBody, sealBody } from './lib/session';
@@ -31,6 +32,7 @@ function readJoinHash(): string {
 }
 
 function InviteBox({ code, onFlash }: { code: string; onFlash: (text: string) => void }) {
+  const t = useT();
   const [showQr, setShowQr] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const url = `${window.location.origin}/app#join=${code}`;
@@ -39,7 +41,7 @@ function InviteBox({ code, onFlash }: { code: string; onFlash: (text: string) =>
     navigator.clipboard?.writeText(url).then(() => {
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 1800);
-    }).catch(() => onFlash('Copie impossible : sélectionnez le lien à la main.'));
+    }).catch(() => onFlash(t('invite.copyFail')));
   };
 
   return (
@@ -47,10 +49,10 @@ function InviteBox({ code, onFlash }: { code: string; onFlash: (text: string) =>
       <code className="invite-link">{url}</code>
       <div className="invite-actions">
         <button className="btn ghost" onClick={copyLink}>
-          <IconCopy size={16} /> {copiedLink ? 'Lien copié' : 'Copier le lien'}
+          <IconCopy size={16} /> {copiedLink ? t('invite.copied') : t('invite.copyLink')}
         </button>
         <button className="btn ghost" onClick={() => setShowQr((v) => !v)}>
-          {showQr ? 'Masquer le QR code' : 'Afficher le QR code'}
+          {showQr ? t('invite.hideQr') : t('invite.showQr')}
         </button>
       </div>
       {showQr && <Suspense fallback={null}><InviteQR url={url} /></Suspense>}
@@ -59,6 +61,7 @@ function InviteBox({ code, onFlash }: { code: string; onFlash: (text: string) =>
 }
 
 export default function App() {
+  const t = useT();
   const [phase, setPhase] = useState<Phase>('landing');
   const [prefillCode, setPrefillCode] = useState<string>(() => readJoinHash());
   const [showInvite, setShowInvite] = useState(false);
@@ -400,7 +403,7 @@ export default function App() {
         case 'session:error':
           pending.current = null;
           setBusy(false);
-          setError(m.message || 'Session indisponible.');
+          setError(m.message || t('err.sessionUnavailable'));
           rt.close();
           break;
 
@@ -419,21 +422,21 @@ export default function App() {
         case 'session:closed':
           if (cur.phase === 'session') {
             wipe();
-            setNotice('La session a été fermée. Les messages ont été effacés.');
+            setNotice(t('notice.closed'));
             voice.leave();
           }
           break;
 
         case 'peer:joined':
           setParticipants((prev) => prev.some((x) => x.id === m.participant.id) ? prev : [...prev, m.participant]);
-          setNotices((prev) => [...prev, { id: 'n' + Date.now() + m.participant.id, text: `${m.participant.name} a rejoint la session`, ts: Date.now() }]);
+          setNotices((prev) => [...prev, { id: 'n' + Date.now() + m.participant.id, text: t('notice.joined').replace('{name}', m.participant.name), ts: Date.now() }]);
           break;
 
         case 'peer:left':
           setParticipants((prev) => prev.filter((x) => x.id !== m.participant.id));
           setNotices((prev) => [...prev, {
             id: 'n' + Date.now() + m.participant.id,
-            text: m.reason === 'kicked' ? `${m.participant.name} a été retiré de la session` : `${m.participant.name} a quitté la session`,
+            text: m.reason === 'kicked' ? t('notice.kicked').replace('{name}', m.participant.name) : t('notice.left').replace('{name}', m.participant.name),
             ts: Date.now(),
           }]);
           break;
@@ -441,7 +444,7 @@ export default function App() {
         case 'session:kicked':
           if (cur.phase === 'session') {
             wipe();
-            setNotice('Le propriétaire vous a retiré de la session.');
+            setNotice(t('notice.removed'));
             voice.leave();
           }
           break;
@@ -573,7 +576,7 @@ export default function App() {
       }, 15000);
     } catch (e) {
       setBusy(false);
-      setError((e as Error).message || 'Impossible de créer la session.');
+      setError((e as Error).message || t('err.createFailed'));
     }
   }, []);
 
@@ -617,7 +620,7 @@ export default function App() {
     const { cipher, nonce } = sealBody(body, key);
     // Garde-fou aligné sur le serveur (3 M de base64 pour un vocal).
     if (cipher.length > 2950000) {
-      flash('Message vocal trop long. Réessayez plus court.');
+      flash(t('err.voiceTooLong'));
       return;
     }
     rt.send({ t: 'msg', kind: 'voice', cipher, nonce, ...(ttl ? { ttl } : {}) });
@@ -900,7 +903,7 @@ export default function App() {
               />
             </div>
             <div className="modal-actions">
-              <button className="btn ghost" onClick={() => { setLockedCode(''); setLockedPwd(''); }}>Annuler</button>
+              <button className="btn ghost" onClick={() => { setLockedCode(''); setLockedPwd(''); }}>{t('common.cancel')}</button>
               <button className="btn primary" disabled={!lockedPwd} onClick={() => { const c = lockedCode; setLockedCode(''); join(c, lockedPwd); setLockedPwd(''); }}>Rejoindre</button>
             </div>
           </Modal>
@@ -1005,15 +1008,15 @@ export default function App() {
         <ShareTile key={p.id} stream={p.screen!} name={p.name} onClose={() => closeRemoteScreen(p.id, false)} />
       ))}
       {vstate.peers.filter((p) => p.screen && closedScreens.has(p.id)).map((p) => (
-        <button key={'cs' + p.id} className="share-pill" onClick={() => closeRemoteScreen(p.id, true)} title="Voir et entendre le partage">
+        <button key={'cs' + p.id} className="share-pill" onClick={() => closeRemoteScreen(p.id, true)} title={t('share.watch')}>
           <IconScreenShare size={15} />
-          <span>Rouvrir le partage de {p.name}</span>
+          <span>{t('share.reopen')} {p.name}</span>
         </button>
       ))}
 
       {askRename && (
-        <Modal title="Votre pseudo" onClose={() => setAskRename(false)} width={400}>
-          <p className="muted">Les autres participants le verront. Vous pouvez le changer à tout moment.</p>
+        <Modal title={t('rename.title')} onClose={() => setAskRename(false)} width={400}>
+          <p className="muted">{t('rename.hint')}</p>
           <div className="modal-field">
             <input
               autoFocus
@@ -1021,67 +1024,67 @@ export default function App() {
               maxLength={24}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') savePseudo(renameValue); }}
-              placeholder="Votre pseudo"
+              placeholder={t('common.pseudo')}
             />
           </div>
           <div className="modal-actions">
-            <button className="btn ghost" onClick={() => setAskRename(false)}>Annuler</button>
-            <button className="btn primary" onClick={() => savePseudo(renameValue)} disabled={!renameValue.trim()}>Enregistrer</button>
+            <button className="btn ghost" onClick={() => setAskRename(false)}>{t('common.cancel')}</button>
+            <button className="btn primary" onClick={() => savePseudo(renameValue)} disabled={!renameValue.trim()}>{t('common.save')}</button>
           </div>
         </Modal>
       )}
 
       {showCode && (
-        <Modal title="Session ouverte" onClose={() => setShowCode(false)} width={440}>
-          <p className="muted">Partagez ce code. Il sert de clé de chiffrement : sans lui, les messages sont illisibles.</p>
+        <Modal title={t('code.title')} onClose={() => setShowCode(false)} width={440}>
+          <p className="muted">{t('code.hint')}</p>
           <div className="big-code">
             <code>{code}</code>
-            <button className="btn ghost" onClick={copyCode}><IconCopy size={16} /> {copied ? 'Copié' : 'Copier'}</button>
+            <button className="btn ghost" onClick={copyCode}><IconCopy size={16} /> {copied ? t('code.copied') : t('code.copy')}</button>
           </div>
           <InviteBox code={code} onFlash={flash} />
-          <p className="hint-line"><IconLock size={13} /> Ne le partagez que par un canal de confiance.</p>
-          <button className="btn primary wide" onClick={() => setShowCode(false)}>C'est parti</button>
+          <p className="hint-line"><IconLock size={13} /> {t('code.trust')}</p>
+          <button className="btn primary wide" onClick={() => setShowCode(false)}>{t('code.start')}</button>
         </Modal>
       )}
 
       {showInvite && (
-        <Modal title="Inviter" onClose={() => setShowInvite(false)} width={460}>
-          <p className="muted">Le lien et le QR code ouvrent l'app avec le code déjà rempli.</p>
+        <Modal title={t('invite.title')} onClose={() => setShowInvite(false)} width={460}>
+          <p className="muted">{t('invite.hint')}</p>
           <InviteBox code={code} onFlash={flash} />
-          <button className="btn primary wide" onClick={() => setShowInvite(false)}>Fermer</button>
+          <button className="btn primary wide" onClick={() => setShowInvite(false)}>{t('common.close')}</button>
         </Modal>
       )}
 
       {askKick && (
-        <Modal title={`Retirer ${askKick.name} ?`} onClose={() => setAskKick(null)} width={420}>
-          <p className="muted">Ce participant sera déconnecté et ne pourra plus rejoindre cette session.</p>
+        <Modal title={`${t('kick.title')} ${askKick.name} ?`} onClose={() => setAskKick(null)} width={420}>
+          <p className="muted">{t('kick.hint')}</p>
           <div className="modal-actions">
-            <button className="btn ghost" onClick={() => setAskKick(null)}>Annuler</button>
-            <button className="btn danger" onClick={() => kick(askKick)}>Retirer</button>
+            <button className="btn ghost" onClick={() => setAskKick(null)}>{t('common.cancel')}</button>
+            <button className="btn danger" onClick={() => kick(askKick)}>{t('kick.confirm')}</button>
           </div>
         </Modal>
       )}
 
       {askClose && (
-        <Modal title="Fermer la session ?" onClose={() => setAskClose(false)} width={420}>
-          <p className="muted">Tous les messages seront définitivement effacés, pour vous et pour les autres participants.</p>
+        <Modal title={t('close.title')} onClose={() => setAskClose(false)} width={420}>
+          <p className="muted">{t('close.hint')}</p>
           <div className="modal-actions">
             <button className="btn ghost" onClick={() => setAskClose(false)}><IconX size={15} /> Annuler</button>
-            <button className="btn danger" onClick={closeSession}>Fermer et effacer</button>
+            <button className="btn danger" onClick={closeSession}>{t('close.confirm')}</button>
           </div>
         </Modal>
       )}
 
       {showHelp && (
-        <Modal title="Raccourcis" onClose={() => setShowHelp(false)} width={420}>
+        <Modal title={t('help.title')} onClose={() => setShowHelp(false)} width={420}>
           <dl className="help-list">
-            <dt><kbd>Entrée</kbd></dt><dd>Envoyer le message</dd>
-            <dt><kbd>Maj</kbd> + <kbd>Entrée</kbd></dt><dd>Nouvelle ligne</dd>
+            <dt><kbd>Enter</kbd></dt><dd>{t('help.enter')}</dd>
+            <dt><kbd>Shift</kbd> + <kbd>Enter</kbd></dt><dd>{t('help.newline')}</dd>
             <dt><kbd>Ctrl</kbd> + <kbd>F</kbd></dt><dd>Rechercher dans la session</dd>
             <dt><kbd>Ctrl</kbd> + <kbd>V</kbd></dt><dd>Coller une image ou un fichier</dd>
-            <dt><kbd>Échap</kbd></dt><dd>Fermer une fenêtre, quitter le plein écran</dd>
-            <dt><kbd>?</kbd></dt><dd>Afficher cette aide</dd>
-            <dt><code>/sondage</code></dt><dd>Question | option | option : sondage à choix unique</dd>
+            <dt><kbd>Esc</kbd></dt><dd>{t('help.escape')}</dd>
+            <dt><kbd>?</kbd></dt><dd>{t('help.help')}</dd>
+            <dt><code>/sondage</code></dt><dd>{t('help.poll')}</dd>
           </dl>
         </Modal>
       )}
