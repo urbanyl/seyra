@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatCodeInput } from '../lib/format';
 import { useT } from '../lib/i18n';
-import { IconBack, IconCheck, IconLock, IconPlus, IconUsers, SeyraMark } from './Icons';
+import { IconBack, IconCheck, IconJoin, IconLock, IconPlus, SeyraMark } from './Icons';
 import LangMenu from './LangMenu';
 
 export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo, onPseudo, prefillCode }: {
@@ -100,7 +100,7 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
                 </span>
               </button>
               <button className="choice" onClick={() => { setMode('join'); setUsePassword(false); }} disabled={busy}>
-                <span className="choice-icon cyan"><IconUsers size={20} /></span>
+                <span className="choice-icon cyan"><IconJoin size={20} /></span>
                 <span className="choice-text">
                   <strong>{t('join.title')}</strong>
                   <em>{t('join.desc')}</em>

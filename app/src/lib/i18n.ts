@@ -465,3 +465,9 @@ Object.assign(DICT.fr, { 'poll.example': 'Pizza ce soir ?' });
 
 Object.assign(DICT.en, { 'settings.tip': 'Tip: the screen button in the header shares your screen during a call.' });
 Object.assign(DICT.fr, { 'settings.tip': 'Astuce : le bouton écran dans l’en-tête partage votre écran pendant un appel.' });
+
+Object.assign(DICT.en, { 'wall.matrix': 'Matrix' });
+Object.assign(DICT.fr, { 'wall.matrix': 'Matrix' });
+Object.assign(DICT.zh, { 'wall.matrix': '??' });
+Object.assign(DICT.ru, { 'wall.matrix': '???????' });
+Object.assign(DICT.ko, { 'wall.matrix': '????' });

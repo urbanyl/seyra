@@ -157,3 +157,34 @@
 
 /* aperÃ§u du motif : plus grand, et le motif dÃ©marre au coin */
 .wall-swatch { width: 74px; height: 54px; background-size: auto !important; background-position: 0 0 !important; }
+
+/* ---------- fond animé « matrix » ---------- */
+.matrix-wall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; opacity: 0.16; }
+.matrix-wall.mini { opacity: 0.9; border-radius: inherit; }
+.matrix-col {
+  position: absolute; top: -100%; width: 20px; font: 700 16px/1.15 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  white-space: nowrap; letter-spacing: 1px; writing-mode: vertical-lr; color: var(--accent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 8%, rgba(0, 0, 0, 0.8) 45%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 8%, rgba(0, 0, 0, 0.8) 45%, transparent 100%);
+  animation: matrix-fall linear infinite;
+  will-change: transform;
+}
+.matrix-wall.mini .matrix-col { width: 7px; font-size: 6px; line-height: 6.6px; letter-spacing: 0; }
+@keyframes matrix-fall {
+  0% { transform: translateY(-10%); opacity: 1; }
+  100% { transform: translateY(200%); opacity: 0; }
+}
+@media (max-width: 768px) { .matrix-col { width: 18px; font-size: 14px; line-height: 16px; } }
+@media (max-width: 480px) { .matrix-col { width: 15px; font-size: 12px; line-height: 14px; } }
+
+/* quand le fond matrix est actif, la conversation laisse voir la couche animée */
+.pane.with-matrix { background: var(--chat-bg); }
+.pane.with-matrix .messages { background: transparent !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .matrix-col { animation: none !important; opacity: 0.35; }
+}
+
+/* vignette d'aperçu : le fond matrix est un composant, il lui faut un cadre */
+.wall-swatch { position: relative; overflow: hidden; }
+.wall-swatch .matrix-wall { opacity: 0.55; }

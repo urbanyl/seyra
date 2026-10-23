@@ -42,6 +42,12 @@ export const WALLPAPERS: { id: string; name: string; css: string }[] = [
       `radial-gradient(50% 50%, ${C2} 98%, rgba(0, 0, 0, 0)) 0 0 / ${S} ${S}, ` +
       `repeating-conic-gradient(${C2} 0 50%, ${C1} 0 100%) calc(0.5 * ${S}) 0 / calc(2 * ${S}) ${S}`,
   },
+  {
+    id: 'matrix',
+    name: 'wall.matrix',
+    // Rendu par le composant MatrixWall (colonnes animées), pas par un fond CSS.
+    css: 'none',
+  },
 ];
 const KEY = 'seyra.prefs.v1';
 

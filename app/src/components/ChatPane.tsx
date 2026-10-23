@@ -9,6 +9,7 @@ import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconImage, Ic
 import { Avatar, Empty, IconButton, Modal } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
+import MatrixWall from './MatrixWall';
 import { buildPollCommand, isPollCommand, parsePoll, POLL_FORMAT } from '../lib/poll';
 
 type Props = {
@@ -39,6 +40,7 @@ type Props = {
   onShareScreen: () => void;
   sharing: boolean;
   shareStream: MediaStream | null;
+  wall: string;
   pinned: string[];
   onTogglePin: (msgId: string) => void;
   votes: Votes;
@@ -167,6 +169,7 @@ const TTL_OPTIONS: [number | null, string, string][] = [
 
 export default function ChatPane(p: Props) {
   const t = useT();
+  const matrix = p.wall === 'matrix';
   const [draft, setDraft] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -522,7 +525,8 @@ export default function ChatPane(p: Props) {
   }
 
   return (
-    <section className="pane" onClick={closePops}>
+    <section className={`pane${matrix ? ' with-matrix' : ''}`} onClick={closePops}>
+        {matrix && <MatrixWall />}
       <header className="pane-head">
         <div className="stack">
           {p.participants.slice(0, 3).map((x) => (

@@ -990,6 +990,7 @@ export default function App() {
           onVote={votePoll}
           sharing={vstate.sharing}
           shareStream={vstate.screen}
+          wall={sessionWall || prefs.wallpaper}
         />
       </main>
 

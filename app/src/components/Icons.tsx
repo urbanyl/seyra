@@ -60,6 +60,13 @@ export const IconPlus = ({ size, className, strokeWidth = 1.9 }: P) => (
   </svg>
 );
 
+export const IconJoin = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M13.5 4.6h4.9a2 2 0 0 1 2 2v10.8a2 2 0 0 1-2 2h-4.9" />
+    <path d="M3.6 12h8.6M9.4 8.7 12.7 12l-3.3 3.3" />
+  </svg>
+);
+
 export const IconSend = ({ size = 22, className }: P) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="none" className={className}>
     <path d="M4.3 11.2 19.1 4.2c.9-.4 1.8.5 1.4 1.4l-7 14.8c-.4.9-1.7.8-2-.2l-1.6-5.2-5.2-1.6c-1-.3-1.1-1.6-.2-2Z" fill="currentColor" />

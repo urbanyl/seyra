@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { WALLPAPERS, THEMES, type Prefs } from '../lib/prefs';
 import { Modal } from './ui';
 import { IconImage, IconScreenShare } from './Icons';
+import MatrixWall from './MatrixWall';
 import { useT } from '../lib/i18n';
 
 export default function Settings({ prefs, onChange, sessionWall, onSetWall, onClose }: {
@@ -36,7 +37,9 @@ export default function Settings({ prefs, onChange, sessionWall, onSetWall, onCl
                 title={t(w.name)}
                 style={{ background: w.css }}
                 onClick={() => onSetWall(w.id === 'none' ? '' : w.id)}
-              />
+              >
+                {w.id === 'matrix' && <MatrixWall mini />}
+              </button>
             ))}
           </div>
           <em className="field-hint">{t('settings.wallSharedHint')}</em>
