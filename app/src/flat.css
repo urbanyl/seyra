@@ -277,3 +277,32 @@
   .pane-actions .icon-btn svg, .call-btn svg { width: 17px; height: 17px; }
   .side-stats span { letter-spacing: 0; }
 }
+
+/* ---------- fen�tres sur mobile : compactes et lisibles ---------- */
+@media (max-width: 600px) {
+  .overlay { padding: 10px; }
+  .modal { border-radius: 16px; }
+  .modal header { padding: 12px 14px; }
+  .modal header h3 { font-size: 16px; }
+  .modal-body { padding: 0 14px 14px; }
+  .modal-body > p { font-size: 13.5px; line-height: 1.5; }
+
+  .big-code { margin: 10px 0 8px; padding: 10px 12px; gap: 8px; align-items: center; }
+  .big-code code { font-size: 15px; letter-spacing: 0.04em; white-space: nowrap; }
+  .big-code .btn { min-height: 34px; padding: 0 10px; font-size: 13px; }
+
+  .invite-box { padding: 10px 12px; gap: 8px; border-radius: 10px; }
+  .invite-link { font-size: 11.5px; line-height: 1.45; }
+  .invite-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .invite-actions .btn { min-height: 36px; padding: 0 8px; font-size: 12.5px; }
+  .invite-qr { min-height: 0; padding: 6px; }
+  .invite-qr img { width: 180px; height: 180px; }
+
+  .hint-line { font-size: 12px; margin: 8px 0 12px; }
+  .modal .btn.primary.wide { min-height: 44px; font-size: 15px; margin-top: 8px; }
+  .modal-actions { gap: 8px; margin-top: 12px; }
+  .modal-actions .btn { min-height: 42px; }
+
+  /* pas de marges mortes : le contenu commence tout de suite */
+  .modal-body > .muted:first-child { margin-top: 0; }
+}
