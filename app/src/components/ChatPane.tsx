@@ -4,10 +4,11 @@ import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
 import { dayLabel, mentionPattern, timeOf } from '../lib/format';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
-import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPencil, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPencil, IconPoll, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton, Modal } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
+import { buildPollCommand, isPollCommand, parsePoll, POLL_FORMAT } from '../lib/poll';
 
 type Props = {
   code: string;
@@ -46,6 +47,43 @@ type Props = {
   receipts: boolean;
   readers: Record<string, number>;
 };
+
+/** Formulaire de sondage : une question, 2 à 6 options. Envoie la même commande que /sondage. */
+function PollBuilder({ onClose, onCreate }: { onClose: () => void; onCreate: (command: string) => void }) {
+  const [question, setQuestion] = useState('');
+  const [opts, setOpts] = useState<string[]>(['', '']);
+  const command = buildPollCommand(question, opts);
+  const setOpt = (i: number, v: string) => setOpts((prev) => prev.map((x, k) => (k === i ? v : x)));
+  return (
+    <Modal title="Nouveau sondage" onClose={onClose} width={460}>
+      <label className="poll-field">
+        <span>Question</span>
+        <input autoFocus value={question} maxLength={200} placeholder="Pizza ce soir ?" onChange={(e) => setQuestion(e.target.value)} />
+      </label>
+      <div className="poll-field">
+        <span>Options</span>
+        {opts.map((o, i) => (
+          <div key={i} className="poll-opt-row">
+            <input value={o} maxLength={120} placeholder={`Option ${i + 1}`} onChange={(e) => setOpt(i, e.target.value)} />
+            {opts.length > 2 && (
+              <button type="button" className="poll-rm" aria-label={`Retirer l'option ${i + 1}`} onClick={() => setOpts((prev) => prev.filter((_, k) => k !== i))}>
+                <IconX size={14} />
+              </button>
+            )}
+          </div>
+        ))}
+        {opts.length < 6 && (
+          <button type="button" className="poll-add" onClick={() => setOpts((prev) => [...prev, ''])}>+ Ajouter une option</button>
+        )}
+      </div>
+      <p className="edit-hint">Le vote est chiffré. Chaque participant peut voter, et cliquer à nouveau retire son vote.</p>
+      <div className="modal-actions">
+        <button className="btn ghost" onClick={onClose}>Annuler</button>
+        <button className="btn primary" disabled={!command} onClick={() => command && onCreate(command)}>Créer le sondage</button>
+      </div>
+    </Modal>
+  );
+}
 
 /** Édition d'un message texte : seul l'auteur y accède. */
 function EditModal({ initial, onClose, onSave }: { initial: string; onClose: () => void; onSave: (text: string) => void }) {
@@ -143,6 +181,7 @@ export default function ChatPane(p: Props) {
   const [recMs, setRecMs] = useState<number | null>(null);
   const [showJump, setShowJump] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [pollOpen, setPollOpen] = useState(false);
 
   // Raccourci : Ctrl+F (ou Cmd+F) ouvre la recherche dans la session.
   useEffect(() => {
@@ -332,6 +371,11 @@ export default function ChatPane(p: Props) {
   function send() {
     const text = draft.trim();
     if (!text) return;
+    // Commande sondage mal écrite : on la refuse et on dit pourquoi, au lieu de l'envoyer en texte brut.
+    if (isPollCommand(text) && !parsePoll(text)) {
+      p.onNotify(`Sondage incomplet. Format : ${POLL_FORMAT} (2 options minimum), ou utilisez le bouton Sondage.`);
+      return;
+    }
     p.onSend(text, reply, ttl);
     setDraft('');
     setReply(null);
@@ -784,6 +828,9 @@ export default function ChatPane(p: Props) {
                 <button type="button" onClick={() => pickInput(fileInput)}>
                   <IconFile size={18} /><span>Fichier</span><em>{formatSize(MAX_FILE)}</em>
                 </button>
+                <button type="button" onClick={() => { setAttachOpen(false); setPollOpen(true); }}>
+                  <IconPoll size={18} /><span>Sondage</span><em>2 à 6</em>
+                </button>
               </div>
             )}
             <input ref={imgInput} type="file" accept="image/*" hidden onChange={(e) => onPicked(e, imgQuality.current)} />
@@ -884,6 +931,13 @@ export default function ChatPane(p: Props) {
           <IconArrowDown size={unread ? 16 : 18} />
           {unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
         </button>
+      )}
+
+      {pollOpen && (
+        <PollBuilder
+          onClose={() => setPollOpen(false)}
+          onCreate={(cmd) => { p.onSend(cmd, reply, ttl); setReply(null); setPollOpen(false); }}
+        />
       )}
 
       {editing && (

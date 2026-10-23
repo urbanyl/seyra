@@ -76,6 +76,24 @@ export default function Settings({ prefs, onChange, sessionWall, onSetWall, onCl
         </div>
 
         <div className="settings-row">
+          <label>Taille du texte <em className="opt">— votre appareil</em></label>
+          <div className="seg" role="radiogroup" aria-label="Taille du texte">
+            {([['small', 'Petit'], ['normal', 'Normal'], ['large', 'Grand']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={prefs.fontScale === id}
+                className={prefs.fontScale === id ? 'on' : ''}
+                onClick={() => onChange({ fontScale: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings-row">
           <label>Confort</label>
           <div className="toggle-row">
             <span>Densité compacte<em>Plus de messages à l'écran</em></span>

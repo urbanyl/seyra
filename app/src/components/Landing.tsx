@@ -21,6 +21,17 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
 
   return (
     <div className="landing">
+      <header className="home-nav">
+        <a className="home-brand" href="/">
+          <SeyraMark size={32} />
+          <span>Seyra</span>
+        </a>
+        <nav>
+          <a href="/securite">Sécurité</a>
+          <a href="/nouveautes">Nouveautés</a>
+          <a className="home-cta-small" href="/">Accueil</a>
+        </nav>
+      </header>
       <div className="landing-card">
         <div className="landing-brand">
           <SeyraMark size={58} />

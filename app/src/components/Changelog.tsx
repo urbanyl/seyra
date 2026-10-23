@@ -2,6 +2,15 @@ import { SeyraMark } from './Icons';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.2.1',
+    date: 'octobre 2026',
+    title: 'Sondages plus simples',
+    items: [
+      'Bouton Sondage dans le menu pièces jointes : une question, deux à six options, sans syntaxe à retenir.',
+      'Une commande /sondage incomplète est refusée avec le format attendu, au lieu d’être envoyée en texte brut.',
+    ],
+  },
+  {
     version: '2.2',
     date: 'octobre 2026',
     title: 'CamÃ©ra, Ã©dition et animateurs',

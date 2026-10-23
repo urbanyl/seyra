@@ -327,3 +327,9 @@ export const SeyraMark = ({ size = 30, className }: { size?: number; className?:
     draggable={false}
   />
 );
+
+export const IconPoll = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M5 20V12M12 20V5M19 20v-9" />
+  </svg>
+);

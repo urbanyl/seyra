@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cleanPseudo, formatCodeInput, initials, mentionPattern, mentionsName } from './format';
-import { parsePoll } from './poll';
+import { buildPollCommand, isPollCommand, parsePoll } from './poll';
 import { cleanName as cleanFileName } from './files';
 
 describe('initials', () => {
@@ -98,5 +98,26 @@ describe('parsePoll', () => {
   it('plafonne Ã  six options', () => {
     const p = parsePoll('/sondage Q | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8', id);
     expect(p?.opts).toHaveLength(6);
+  });
+});
+
+describe('commande sondage', () => {
+  it('reconnaît une tentative même incomplète', () => {
+    expect(isPollCommand('/sondage')).toBe(true);
+    expect(isPollCommand('/sondage Pizza')).toBe(true);
+    expect(isPollCommand('bonjour')).toBe(false);
+  });
+
+  it('construit une commande valide depuis le formulaire', () => {
+    expect(buildPollCommand('Pizza ?', ['Oui', 'Non', ''])).toBe('/sondage Pizza ? | Oui | Non');
+  });
+
+  it('refuse un formulaire avec moins de deux options', () => {
+    expect(buildPollCommand('Pizza ?', ['Oui', ''])).toBeNull();
+    expect(buildPollCommand('', ['Oui', 'Non'])).toBeNull();
+  });
+
+  it('retire les séparateurs saisis dans les champs', () => {
+    expect(buildPollCommand('A | B', ['x|y', 'z'])).toBe('/sondage A B | x y | z');
   });
 });

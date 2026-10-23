@@ -7,6 +7,7 @@ export type Prefs = {
   wallpaper: string;
   customWall: string; // data-URL, session uniquement (pas persisté)
   density: 'comfortable' | 'compact';
+  fontScale: 'small' | 'normal' | 'large';
   discreet: boolean;
   sound: boolean;
 };
@@ -46,6 +47,7 @@ const DEFAULTS: Prefs = {
   wallpaper: 'dots',
   customWall: '',
   density: 'comfortable',
+  fontScale: 'normal',
   discreet: false,
   sound: false,
 };
@@ -83,6 +85,7 @@ export function applyPrefs(p: Prefs) {
   root.style.setProperty('--muted', light ? '#5b6d7e' : '#8fa1b3');
   root.style.setProperty('--line', light ? '#d3dae1' : '#2a3540');
   root.dataset.density = p.density;
+  root.dataset.fs = p.fontScale || 'normal';
   root.dataset.discreet = p.discreet ? 'on' : 'off';
 
   const wall = p.customWall || (WALLPAPERS.find((w) => w.id === p.wallpaper)?.css ?? 'none');
