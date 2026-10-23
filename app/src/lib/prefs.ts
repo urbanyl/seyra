@@ -10,9 +10,10 @@ export type Prefs = {
   fontScale: 'small' | 'normal' | 'large';
   discreet: boolean;
   sound: boolean;
+  colorblind: boolean;
 };
 
-export const THEMES: { id: string; name: string; accent: string; accentDark: string; bubbleOut: string; bg: string; head: string; field: string; bubbleIn: string }[] = [
+export const THEMES: { id: string; name: string; accent: string; accentDark: string; bubbleOut: string; bg: string; head: string; field: string; bubbleIn: string; panel?: string }[] = [
   { id: 'seyra', name: 'Seyra', accent: '#00b2ff', accentDark: '#2b52f2', bubbleOut: '#1f5a86', bg: '#1c232a', head: '#232c34', field: '#2b3540', bubbleIn: '#232c34' },
   { id: 'ocean', name: 'Océan', accent: '#22c3e6', accentDark: '#0e7490', bubbleOut: '#155e75', bg: '#0e1a24', head: '#16242f', field: '#1d2f3c', bubbleIn: '#16242f' },
   { id: 'forest', name: 'Forêt', accent: '#34d399', accentDark: '#059669', bubbleOut: '#166534', bg: '#111a17', head: '#17241f', field: '#1f3129', bubbleIn: '#17241f' },
@@ -21,6 +22,8 @@ export const THEMES: { id: string; name: string; accent: string; accentDark: str
   { id: 'rose', name: 'Rose', accent: '#f472b6', accentDark: '#be185d', bubbleOut: '#9d174d', bg: '#1e1418', head: '#281a20', field: '#34222b', bubbleIn: '#281a20' },
   { id: 'mono', name: 'Graphite', accent: '#9fb3c8', accentDark: '#475569', bubbleOut: '#334155', bg: '#15181c', head: '#1c2025', field: '#262b32', bubbleIn: '#1c2025' },
   { id: 'light', name: 'Clair', accent: '#0a84ff', accentDark: '#2563eb', bubbleOut: '#bfe0ff', bg: '#eef2f6', head: '#ffffff', field: '#e4eaf0', bubbleIn: '#ffffff' },
+  // Contraste maximal sur fond noir : texte blanc, séparateurs visibles, accent cyan.
+  { id: 'contrast', name: 'High contrast', accent: '#00e5ff', accentDark: '#0a84ff', bubbleOut: '#0b4a75', bg: '#000000', head: '#121212', field: '#1c1c1c', bubbleIn: '#1c1c1c', panel: '#0a0a0a' },
 ];
 
 /* Fond de conversation : motif géométrique fourni par l'utilisateur, réadapté aux
@@ -28,11 +31,11 @@ export const THEMES: { id: string; name: string; accent: string; accentDark: str
  * `background` (raccourci complet) est posé sur .messages : positions et tailles
  * font partie de la valeur. */
 const S = '60px';
-const SP = '100px'; // taille de tuile du motif � �cailles �
+const SP = '100px'; // taille de tuile du motif « écailles »
 const C1 = 'var(--wall-c1)';
 const C2 = 'var(--wall-c2)';
 const DISC = `radial-gradient(25% 25% at 25% 25%, ${C1} 99%, rgba(0, 0, 0, 0) 101%)`;
-// Bandes altern�es du motif � �cailles �.
+// Bandes alternées du motif « écailles ».
 const PLATES = `${C2} 6% 14%, ${C1} 16% 24%, ${C2} 26% 34%, ${C1} 36% 44%, ${C2} 46% 54%, ${C1} 56% 64%, ${C2} 66% 74%, ${C1} 76% 84%, ${C2} 86% 94%`;
 
 export const WALLPAPERS: { id: string; name: string; css: string }[] = [
@@ -77,6 +80,7 @@ const DEFAULTS: Prefs = {
   fontScale: 'normal',
   discreet: false,
   sound: false,
+  colorblind: false,
 };
 
 /** Mélange deux couleurs hexadécimales (t = part de b, 0..1). */
@@ -125,17 +129,22 @@ export function applyPrefs(p: Prefs) {
   root.style.setProperty('--bubble-out', theme.bubbleOut);
   root.style.setProperty('--bg', theme.bg);
   root.style.setProperty('--chat-bg', theme.bg);
-  root.style.setProperty('--panel', theme.bg);
+  root.style.setProperty('--panel', theme.panel ?? theme.bg);
   root.style.setProperty('--head', theme.head);
   root.style.setProperty('--field', theme.field);
   root.style.setProperty('--bubble-in', theme.bubbleIn);
   const light = theme.id === 'light';
-  root.style.setProperty('--txt', light ? '#12202b' : '#eef4f8');
-  root.style.setProperty('--muted', light ? '#5b6d7e' : '#8fa1b3');
-  root.style.setProperty('--line', light ? '#d3dae1' : '#2a3540');
+  const contrast = theme.id === 'contrast';
+  root.style.setProperty('--txt', contrast ? '#ffffff' : light ? '#12202b' : '#eef4f8');
+  root.style.setProperty('--muted', contrast ? '#c9d4dd' : light ? '#5b6d7e' : '#8fa1b3');
+  root.style.setProperty('--line', contrast ? '#3a3a3a' : light ? '#d3dae1' : '#2a3540');
   root.dataset.density = p.density;
   root.dataset.fs = p.fontScale || 'normal';
   root.dataset.discreet = p.discreet ? 'on' : 'off';
+  // Palette daltonienne : orange/bleu restent distinguables (danger/ok).
+  root.dataset.colorblind = p.colorblind ? 'on' : 'off';
+  root.style.setProperty('--danger', p.colorblind ? '#ff9f43' : '#f15c6d');
+  root.style.setProperty('--ok', p.colorblind ? '#4dabf7' : '#00b2ff');
 
   // Le motif reprend le fond du thème et une pointe de son accent : il change donc avec le thème.
   root.style.setProperty('--wall-c1', theme.bg);

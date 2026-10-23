@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { formatCodeInput } from '../lib/format';
 import { useT } from '../lib/i18n';
-import { IconBack, IconCheck, IconJoin, IconLock, IconPlus, SeyraMark } from './Icons';
+import { IconBack, IconCheck, IconJoin, IconLock, IconPlus, IconUsers, SeyraMark } from './Icons';
 import LangMenu from './LangMenu';
 
 export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo, onPseudo, prefillCode }: {
-  onCreate: (opts: { password?: string; history?: boolean; receipts?: boolean }) => void;
+  onCreate: (opts: { password?: string; history?: boolean; receipts?: boolean; waiting?: boolean }) => void;
   onJoin: (code: string, password?: string) => void;
   busy: boolean;
   error: string;
@@ -21,6 +21,7 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
   const [usePassword, setUsePassword] = useState(false);
   const [history, setHistory] = useState(false);
   const [receipts, setReceipts] = useState(false);
+  const [waiting, setWaiting] = useState(false);
 
   return (
     <div className="landing">
@@ -91,8 +92,14 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
               <span>{t('create.receipts')}</span>
             </label>
             <p className="field-hint opt-hint">{receipts ? t('create.receiptsOn') : t('create.receiptsOff')}</p>
+            <label className={`pwd-toggle ${waiting ? 'on' : ''}`}>
+              <input type="checkbox" checked={waiting} onChange={(e) => setWaiting(e.target.checked)} />
+              <IconUsers size={15} />
+              <span>{t('wait.toggle')}</span>
+            </label>
+            <p className="field-hint opt-hint">{t('wait.toggleHint')}</p>
             <div className="landing-actions">
-              <button className="choice" onClick={() => onCreate({ password: usePassword ? password : undefined, history, receipts })} disabled={busy || (usePassword && password.length < 4)}>
+              <button className="choice" onClick={() => onCreate({ password: usePassword ? password : undefined, history, receipts, waiting })} disabled={busy || (usePassword && password.length < 4)}>
                 <span className="choice-icon"><IconPlus size={20} /></span>
                 <span className="choice-text">
                   <strong>{t('create.title')}</strong>

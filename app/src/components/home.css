@@ -322,3 +322,15 @@
   .home-hero { padding-left: 16px; padding-right: 16px; }
   .home-section { padding-left: 16px; padding-right: 16px; }
 }
+
+/* pied de page : bande pleine largeur, m�me fond que la section finale */
+.home-foot {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  background-color: var(--h-panel);
+  border-top: 1px solid var(--h-line);
+  padding-left: clamp(20px, 5vw, 56px);
+  padding-right: clamp(20px, 5vw, 56px);
+}
+.home-final { background-color: var(--h-panel); }

@@ -92,6 +92,15 @@ export default function Settings({ prefs, onChange, onClose }: {
         <div className="settings-row">
           <label>{t('settings.comfort')}</label>
           <div className="toggle-row">
+            <span>{t('settings.colorblind')}<em>{t('settings.colorblindHint')}</em></span>
+            <button
+              className={`switch ${prefs.colorblind ? 'on' : ''}`}
+              role="switch"
+              aria-checked={prefs.colorblind}
+              onClick={() => onChange({ colorblind: !prefs.colorblind })}
+            />
+          </div>
+          <div className="toggle-row">
             <span>{t('settings.compact')}<em>{t('settings.compactHint')}</em></span>
             <button
               className={`switch ${prefs.density === 'compact' ? 'on' : ''}`}

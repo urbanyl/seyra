@@ -192,6 +192,9 @@ export default function ChatPane(p: Props) {
   const [showJump, setShowJump] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
+  // Sélection multiple : clics sur les messages, copie ou suppression en lot.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   // Mentions : liste de suggestions pendant la saisie d'un « @ ».
   const [mentionCaret, setMentionCaret] = useState(-1);
   const [mentionIdx, setMentionIdx] = useState(0);
@@ -240,6 +243,8 @@ export default function ChatPane(p: Props) {
   const input = useRef<HTMLTextAreaElement>(null);
   const atBottom = useRef(true);
   const longPress = useRef<number | undefined>(undefined);
+  // Dernier message atteint par la navigation clavier J / K.
+  const navId = useRef<string | null>(null);
   const delTimer = useRef<number | undefined>(undefined);
   const flashTimer = useRef<number | undefined>(undefined);
   const recorder = useRef<AudioRecorder | null>(null);
@@ -270,6 +275,36 @@ export default function ChatPane(p: Props) {
     () => p.messages.filter((m) => m.kind !== 'react' && m.kind !== 'filechunk' && (!m.expiresAt || m.expiresAt > now)),
     [p.messages, now],
   );
+
+  // Navigation clavier : J / K passent d'un message à l'autre, Échap retire le focus.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (e.key === 'Escape') {
+        if (navId.current) document.getElementById('m-' + navId.current)?.classList.remove('nav-focus');
+        navId.current = null;
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key !== 'j' && key !== 'k') return;
+      if (!visible.length) return;
+      e.preventDefault();
+      const idx = navId.current ? visible.findIndex((m) => m.id === navId.current) : -1;
+      const next = key === 'j'
+        ? visible[idx < 0 ? 0 : (idx + 1) % visible.length]
+        : visible[idx <= 0 ? visible.length - 1 : idx - 1];
+      if (!next) return;
+      if (navId.current && navId.current !== next.id) document.getElementById('m-' + navId.current)?.classList.remove('nav-focus');
+      navId.current = next.id;
+      const node = document.getElementById('m-' + next.id);
+      node?.classList.add('nav-focus');
+      node?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [visible]);
 
   // Messages épinglés, avec un aperçu déchiffré (le serveur n'a que des identifiants).
   const pinnedItems = useMemo(() => {
@@ -401,6 +436,72 @@ export default function ChatPane(p: Props) {
     setFlash(id);
     window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setFlash(null), 1600);
+  }
+
+  /* ---------------- sélection multiple ---------------- */
+
+  function toggleSelectMode() {
+    if (selectMode) {
+      setSelectMode(false);
+      setSelected(new Set());
+      return;
+    }
+    setReactPop(null);
+    setOpenActions(null);
+    setSelectMode(true);
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function copySelected() {
+    if (!selected.size) {
+      p.onNotify(t('select.none'));
+      return;
+    }
+    const lines: string[] = [];
+    // Ordre chronologique et une ligne par message texte : « auteur: texte ».
+    const ordered = p.messages.filter((m) => selected.has(m.id)).sort((a, b) => a.ts - b.ts);
+    for (const m of ordered) {
+      const env = p.open(m);
+      if (!env || typeof env.text !== 'string' || env.file || env.audio || env.poll) continue;
+      lines.push(`${nameOf(m.from)}: ${env.text}`);
+    }
+    if (!lines.length) {
+      p.onNotify(t('select.none'));
+      return;
+    }
+    try {
+      navigator.clipboard.writeText(lines.join('\n')).then(
+        () => p.onNotify(t('select.copied').replace('{n}', String(lines.length))),
+        () => p.onNotify(t('select.copyFail')),
+      );
+    } catch {
+      p.onNotify(t('select.copyFail'));
+    }
+  }
+
+  function deleteSelected() {
+    const mine = p.messages.filter((m) => selected.has(m.id) && m.from === p.selfId);
+    if (!mine.length) return;
+    for (const m of mine) p.onDelete(m);
+    // Seuls les messages supprimables quittent la sélection ; les autres restent cochés.
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const m of mine) next.delete(m.id);
+      return next;
+    });
+  }
+
+  function cancelSelect() {
+    setSelectMode(false);
+    setSelected(new Set());
   }
 
   function send() {
@@ -552,6 +653,9 @@ export default function ChatPane(p: Props) {
               <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.2 4.2" />
             </svg>
           </IconButton>
+          <IconButton label={selectMode ? t('select.exit') : t('select.enter')} active={selectMode} onClick={toggleSelectMode}>
+            <IconCheck size={19} />
+          </IconButton>
           <button className={`call-btn share-btn ${p.sharing ? 'on' : ''}`} onClick={p.onShareScreen} title={p.sharing ? "Arrêter le partage d'écran" : "Partager l'écran"} disabled={!p.inVoice}>
             <IconScreenShare size={18} />
           </button>
@@ -654,13 +758,18 @@ export default function ChatPane(p: Props) {
           return (
             <div key={m.id} id={'m' + m.id} className={`msg-wrap ${flash === m.id ? 'flash' : ''}`}>
               {showDay && <div className="day-sep"><span>{dayLabel(item.ts)}</span></div>}
-              <div id={'m-' + m.id} className={`msg ${mine ? 'out' : 'in'} ${grouped ? 'grouped' : ''} ${p.pinned.includes(m.id) ? 'pinned' : ''}`}>
+              <div
+                id={'m-' + m.id}
+                className={`msg ${mine ? 'out' : 'in'} ${grouped ? 'grouped' : ''} ${p.pinned.includes(m.id) ? 'pinned' : ''}${selectMode ? ' selecting' : ''}${selected.has(m.id) ? ' selected' : ''}`}
+                onClick={selectMode ? (e) => { e.stopPropagation(); toggleSelected(m.id); } : undefined}
+              >
+                {selectMode && <span className="sel-check" aria-hidden />}
                 {!mine && !grouped && (
                   <span className="msg-author" style={{ color: colorOf(m.from) }}>{nameOf(m.from)}</span>
                 )}
                 <div
                   className={`bubble ${revealed ? 'revealed' : ''} ${audio ? 'has-voice' : file ? 'has-voice has-file' : ''}`}
-                  onContextMenu={(e) => { e.preventDefault(); setReactPop(null); setOpenActions(m.id); }}
+                  onContextMenu={(e) => { e.preventDefault(); if (selectMode) return; setReactPop(null); setOpenActions(m.id); }}
                   onPointerDown={(e) => {
                     if (e.pointerType !== 'touch') return;
                     window.clearTimeout(longPress.current);
@@ -673,6 +782,7 @@ export default function ChatPane(p: Props) {
                   onPointerMove={() => window.clearTimeout(longPress.current)}
                   onPointerCancel={() => window.clearTimeout(longPress.current)}
                 >
+                  {!selectMode && (
                   <div className="msg-actions" onClick={(e) => e.stopPropagation()}>
                     {(threads[m.id]?.length || 0) > 0 && (
                       <button type="button" title="Voir le fil" onClick={() => { setThreadRoot(m.id); setOpenActions(null); }}>
@@ -721,6 +831,7 @@ export default function ChatPane(p: Props) {
                       </button>
                     )}
                   </div>
+                  )}
 
                   {reactPop === m.id && (
                     <div className="react-pop">
@@ -738,7 +849,7 @@ export default function ChatPane(p: Props) {
                   )}
 
                   {quote && (
-                    <button type="button" className="reply-quote" onClick={(e) => { e.stopPropagation(); jumpTo(quote.id); }}>
+                    <button type="button" className="reply-quote" onClick={(e) => { if (selectMode) return; e.stopPropagation(); jumpTo(quote.id); }}>
                       <strong style={{ color: colorOf(quote.from) }}>{nameOf(quote.from)}</strong>
                       <span>{quote.text.slice(0, 140)}</span>
                     </button>
@@ -755,7 +866,7 @@ export default function ChatPane(p: Props) {
                       meta={file}
                       url={p.fileUrls[file.fid]}
                       progress={p.fileProgress[file.fid]}
-                      onOpen={(url, name) => setPreview({ url, name })}
+                      onOpen={(url, name) => { if (!selectMode) setPreview({ url, name }); }}
                     />
                   ) : audio ? (
                     <VoicePlayer clip={audio} />
@@ -765,7 +876,7 @@ export default function ChatPane(p: Props) {
                       votes={p.votes[env.poll.id] || {}}
                       selfId={p.selfId}
                       nameOf={nameOf}
-                      onVote={(opt) => p.onVote(env.poll!.id, opt)}
+                      onVote={(opt) => { if (!selectMode) p.onVote(env.poll!.id, opt); }}
                     />
                   ) : text === null ? (
                     <span className="locked"><IconLock size={13} /> illisible</span>
@@ -799,7 +910,7 @@ export default function ChatPane(p: Props) {
                         type="button"
                         className={`chip ${users.includes(p.selfId) ? 'mine' : ''}`}
                         title={users.map(nameOf).join(', ')}
-                        onClick={() => p.onReact(m.id, emoji)}
+                        onClick={() => { if (!selectMode) p.onReact(m.id, emoji); }}
                       >
                         {emoji}<em>{users.length}</em>
                       </button>
@@ -821,6 +932,15 @@ export default function ChatPane(p: Props) {
             <span>{reply.text.slice(0, 120)}</span>
           </div>
           <button type="button" title="Annuler la réponse" onClick={() => setReply(null)}><IconX size={16} /></button>
+        </div>
+      )}
+
+      {selectMode && (
+        <div className="select-bar">
+          <span>{t('select.count').replace('{n}', String(selected.size))}</span>
+          <button type="button" className="btn ghost small" onClick={copySelected}>{t('select.copy')}</button>
+          <button type="button" className="btn ghost small" onClick={deleteSelected}>{t('select.delete')}</button>
+          <button type="button" className="btn ghost small" onClick={cancelSelect}>{t('select.exit')}</button>
         </div>
       )}
 

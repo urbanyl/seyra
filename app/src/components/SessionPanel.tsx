@@ -17,8 +17,12 @@ function elapsed(since: number, now: number) {
 
 export default function SessionPanel({
   code, participants, selfId, ownerId, onCopy, copied, onClose, onKick, onHide, open,
-  onRename, voiceById, selfVoice, onInvite, onSettings, since, messageCount, fileCount, inviteLink, onHome,
+  onRename, voiceById, selfVoice, onInvite, onSettings, since, messageCount, fileCount, inviteLink, onHome, pending, onAdmit, onDeny, onMakeOwner,
 }: {
+  pending: { id: string; name: string }[];
+  onAdmit: (id: string) => void;
+  onDeny: (id: string) => void;
+  onMakeOwner: (id: string) => void;
   onHome: () => void;
   onInvite: () => void;
   onSettings: () => void;
@@ -92,6 +96,20 @@ export default function SessionPanel({
         <em>{t('app.codeNote')}</em>
       </div>
 
+      {isOwner && pending.length > 0 && (
+        <div className="side-section pending-section">
+          <span className="side-title">{t('wait.pending')} — {pending.length}</span>
+          {pending.map((q) => (
+            <div key={q.id} className="pending-item">
+              <Avatar name={q.name} color={3} size={30} />
+              <span>{q.name}</span>
+              <button className="pending-admit" onClick={() => onAdmit(q.id)}>{t('wait.admit')}</button>
+              <button className="pending-deny" onClick={() => onDeny(q.id)}>{t('wait.deny')}</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="side-section">
         <span className="side-title"><IconUsers size={13} /> {t('app.participants')} — {participants.length}</span>
         <div className="participants">
@@ -113,6 +131,9 @@ export default function SessionPanel({
                 )}
                 {isSelf && (
                   <IconButton label="Changer de pseudo" onClick={onRename}><IconPencil size={16} /></IconButton>
+                )}
+                {isOwner && !isSelf && (
+                  <button className="role-btn" onClick={() => onMakeOwner(p.id)}>{t('owner.make')}</button>
                 )}
                 {isOwner && !isSelf && (
                   <button className="kick" onClick={() => onKick(p)}>{t('app.remove')}</button>

@@ -88,7 +88,7 @@ export default function Home() {
           </ul>
           <div className="hero-specs" aria-label={t('sec.kicker')}>
             <span>XSalsa20-Poly1305</span>
-            <span>PBKDF2 � 210k</span>
+            <span>PBKDF2 · 210k</span>
             <span>DTLS-SRTP</span>
             <span>128 MB / {t('app.messages')}</span>
           </div>

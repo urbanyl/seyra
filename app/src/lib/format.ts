@@ -75,7 +75,7 @@ export function formatCodeInput(value: string) {
   return raw.replace(/(.{4})(?=.)/g, '$1-');
 }
 
-/** Mention en cours de saisie : texte apr�s le dernier � @ � plac� en d�but de mot, avant le curseur. */
+/** Mention en cours de saisie : texte après le dernier « @ » placé en début de mot, avant le curseur. */
 export function activeMention(text: string, caret: number): { start: number; query: string } | null {
   const before = text.slice(0, caret);
   const at = before.lastIndexOf('@');

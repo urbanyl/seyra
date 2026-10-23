@@ -89,6 +89,8 @@ function createRoom(id) {
     history: false, // par défaut, un nouvel arrivant ne voit pas ce qui a été dit avant
     receipts: false, // accusés de lecture : choisis à la création, visibles de tous
     wall: null, // fond de conversation partagé (identifiant d'un motif prédéfini)
+    waiting: false,
+    pending: new Map(),
     banned: new Set(), // IP bannies de cette session
     clients: new Map(), // clientId -> participant
     messages: [],
@@ -150,7 +152,13 @@ function send(ws, payload) {
 function leaveRoom(p, reason = 'left') {
   const room = p.room;
   if (!room) return;
+  room.pending.delete(p.id);
   room.clients.delete(p.id);
+  if (room.ownerId === p.id) {
+    const next = room.clients.values().next().value;
+    room.ownerId = next ? next.id : null;
+    if (next) broadcast(room, null, { t: 'owner:set', id: next.id, name: next.name });
+  }
   broadcast(room, p.id, { t: 'peer:left', reason, participant: { id: p.id, name: p.name } });
   p.camId = null;
   p.screenId = null;
@@ -162,7 +170,36 @@ function leaveRoom(p, reason = 'left') {
   if (room.clients.size === 0) room.emptySince = Date.now();
 }
 
-function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts) {
+function admit(room, p, ws) {
+  if (p.room) leaveRoom(p);
+  room.pending.delete(p.id);
+  room.cycles += 1;
+  p.room = room;
+  p.name = p.name || `Guest ${room.cycles}`;
+  p.color = room.cycles % 8;
+  room.clients.set(p.id, p);
+  room.emptySince = 0;
+  // Sans proprietaire present, le nouvel arrivant reprend la session.
+  if (!room.ownerId || !room.clients.has(room.ownerId)) room.ownerId = p.id;
+
+  send(ws, {
+    t: 'session:joined',
+    selfId: p.id,
+    selfName: p.name,
+    roomId: room.id,
+    ownerId: room.ownerId,
+    participants: participants(room),
+    messages: room.history || p.id === room.ownerId ? room.messages : [],
+    createdAt: room.createdAt,
+    receipts: room.receipts,
+    wall: room.wall,
+    waiting: room.waiting,
+    pending: p.id === room.ownerId ? [...room.pending.values()].map((q) => ({ id: q.id, name: q.name })) : [],
+  });
+  broadcast(room, p.id, { t: 'peer:joined', participant: { id: p.id, name: p.name, color: p.color } });
+}
+
+function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts, wantWaiting) {
   if (typeof roomId !== 'string' || !/^[a-f0-9]{24,64}$/.test(roomId)) {
     return send(ws, { t: 'session:error', code: 'bad-code', message: 'Code de session invalide.' });
   }
@@ -176,6 +213,7 @@ function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts) 
     room.pwd = !!wantPwd;
     room.history = !!wantHistory;
     room.receipts = !!wantReceipts;
+    room.waiting = !!wantWaiting;
   }
   // La session exige un mot de passe : le serveur ne peut pas le vérifier (il ne
   // le connaît pas), il se contente de dire au client qu'il doit en fournir un.
@@ -188,29 +226,17 @@ function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts) 
   if (room.clients.size >= MAX_PARTICIPANTS) {
     return send(ws, { t: 'session:error', code: 'full', message: 'Cette session est complète.' });
   }
-  if (p.room) leaveRoom(p);
-  room.cycles += 1;
-  p.room = room;
-  p.name = cleanName(rawName) || `Guest ${room.cycles}`;
-  p.color = room.cycles % 8;
-  room.clients.set(p.id, p);
-  room.emptySince = 0;
-
-  send(ws, {
-    t: 'session:joined',
-    selfId: p.id,
-    selfName: p.name,
-    roomId: room.id,
-    ownerId: room.ownerId,
-    participants: participants(room),
-    // Historique : complet si la session l'autorise ; sinon réservé au créateur
-    // (pour qu'il retrouve son fil après une reconnexion). Les autres arrivent vierges.
-    messages: room.history || p.id === room.ownerId ? room.messages : [],
-    createdAt: room.createdAt,
-    receipts: room.receipts,
-    wall: room.wall,
-  });
-  broadcast(room, p.id, { t: 'peer:joined', participant: { id: p.id, name: p.name, color: p.color } });
+  p.name = cleanName(rawName) || 'Guest';
+  // Salon d'attente : on n'entre pas tant que le proprietaire n'a pas approuve.
+  if (room.waiting && room.clients.size > 0 && p.id !== room.ownerId) {
+    room.pending.set(p.id, p);
+    p.pending = room;
+    send(ws, { t: 'session:waiting', roomId: room.id });
+    const owner = room.clients.get(room.ownerId);
+    if (owner) send(owner.ws, { t: 'waiting:add', participant: { id: p.id, name: p.name } });
+    return;
+  }
+  admit(room, p, ws);
 }
 
 wss.on('connection', (ws, req) => {
@@ -239,7 +265,7 @@ wss.on('connection', (ws, req) => {
     if (!m || typeof m.t !== 'string') return;
 
     if (m.t === 'open' || m.t === 'join') {
-      return join(ws, p, m.roomId, m.t, m.name, !!m.pwd, !!m.hist, !!m.receipts);
+      return join(ws, p, m.roomId, m.t, m.name, !!m.pwd, !!m.hist, !!m.receipts, !!m.wait);
     }
     if (!p.room) return;
 
@@ -342,6 +368,30 @@ wss.on('connection', (ws, req) => {
 
     if (m.t === 'leave') {
       return leaveRoom(p);
+    }
+
+    if (m.t === 'owner:set') {
+      if (p.id !== room.ownerId) return;
+      const target = room.clients.get(String(m.id || ''));
+      if (!target || target.id === p.id) return;
+      room.ownerId = target.id;
+      return broadcast(room, null, { t: 'owner:set', id: target.id, name: target.name });
+    }
+
+    if (m.t === 'waiting:admit') {
+      if (p.id !== room.ownerId) return;
+      const guest = room.pending.get(String(m.id || ''));
+      if (!guest || !guest.ws) return;
+      return admit(room, guest, guest.ws);
+    }
+
+    if (m.t === 'waiting:deny') {
+      if (p.id !== room.ownerId) return;
+      const guest = room.pending.get(String(m.id || ''));
+      if (!guest) return;
+      room.pending.delete(guest.id);
+      guest.pending = null;
+      return send(guest.ws, { t: 'session:error', code: 'denied', message: 'Not admitted by the owner.' });
     }
 
     if (m.t === 'kick') {

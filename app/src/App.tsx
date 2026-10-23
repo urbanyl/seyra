@@ -21,7 +21,7 @@ import { applyPrefs, loadPrefs, savePrefs, type Prefs } from './lib/prefs';
 import type { ChunkBody, ControlBody, Envelope, FileMeta, Msg, Notice, Participant, Poll, ReactBody, Reactions, ReplyTo, SessionInfo, VoiceClip, Votes } from './lib/types';
 import { voice, type VoiceState } from './lib/voice';
 
-type Phase = 'landing' | 'session';
+type Phase = 'landing' | 'session' | 'waiting';
 
 /** Lit #join=CODE au chargement. Le fragment ne part jamais vers le serveur. */
 function readJoinHash(): string {
@@ -226,6 +226,8 @@ export default function App() {
 
   /* Messages épinglés : liste ordonnée d'identifiants, mise à jour par contrôles scellés. */
   const [pinned, setPinned] = useState<string[]>([]);
+  /** Salon d'attente : arrivants à approuver, et écran d'attente pour l'invité. */
+  const [waitingList, setWaitingList] = useState<{ id: string; name: string }[]>([]);
   // Lecture synchrone dans togglePin (les callbacks ne doivent pas garder un état périmé).
   const pinnedRef = useRef<string[]>([]);
   pinnedRef.current = pinned;
@@ -306,6 +308,7 @@ export default function App() {
     setMessages([]);
     setReactions({});
     setPinned([]);
+    setWaitingList([]);
     setVotes({});
     for (const t of expTimers.current.values()) window.clearTimeout(t);
     expTimers.current.clear();
@@ -362,6 +365,7 @@ export default function App() {
           setOwnerId(m.ownerId || null);
           setParticipants(m.participants || []);
           setReceipts(!!m.receipts);
+          setWaitingList(Array.isArray(m.pending) ? m.pending : []);
           // Fusionne l'historique reçu, applique les réactions, ignore ce qui a expiré.
           const map = new Map((stateRef.current.messages as Msg[]).map((x) => [x.id, x]));
           for (const msg of (m.messages || []) as Msg[]) map.set(msg.id, msg);
@@ -399,6 +403,21 @@ export default function App() {
           setConnection('online');
           break;
         }
+
+        case 'session:waiting':
+          // L'invité attend l'accord du propriétaire.
+          setPhase('waiting');
+          setBusy(false);
+          break;
+
+        case 'waiting:add':
+          setWaitingList((prev) => (prev.some((x) => x.id === m.participant.id) ? prev : [...prev, m.participant]));
+          break;
+
+        case 'owner:set':
+          setOwnerId(m.id);
+          setNotices((prev) => [...prev, { id: 'o' + Date.now(), text: t('owner.changed').replace('{name}', m.name || ''), ts: Date.now() }]);
+          break;
 
         case 'session:error':
           pending.current = null;
@@ -552,7 +571,7 @@ export default function App() {
   }, []);
 
   /* ---------------- actions ---------------- */
-  const start = useCallback(async (display: string, mode: 'open' | 'join', password = '', history = false, receiptsOn = false) => {
+  const start = useCallback(async (display: string, mode: 'open' | 'join', password = '', history = false, receiptsOn = false, waitingOn = false) => {
     setBusy(true);
     setError('');
     setNotice('');
@@ -564,7 +583,7 @@ export default function App() {
       pending.current = { mode, key, roomId, display, password };
       rt.connect();
       await rt.ready();
-      rt.send({ t: mode, roomId, name: pseudoRef.current.trim(), pwd: password ? 1 : 0, hist: history ? 1 : 0, receipts: receiptsOn ? 1 : 0 });
+      rt.send({ t: mode, roomId, name: pseudoRef.current.trim(), pwd: password ? 1 : 0, hist: history ? 1 : 0, receipts: receiptsOn ? 1 : 0, wait: waitingOn ? 1 : 0 });
       window.clearTimeout(joinTimer.current);
       joinTimer.current = window.setTimeout(() => {
         if (pending.current) {
@@ -580,7 +599,7 @@ export default function App() {
     }
   }, []);
 
-  const create = useCallback((opts: { password?: string; history?: boolean; receipts?: boolean }) => start(newCode(), 'open', opts?.password || '', !!opts?.history, !!opts?.receipts), [start]);
+  const create = useCallback((opts: { password?: string; history?: boolean; receipts?: boolean; waiting?: boolean }) => start(newCode(), 'open', opts?.password || '', !!opts?.history, !!opts?.receipts, !!opts?.waiting), [start]);
   const join = useCallback((raw: string, password?: string) => start(normalizeCode(raw), 'join', password || '', false), [start]);
 
   const send = useCallback((text: string, reply: ReplyTo | null, ttl: number | null) => {
@@ -815,6 +834,20 @@ export default function App() {
     window.location.assign('/');
   }, [wipe]);
 
+  /** Salon d'attente : approuver ou refuser un arrivant. */
+  const admitGuest = useCallback((id: string) => {
+    rt.send({ t: 'waiting:admit', id });
+    setWaitingList((prev) => prev.filter((x) => x.id !== id));
+  }, []);
+  const denyGuest = useCallback((id: string) => {
+    rt.send({ t: 'waiting:deny', id });
+    setWaitingList((prev) => prev.filter((x) => x.id !== id));
+  }, []);
+  /** Transfert de propriété (le serveur vérifie que l'expéditeur est le propriétaire). */
+  const makeOwner = useCallback((id: string) => {
+    rt.send({ t: 'owner:set', id });
+  }, []);
+
   const kick = useCallback((p: Participant) => {
     rt.send({ t: 'kick', id: p.id });
     setAskKick(null);
@@ -875,6 +908,19 @@ export default function App() {
   }, []);
 
   /* ---------------- view ---------------- */
+  if (phase === 'waiting') {
+    return (
+      <div className="waiting-screen">
+        <div className="waiting-card">
+          <div className="waiting-pulse" />
+          <h1>{t('wait.title')}</h1>
+          <p>{t('wait.hint')}</p>
+          <button className="btn ghost" onClick={goHome}>{t('select.exit')}</button>
+        </div>
+      </div>
+    );
+  }
+
   if (phase !== 'session' || !session) {
     return (
       <>
@@ -926,6 +972,10 @@ export default function App() {
         copied={copied}
         onClose={() => setAskClose(true)}
         onKick={(p) => setAskKick(p)}
+        pending={waitingList}
+        onAdmit={admitGuest}
+        onDeny={denyGuest}
+        onMakeOwner={makeOwner}
         onInvite={() => setShowInvite(true)}
         onSettings={() => { setShowSettings(true); setSideOpen(false); }}
         onHide={() => setSideOpen(false)}
