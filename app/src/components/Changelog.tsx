@@ -4,6 +4,19 @@ import LangMenu from './LangMenu';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.4.0',
+    date: 'October 2026',
+    title: 'Whiteboard, whispers, ghost sessions',
+    items: [
+      'Encrypted whiteboard: draw together, strokes are sealed like messages and vanish with the session.',
+      'Whispers: a message only one person receives. The server relays it and never stores it.',
+      'Ghost session: closes automatically a few minutes after the creator leaves. Set at creation.',
+      'Panic key: press Escape three times to leave and blank the screen instantly.',
+      'Local dictation: speak into the composer, transcribed on your device only. Hidden when the browser cannot do it offline.',
+      'MIT license, and a server package published on GitHub Packages.',
+    ],
+  },
+  {
     version: '2.3',
     date: 'October 2026',
     title: 'English by default, languages, new patterns',

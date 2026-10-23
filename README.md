@@ -54,3 +54,7 @@ cd app && npm run check
 ## Limits
 
 One VPS, no backup, no redundancy. Don't put anything in a session that would ruin you if the code leaked.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

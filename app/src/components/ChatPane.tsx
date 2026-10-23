@@ -5,11 +5,13 @@ import { MAX_FILE, formatSize } from '../lib/files';
 import { activeMention, dayLabel, mentionPattern, suggestMentions, timeOf } from '../lib/format';
 import { useT } from '../lib/i18n';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
-import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPencil, IconPoll, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconBoard, IconPaperclip, IconPencil, IconPoll, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton, Modal } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
 import MatrixWall from './MatrixWall';
+import VoiceType from './VoiceType';
+import { getLang } from '../lib/i18n';
 import CracksWall from './CracksWall';
 import { buildPollCommand, isPollCommand, parsePoll, POLL_FORMAT } from '../lib/poll';
 
@@ -47,6 +49,9 @@ type Props = {
   votes: Votes;
   onVote: (pollId: string, opt: number) => void;
   onEdit: (m: Msg, text: string) => void;
+  onWhisper: (text: string, to: string) => void;
+  onWhiteboard: () => void;
+  ghostCloseAt: number;
   receipts: boolean;
   readers: Record<string, number>;
 };
@@ -192,6 +197,8 @@ export default function ChatPane(p: Props) {
   const [showJump, setShowJump] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
+  /** Chuchotement : destinataire choisi, vide = message normal. */
+  const [whisperTo, setWhisperTo] = useState('');
   // Sélection multiple : clics sur les messages, copie ou suppression en lot.
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -512,8 +519,10 @@ export default function ChatPane(p: Props) {
       p.onNotify(`${t('poll.incomplete')} ${POLL_FORMAT}`);
       return;
     }
-    p.onSend(text, reply, ttl);
+    if (whisperTo) p.onWhisper(text, whisperTo);
+    else p.onSend(text, reply, ttl);
     setDraft('');
+    setWhisperTo('');
     setReply(null);
     setEmojiOpen(false);
     setAttachOpen(false);
@@ -647,6 +656,7 @@ export default function ChatPane(p: Props) {
           </p>
         </div>
         <div className="pane-actions">
+          <IconButton label={t('board.open')} onClick={p.onWhiteboard}><IconBoard size={19} /></IconButton>
           <IconButton label="Participants" className="mobile-only" onClick={p.onOpenSide}><IconUsers size={19} /></IconButton>
           <IconButton label={t("chat.search")} active={searchOpen} onClick={() => { setSearchOpen((v) => !v); setQuery(''); }}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
@@ -713,6 +723,13 @@ export default function ChatPane(p: Props) {
         </div>
       )}
 
+      {p.ghostCloseAt > 0 && (
+        <div className="ghost-banner" role="status">
+          <IconTimer size={14} />
+          {t('ghost.banner')} {Math.max(0, Math.ceil((p.ghostCloseAt - now) / 60000))} {t('ghost.min').replace('{n}', '').trim()}
+        </div>
+      )}
+
       <div className="messages" ref={scroller} onScroll={onScroll}>
         <div className="e2e-note">
           <IconLock size={13} /> {t('chat.e2e')}
@@ -760,7 +777,7 @@ export default function ChatPane(p: Props) {
               {showDay && <div className="day-sep"><span>{dayLabel(item.ts)}</span></div>}
               <div
                 id={'m-' + m.id}
-                className={`msg ${mine ? 'out' : 'in'} ${grouped ? 'grouped' : ''} ${p.pinned.includes(m.id) ? 'pinned' : ''}${selectMode ? ' selecting' : ''}${selected.has(m.id) ? ' selected' : ''}`}
+                className={`msg ${mine ? 'out' : 'in'} ${grouped ? 'grouped' : ''} ${p.pinned.includes(m.id) ? 'pinned' : ''}${selectMode ? ' selecting' : ''}${selected.has(m.id) ? ' selected' : ''}${m.kind === 'whisper' ? ' whisper' : ''}`}
                 onClick={selectMode ? (e) => { e.stopPropagation(); toggleSelected(m.id); } : undefined}
               >
                 {selectMode && <span className="sel-check" aria-hidden />}
@@ -945,6 +962,14 @@ export default function ChatPane(p: Props) {
       )}
 
       <div className="composer-wrap">
+      {whisperTo && (
+        <div className="whisper-bar">
+          <IconLock size={13} />
+          <span>{t('whisper.to')} {p.participants.find((x) => x.id === whisperTo)?.name || ''}</span>
+          <em>{t('whisper.hint')}</em>
+          <button type="button" onClick={() => setWhisperTo('')} aria-label={t('common.cancel')}><IconX size={14} /></button>
+        </div>
+      )}
       {mention.list.length > 0 && recMs === null && (
         <ul className="mention-list" role="listbox" aria-label={t('chat.mentionList')}>
           {mention.list.map((m, i) => (
@@ -973,6 +998,21 @@ export default function ChatPane(p: Props) {
         )}
 
         {recMs === null && (
+          <>
+          <button
+            type="button"
+            className={`icon-btn ${whisperTo ? 'active' : ''}`}
+            title={t('whisper.toggle')}
+            aria-label={t('whisper.toggle')}
+            onClick={() => {
+              if (whisperTo) { setWhisperTo(''); return; }
+              const other = p.participants.find((x) => x.id !== p.selfId);
+              if (other) setWhisperTo(other.id);
+            }}
+          >
+            <IconLock size={19} />
+          </button>
+          <VoiceType lang={getLang() === 'fr' ? 'fr-FR' : getLang() === 'zh' ? 'zh-CN' : getLang() === 'ru' ? 'ru-RU' : getLang() === 'ko' ? 'ko-KR' : 'en-US'} onAppend={(txt) => { setDraft((d) => d + txt); input.current?.focus(); }} disabled={!!recMs} />
           <div className="attach-wrap">
             <button
               type="button"
@@ -1012,6 +1052,7 @@ export default function ChatPane(p: Props) {
             <input ref={vidInput} type="file" accept="video/*" hidden onChange={(e) => onPicked(e, null)} />
             <input ref={fileInput} type="file" hidden onChange={(e) => onPicked(e, null)} />
           </div>
+          </>
         )}
 
         {recMs === null && (

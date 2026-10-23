@@ -54,3 +54,7 @@ cd app && npm run check
 ## Limites
 
 Un seul VPS, pas de sauvegarde, pas de redondance. Ne confie pas à une session quelque chose qui te ruinerait si le code fuitait.
+
+## Licence
+
+MIT. Voir [LICENSE](LICENSE).

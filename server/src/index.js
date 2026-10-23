@@ -90,6 +90,9 @@ function createRoom(id) {
     receipts: false, // accusés de lecture : choisis à la création, visibles de tous
     wall: null, // fond de conversation partagé (identifiant d'un motif prédéfini)
     waiting: false,
+    ghostMin: 0, // fermeture auto N minutes apres le depart du createur
+    creatorId: null,
+    creatorAwayAt: 0,
     pending: new Map(),
     banned: new Set(), // IP bannies de cette session
     clients: new Map(), // clientId -> participant
@@ -132,6 +135,7 @@ setInterval(() => {
     if (room.clients.size === 0) {
       if (!room.emptySince) room.emptySince = now;
       else if (now - room.emptySince > EMPTY_ROOM_TTL) destroyRoom(room, 'empty');
+      if (room.ghostMin > 0 && room.creatorAwayAt && now - room.creatorAwayAt > room.ghostMin * 60000) destroyRoom(room, 'ghost');
     } else {
       room.emptySince = 0;
     }
@@ -154,6 +158,10 @@ function leaveRoom(p, reason = 'left') {
   if (!room) return;
   room.pending.delete(p.id);
   room.clients.delete(p.id);
+  if (room.creatorId === p.id && room.ghostMin > 0 && room.clients.size > 0) {
+    room.creatorAwayAt = Date.now();
+    broadcast(room, null, { t: 'ghost:set', closeAt: room.creatorAwayAt + room.ghostMin * 60000 });
+  }
   if (room.ownerId === p.id) {
     const next = room.clients.values().next().value;
     room.ownerId = next ? next.id : null;
@@ -194,12 +202,14 @@ function admit(room, p, ws) {
     receipts: room.receipts,
     wall: room.wall,
     waiting: room.waiting,
+    ghostMin: room.ghostMin,
+    ghostCloseAt: room.creatorAwayAt ? room.creatorAwayAt + room.ghostMin * 60000 : 0,
     pending: p.id === room.ownerId ? [...room.pending.values()].map((q) => ({ id: q.id, name: q.name })) : [],
   });
   broadcast(room, p.id, { t: 'peer:joined', participant: { id: p.id, name: p.name, color: p.color } });
 }
 
-function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts, wantWaiting) {
+function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts, wantWaiting, ghostMin) {
   if (typeof roomId !== 'string' || !/^[a-f0-9]{24,64}$/.test(roomId)) {
     return send(ws, { t: 'session:error', code: 'bad-code', message: 'Code de session invalide.' });
   }
@@ -214,6 +224,8 @@ function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts, 
     room.history = !!wantHistory;
     room.receipts = !!wantReceipts;
     room.waiting = !!wantWaiting;
+    room.ghostMin = [5, 15, 30, 60].includes(ghostMin) ? ghostMin : 0;
+    room.creatorId = p.id;
   }
   // La session exige un mot de passe : le serveur ne peut pas le vérifier (il ne
   // le connaît pas), il se contente de dire au client qu'il doit en fournir un.
@@ -265,7 +277,7 @@ wss.on('connection', (ws, req) => {
     if (!m || typeof m.t !== 'string') return;
 
     if (m.t === 'open' || m.t === 'join') {
-      return join(ws, p, m.roomId, m.t, m.name, !!m.pwd, !!m.hist, !!m.receipts, !!m.wait);
+      return join(ws, p, m.roomId, m.t, m.name, !!m.pwd, !!m.hist, !!m.receipts, !!m.wait, Number(m.ghost) || 0);
     }
     if (!p.room) return;
 
@@ -295,7 +307,7 @@ wss.on('connection', (ws, req) => {
       const nonce = String(m.nonce || '');
       const rawKind = m.kind;
       const kind = rawKind === 'call' || rawKind === 'react' || rawKind === 'voice'
-        || rawKind === 'file' || rawKind === 'filechunk' || rawKind === 'ack' ? rawKind : 'text';
+        || rawKind === 'file' || rawKind === 'filechunk' || rawKind === 'ack' || rawKind === 'board' || rawKind === 'whisper' ? rawKind : 'text';
       const limit = kind === 'voice' ? MAX_CIPHER_VOICE : kind === 'filechunk' ? MAX_CIPHER_CHUNK : MAX_CIPHER_TEXT;
       if (!cipher || cipher.length > limit || !nonce) return;
 
@@ -306,6 +318,16 @@ wss.on('connection', (ws, req) => {
       // Les morceaux ont leur propre budget : un fichier en envoie plusieurs d'un coup.
       if (kind === 'filechunk') { if (--p.chunkBudget < 0) return; }
       else if (--p.budget < 0) return;
+
+      // Chuchotement : relais au destinataire et à l'expéditeur, jamais stocké.
+      if (kind === 'whisper') {
+        const target = room.clients.get(String(m.to || ''));
+        if (!target) return;
+        const wraw = JSON.stringify({ t: 'msg', msg: { id: crypto.randomUUID(), from: p.id, cipher, nonce, kind, to: target.id, ts: now } });
+        if (target.ws.readyState === 1) target.ws.send(wraw);
+        if (p.ws && p.ws.readyState === 1) p.ws.send(wraw);
+        return;
+      }
 
       // Accusé de lecture : relayé à la volée, jamais stocké (il n'encombre pas l'historique).
       if (kind === 'ack') {

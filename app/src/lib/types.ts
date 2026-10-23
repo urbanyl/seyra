@@ -10,9 +10,11 @@ export type Msg = {
   cipher: string;
   nonce: string;
   ts: number;
-  kind: 'text' | 'call' | 'react' | 'voice' | 'file' | 'filechunk' | 'ack';
+  kind: 'text' | 'call' | 'react' | 'voice' | 'file' | 'filechunk' | 'ack' | 'board' | 'whisper';
   /** Limite d'expiration pour un message temporaire. */
   expiresAt?: number;
+  /** Chuchotement : destinataire visé (métadonnée vue par le serveur). */
+  to?: string;
   /** Identifiant de transfert (fichier découpé en morceaux). */
   fid?: string;
 };

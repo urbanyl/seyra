@@ -335,6 +335,14 @@ export const SeyraMark = ({ size = 30, className }: { size?: number; className?:
   />
 );
 
+export const IconBoard = ({ size, className, strokeWidth = 1.7 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <rect x="3" y="4" width="18" height="14" rx="2" />
+    <path d="M7.5 15l3-3.5 2.2 2.2 2-2.7 2.3 4" />
+    <path d="M8 21h8" />
+  </svg>
+);
+
 export const IconPoll = ({ size, className, strokeWidth = 1.7 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <path d="M5 20V12M12 20V5M19 20v-9" />

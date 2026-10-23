@@ -54,3 +54,7 @@ cd app && npm run check
 ## 限制
 
 单台 VPS，没有备份，没有冗余。不要把代码泄露后会毁掉你的事情放进会话里。
+
+## 许可
+
+MIT，见 [LICENSE](LICENSE)。

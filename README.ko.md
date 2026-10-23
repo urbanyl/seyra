@@ -54,3 +54,7 @@ cd app && npm run check
 ## 한계
 
 VPS 한 대, 백업 없음, 이중화 없음. 코드가 유출되면 곤란해질 내용은 세션에 넣지 마세요.
+
+## 라이선스
+
+MIT. [LICENSE](LICENSE) 참고.

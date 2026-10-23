@@ -5,7 +5,7 @@ import { IconBack, IconCheck, IconJoin, IconLock, IconPlus, IconUsers, SeyraMark
 import LangMenu from './LangMenu';
 
 export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo, onPseudo, prefillCode }: {
-  onCreate: (opts: { password?: string; history?: boolean; receipts?: boolean; waiting?: boolean }) => void;
+  onCreate: (opts: { password?: string; history?: boolean; receipts?: boolean; waiting?: boolean; ghost?: number }) => void;
   onJoin: (code: string, password?: string) => void;
   busy: boolean;
   error: string;
@@ -22,6 +22,7 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
   const [history, setHistory] = useState(false);
   const [receipts, setReceipts] = useState(false);
   const [waiting, setWaiting] = useState(false);
+  const [ghost, setGhost] = useState(0);
 
   return (
     <div className="landing">
@@ -98,8 +99,18 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
               <span>{t('wait.toggle')}</span>
             </label>
             <p className="field-hint opt-hint">{t('wait.toggleHint')}</p>
+            <label className="field">
+              <span>{t('ghost.option')}</span>
+              <select className="ghost-select" value={ghost} onChange={(e) => setGhost(Number(e.target.value))}>
+                <option value={0}>{t('ghost.off')}</option>
+                {[5, 15, 30, 60].map((n) => (
+                  <option key={n} value={n}>{t('ghost.min').replace('{n}', String(n))}</option>
+                ))}
+              </select>
+              <em className="field-hint">{t('ghost.hint')}</em>
+            </label>
             <div className="landing-actions">
-              <button className="choice" onClick={() => onCreate({ password: usePassword ? password : undefined, history, receipts, waiting })} disabled={busy || (usePassword && password.length < 4)}>
+              <button className="choice" onClick={() => onCreate({ password: usePassword ? password : undefined, history, receipts, waiting, ghost })} disabled={busy || (usePassword && password.length < 4)}>
                 <span className="choice-icon"><IconPlus size={20} /></span>
                 <span className="choice-text">
                   <strong>{t('create.title')}</strong>

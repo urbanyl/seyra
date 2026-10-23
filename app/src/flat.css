@@ -359,3 +359,38 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .waiting-pulse { animation: none; } }
+
+/* ---------- chuchotements, tableau, session fantome ---------- */
+.ghost-banner {
+  display: flex; align-items: center; gap: 8px; justify-content: center;
+  padding: 8px 12px; font-size: 12.5px; color: #ffd166;
+  background: rgba(255, 209, 102, 0.1); border-bottom: 1px solid rgba(255, 209, 102, 0.28);
+}
+.msg.whisper .bubble {
+  background: #2a2140 !important;
+  outline: 1px solid rgba(192, 132, 252, 0.45);
+}
+.msg.whisper .bubble-text { color: #efe6ff; }
+.msg.whisper .msg-author::after {
+  content: " · " attr(data-whisper);
+  color: #c084fc; font-weight: 500;
+}
+.whisper-bar {
+  display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+  margin: 0 12px 6px; border-radius: 10px; font-size: 12.5px;
+  background: rgba(192, 132, 252, 0.12); color: #e3d4ff;
+  border: 1px solid rgba(192, 132, 252, 0.32);
+}
+.whisper-bar span { font-weight: 600; white-space: nowrap; }
+.whisper-bar em { flex: 1; font-style: normal; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.whisper-bar button { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); }
+.ghost-select {
+  height: 44px; border-radius: var(--r-sm); padding: 0 12px; background: var(--field);
+  color: var(--txt); border: 1px solid transparent; font-size: 15px;
+}
+.ghost-select:focus { outline: none; border-color: var(--accent); }
+
+@media (max-width: 860px) {
+  .whisper-bar { margin: 0 8px 6px; }
+  .whisper-bar em { display: none; }
+}

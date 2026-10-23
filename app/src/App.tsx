@@ -9,6 +9,8 @@ import './components/invite.css';
 // Le générateur de QR code (qrcode) n'est chargé qu'à l'ouverture de la fenêtre d'invitation.
 const InviteQR = lazy(() => import('./components/InviteQR'));
 import CamTile from './components/CamTile';
+import Whiteboard from './components/Whiteboard';
+import { parseBoardOp, type BoardOp, type Stroke } from './lib/board';
 import { IconCopy, IconLock, IconScreenShare, IconX } from './components/Icons';
 import { Modal } from './components/ui';
 import { cleanPseudo, formatCodeInput, mentionsName } from './lib/format';
@@ -22,6 +24,9 @@ import type { ChunkBody, ControlBody, Envelope, FileMeta, Msg, Notice, Participa
 import { voice, type VoiceState } from './lib/voice';
 
 type Phase = 'landing' | 'session' | 'waiting';
+
+/** Vrai pendant une sortie d'urgence : on ne demande pas de confirmation. */
+let PANIC_EXIT = false;
 
 /** Lit #join=CODE au chargement. Le fragment ne part jamais vers le serveur. */
 function readJoinHash(): string {
@@ -227,6 +232,11 @@ export default function App() {
   /* Messages épinglés : liste ordonnée d'identifiants, mise à jour par contrôles scellés. */
   const [pinned, setPinned] = useState<string[]>([]);
   /** Salon d'attente : arrivants à approuver, et écran d'attente pour l'invité. */
+  /** Tableau blanc : traits reçus, et visibilité du panneau. */
+  const [boardStrokes, setBoardStrokes] = useState<Stroke[]>([]);
+  const [showBoard, setShowBoard] = useState(false);
+  /** Session fantôme : échéance annoncée par le serveur. */
+  const [ghostCloseAt, setGhostCloseAt] = useState(0);
   const [waitingList, setWaitingList] = useState<{ id: string; name: string }[]>([]);
   // Lecture synchrone dans togglePin (les callbacks ne doivent pas garder un état périmé).
   const pinnedRef = useRef<string[]>([]);
@@ -309,6 +319,9 @@ export default function App() {
     setReactions({});
     setPinned([]);
     setWaitingList([]);
+    setBoardStrokes([]);
+    setGhostCloseAt(0);
+    setShowBoard(false);
     setVotes({});
     for (const t of expTimers.current.values()) window.clearTimeout(t);
     expTimers.current.clear();
@@ -366,6 +379,7 @@ export default function App() {
           setParticipants(m.participants || []);
           setReceipts(!!m.receipts);
           setWaitingList(Array.isArray(m.pending) ? m.pending : []);
+          setGhostCloseAt(Number(m.ghostCloseAt) || 0);
           // Fusionne l'historique reçu, applique les réactions, ignore ce qui a expiré.
           const map = new Map((stateRef.current.messages as Msg[]).map((x) => [x.id, x]));
           for (const msg of (m.messages || []) as Msg[]) map.set(msg.id, msg);
@@ -377,6 +391,14 @@ export default function App() {
               if (k) {
                 const b = openBody(msg.cipher, msg.nonce, k) as ControlBody | null;
                 if (b) applyControl(msg.from, b, byId);
+              }
+              continue;
+            }
+            if (msg.kind === 'board') {
+              if (k) {
+                const b = openBody(msg.cipher, msg.nonce, k) as { board?: unknown } | null;
+                const op = parseBoardOp(b && b.board);
+                if (op) applyBoard(op);
               }
               continue;
             }
@@ -410,6 +432,10 @@ export default function App() {
           setBusy(false);
           break;
 
+        case 'ghost:set':
+          setGhostCloseAt(Number(m.closeAt) || 0);
+          break;
+
         case 'waiting:add':
           setWaitingList((prev) => (prev.some((x) => x.id === m.participant.id) ? prev : [...prev, m.participant]));
           break;
@@ -439,6 +465,12 @@ export default function App() {
         }
 
         case 'session:closed':
+          if (m.reason === 'ghost') {
+            wipe();
+            setNotice(t('ghost.closed'));
+            voice.leave();
+            break;
+          }
           if (cur.phase === 'session') {
             wipe();
             setNotice(t('notice.closed'));
@@ -471,6 +503,14 @@ export default function App() {
         case 'msg': {
           const msg = m.msg as Msg;
           const k = keyRef.current;
+          if (msg.kind === 'board') {
+            if (k) {
+              const b = openBody(msg.cipher, msg.nonce, k) as { board?: unknown } | null;
+              const op = parseBoardOp(b && b.board);
+              if (op) applyBoard(op);
+            }
+            break;
+          }
           if (msg.kind === 'ack') {
             // Accusé de lecture : relayé, jamais stocké par le serveur.
             if (k) {
@@ -549,7 +589,7 @@ export default function App() {
 
   useEffect(() => {
     if (phase !== 'session') return;
-    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    const warn = (e: BeforeUnloadEvent) => { if (PANIC_EXIT) return; e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [phase]);
@@ -570,8 +610,30 @@ export default function App() {
     return offStatus;
   }, []);
 
+  /* Touche panique : trois Échap rapides quittent la session et effacent l'écran local. */
+  useEffect(() => {
+    let hits = 0;
+    let last = 0;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const now = Date.now();
+      hits = now - last < 800 ? hits + 1 : 1;
+      last = now;
+      if (hits >= 3) {
+        hits = 0;
+        PANIC_EXIT = true;
+        try { voice.leave(); } catch { /* pas en appel */ }
+        try { rt.send({ t: 'leave' }); } catch { /* socket fermé */ }
+        wipe();
+        window.location.assign('/');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [wipe]);
+
   /* ---------------- actions ---------------- */
-  const start = useCallback(async (display: string, mode: 'open' | 'join', password = '', history = false, receiptsOn = false, waitingOn = false) => {
+  const start = useCallback(async (display: string, mode: 'open' | 'join', password = '', history = false, receiptsOn = false, waitingOn = false, ghostMin = 0) => {
     setBusy(true);
     setError('');
     setNotice('');
@@ -583,7 +645,7 @@ export default function App() {
       pending.current = { mode, key, roomId, display, password };
       rt.connect();
       await rt.ready();
-      rt.send({ t: mode, roomId, name: pseudoRef.current.trim(), pwd: password ? 1 : 0, hist: history ? 1 : 0, receipts: receiptsOn ? 1 : 0, wait: waitingOn ? 1 : 0 });
+      rt.send({ t: mode, roomId, name: pseudoRef.current.trim(), pwd: password ? 1 : 0, hist: history ? 1 : 0, receipts: receiptsOn ? 1 : 0, wait: waitingOn ? 1 : 0, ghost: ghostMin || 0 });
       window.clearTimeout(joinTimer.current);
       joinTimer.current = window.setTimeout(() => {
         if (pending.current) {
@@ -599,8 +661,31 @@ export default function App() {
     }
   }, []);
 
-  const create = useCallback((opts: { password?: string; history?: boolean; receipts?: boolean; waiting?: boolean }) => start(newCode(), 'open', opts?.password || '', !!opts?.history, !!opts?.receipts, !!opts?.waiting), [start]);
+  const create = useCallback((opts: { password?: string; history?: boolean; receipts?: boolean; waiting?: boolean; ghost?: number }) => start(newCode(), 'open', opts?.password || '', !!opts?.history, !!opts?.receipts, !!opts?.waiting, opts?.ghost || 0), [start]);
   const join = useCallback((raw: string, password?: string) => start(normalizeCode(raw), 'join', password || '', false), [start]);
+
+  /** Tableau blanc : un trait ou un effacement, scellé comme le reste. */
+  const applyBoard = useCallback((op: BoardOp) => {
+    setBoardStrokes((prev) => (op.op === 'clear' ? [] : [...prev, op.stroke]));
+  }, []);
+  const sendBoard = useCallback((op: BoardOp) => {
+    const k = keyRef.current;
+    if (!k) return;
+    applyBoard(op);
+    const { cipher, nonce } = sealBody({ board: op } as unknown as Envelope, k);
+    rt.send({ t: 'msg', kind: 'board', cipher, nonce });
+  }, [applyBoard]);
+
+  /** Chuchotement : seul le destinataire le reçoit, le serveur ne le stocke pas. */
+  const sendWhisper = useCallback((text: string, to: string) => {
+    const cur = stateRef.current;
+    const k = keyRef.current;
+    if (!cur.session || !k || !to) return;
+    const clean = text.trim().slice(0, 2000);
+    if (!clean) return;
+    const { cipher, nonce } = sealBody({ text: clean, from: cur.session.selfId } as Envelope, k);
+    rt.send({ t: 'msg', kind: 'whisper', to, cipher, nonce });
+  }, []);
 
   const send = useCallback((text: string, reply: ReplyTo | null, ttl: number | null) => {
     const cur = stateRef.current;
@@ -1001,6 +1086,9 @@ export default function App() {
           selfId={session.selfId}
           open={openView}
           onEdit={editMsg}
+          onWhisper={sendWhisper}
+          onWhiteboard={() => setShowBoard(true)}
+          ghostCloseAt={ghostCloseAt}
           receipts={receipts}
           readers={readers}
           onSend={send}
@@ -1137,6 +1225,15 @@ export default function App() {
             <dt><code>/sondage</code></dt><dd>{t('help.poll')}</dd>
           </dl>
         </Modal>
+      )}
+
+      {showBoard && (
+        <Whiteboard
+          strokes={boardStrokes}
+          onStroke={(s) => sendBoard({ op: 'stroke', stroke: s })}
+          onClear={() => sendBoard({ op: 'clear' })}
+          onClose={() => setShowBoard(false)}
+        />
       )}
 
       {showSettings && (
