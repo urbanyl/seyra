@@ -477,3 +477,9 @@ Object.assign(DICT.fr, { 'wall.cracks': 'Terre craquelée' });
 Object.assign(DICT.zh, { 'wall.cracks': '????' });
 Object.assign(DICT.ru, { 'wall.cracks': '???????' });
 Object.assign(DICT.ko, { 'wall.cracks': '??? ?' });
+
+Object.assign(DICT.en, { 'wall.plates': 'Tiles' });
+Object.assign(DICT.fr, { 'wall.plates': 'Écailles' });
+Object.assign(DICT.zh, { 'wall.plates': '??' });
+Object.assign(DICT.ru, { 'wall.plates': '???????' });
+Object.assign(DICT.ko, { 'wall.plates': '??' });

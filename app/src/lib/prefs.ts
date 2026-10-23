@@ -28,9 +28,12 @@ export const THEMES: { id: string; name: string; accent: string; accentDark: str
  * `background` (raccourci complet) est posé sur .messages : positions et tailles
  * font partie de la valeur. */
 const S = '60px';
+const SP = '100px'; // taille de tuile du motif � �cailles �
 const C1 = 'var(--wall-c1)';
 const C2 = 'var(--wall-c2)';
 const DISC = `radial-gradient(25% 25% at 25% 25%, ${C1} 99%, rgba(0, 0, 0, 0) 101%)`;
+// Bandes altern�es du motif � �cailles �.
+const PLATES = `${C2} 6% 14%, ${C1} 16% 24%, ${C2} 26% 34%, ${C1} 36% 44%, ${C2} 46% 54%, ${C1} 56% 64%, ${C2} 66% 74%, ${C1} 76% 84%, ${C2} 86% 94%`;
 
 export const WALLPAPERS: { id: string; name: string; css: string }[] = [
   {
@@ -47,6 +50,15 @@ export const WALLPAPERS: { id: string; name: string; css: string }[] = [
     name: 'wall.matrix',
     // Rendu par le composant MatrixWall (colonnes animées), pas par un fond CSS.
     css: 'none',
+  },
+{
+    id: 'plates',
+    name: 'wall.plates',
+    // Motif en écailles fourni par l'utilisateur, teinté par le thème (deux tons proches).
+    css:
+      `linear-gradient(var(--wall-veil), var(--wall-veil)), ` +
+      `radial-gradient(100% 100% at 100% 0, ${C1} 4%, ${PLATES}, rgba(0, 0, 0, 0.5) 96%, rgba(0, 0, 0, 0) 100%) 0 0 / ${SP} ${SP}, ` +
+      `radial-gradient(100% 100% at 0 100%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 4%, ${PLATES}, ${C1} 96%) 0 0 / ${SP} ${SP} ${C1}`,
   },
   {
     id: 'cracks',
@@ -74,6 +86,13 @@ function mixHex(a: string, b: string, t: number): string {
   const ch = (s: string, i: number) => parseInt(s.slice(i, i + 2), 16);
   const out = [0, 2, 4].map((i) => Math.round(ch(pa, i) * (1 - t) + ch(pb, i) * t));
   return '#' + out.map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+}
+
+/** Convertit #rrggbb en rgba(...) pour les voiles. */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const n = (i: number) => parseInt(h.slice(i, i + 2), 16);
+  return `rgba(${n(0)}, ${n(2)}, ${n(4)}, ${alpha})`;
 }
 
 export function loadPrefs(): Prefs {
@@ -115,6 +134,7 @@ export function applyPrefs(p: Prefs) {
   // Le motif reprend le fond du thème et une pointe de son accent : il change donc avec le thème.
   root.style.setProperty('--wall-c1', theme.bg);
   root.style.setProperty('--wall-c2', mixHex(theme.bg, theme.accent, 0.13));
+  root.style.setProperty('--wall-veil', hexToRgba(theme.bg, 0.58));
   const wall = p.customWall || (WALLPAPERS.find((w) => w.id === p.wallpaper)?.css ?? WALLPAPERS[0].css);
   root.style.setProperty('--chat-wall', wall);
 }

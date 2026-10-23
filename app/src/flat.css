@@ -194,10 +194,10 @@
 
 /* ---------- fond � terre craquel�e � ---------- */
 .cracks-wall {
-  position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.55;
+  position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.28;
   background-color: var(--chat-bg);
 }
 .cracks-wall.mini { opacity: 1; border-radius: inherit; }
 /* la couleur des fissures suit l'accent du th�me */
 .cracks-defs feFlood { flood-color: var(--accent); }
-.wall-swatch .cracks-wall { opacity: 0.9; }
+.wall-swatch .cracks-wall { opacity: 0.6; }
