@@ -2,9 +2,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
 import { MAX_FILE, formatSize } from '../lib/files';
-import { dayLabel, mentionPattern, timeOf } from '../lib/format';
+import { activeMention, dayLabel, mentionPattern, suggestMentions, timeOf } from '../lib/format';
 import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
-import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconHome, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPencil, IconPoll, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconPaperclip, IconPencil, IconPoll, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
 import { Avatar, Empty, IconButton, Modal } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
@@ -35,7 +35,6 @@ type Props = {
   onDismissCall: () => void;
   connection: 'online' | 'offline' | 'connecting';
   onOpenSide: () => void;
-  onHome: () => void;
   onShareScreen: () => void;
   sharing: boolean;
   shareStream: MediaStream | null;
@@ -182,6 +181,31 @@ export default function ChatPane(p: Props) {
   const [showJump, setShowJump] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [pollOpen, setPollOpen] = useState(false);
+  // Mentions : liste de suggestions pendant la saisie d'un « @ ».
+  const [mentionCaret, setMentionCaret] = useState(-1);
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const mention = useMemo(() => {
+    const at = mentionCaret >= 0 ? activeMention(draft, mentionCaret) : null;
+    if (!at) return { at: null as null | { start: number; query: string }, list: [] as Participant[] };
+    const others = p.participants.filter((x) => x.id !== p.selfId);
+    return { at, list: suggestMentions(others, at.query) };
+  }, [draft, mentionCaret, p.participants, p.selfId]);
+  useEffect(() => { setMentionIdx(0); }, [mention.at?.query]);
+
+  /** Insère « @Nom » à la place de la saisie en cours, suivi d'un espace. */
+  function pickMention(member: Participant | undefined) {
+    if (!member || !mention.at) return;
+    const before = draft.slice(0, mention.at.start);
+    const after = draft.slice(mentionCaret);
+    const next = before + '@' + member.name + ' ' + after;
+    const pos = (before + '@' + member.name + ' ').length;
+    setDraft(next);
+    setMentionCaret(-1);
+    requestAnimationFrame(() => {
+      const el = input.current;
+      if (el) { el.focus(); el.setSelectionRange(pos, pos); }
+    });
+  }
 
   // Raccourci : Ctrl+F (ou Cmd+F) ouvre la recherche dans la session.
   useEffect(() => {
@@ -509,7 +533,6 @@ export default function ChatPane(p: Props) {
           </p>
         </div>
         <div className="pane-actions">
-          <IconButton label="Accueil" onClick={p.onHome}><IconHome size={19} /></IconButton>
           <IconButton label="Participants" className="mobile-only" onClick={p.onOpenSide}><IconUsers size={19} /></IconButton>
           <IconButton label="Rechercher" active={searchOpen} onClick={() => { setSearchOpen((v) => !v); setQuery(''); }}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
@@ -788,6 +811,25 @@ export default function ChatPane(p: Props) {
         </div>
       )}
 
+      <div className="composer-wrap">
+      {mention.list.length > 0 && recMs === null && (
+        <ul className="mention-list" role="listbox" aria-label="Participants à mentionner">
+          {mention.list.map((m, i) => (
+            <li key={m.id} role="option" aria-selected={i === mentionIdx}>
+              <button
+                type="button"
+                className={i === mentionIdx ? 'on' : ''}
+                onMouseDown={(e) => { e.preventDefault(); pickMention(m); }}
+                onMouseEnter={() => setMentionIdx(i)}
+              >
+                <Avatar name={m.name} color={m.color} size={28} />
+                <span>{m.name}</span>
+                <em>@{m.name}</em>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="composer">
         {recMs === null && emojiOpen && (
           <div className="emoji-pop">
@@ -895,14 +937,23 @@ export default function ChatPane(p: Props) {
               placeholder={reply ? 'Répondre…' : 'Message chiffré…'}
               onChange={(e) => {
                 setDraft(e.target.value);
+                setMentionCaret(e.target.selectionStart);
                 p.onTyping();
                 e.target.style.height = 'auto';
                 e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
               }}
               onKeyDown={(e) => {
+                if (mention.list.length) {
+                  if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx((i) => (i + 1) % mention.list.length); return; }
+                  if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIdx((i) => (i - 1 + mention.list.length) % mention.list.length); return; }
+                  if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mention.list[mentionIdx]); return; }
+                  if (e.key === 'Escape') { e.preventDefault(); setMentionCaret(-1); return; }
+                }
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
                 if (e.key === 'Escape' && reply) setReply(null);
               }}
+              onClick={(e) => setMentionCaret((e.target as HTMLTextAreaElement).selectionStart)}
+              onKeyUp={(e) => { if (!['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) setMentionCaret((e.target as HTMLTextAreaElement).selectionStart); }}
               onPaste={onPaste}
             />
             {draft.trim() ? (
@@ -914,6 +965,7 @@ export default function ChatPane(p: Props) {
             )}
           </>
         )}
+      </div>
       </div>
 
       {showJump && (

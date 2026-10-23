@@ -66,3 +66,28 @@ export function formatCodeInput(value: string) {
   const raw = String(value).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
   return raw.replace(/(.{4})(?=.)/g, '$1-');
 }
+
+/** Mention en cours de saisie : texte après le dernier « @ » placé en début de mot, avant le curseur. */
+export function activeMention(text: string, caret: number): { start: number; query: string } | null {
+  const before = text.slice(0, caret);
+  const at = before.lastIndexOf('@');
+  if (at < 0) return null;
+  if (at > 0 && !/\s/.test(before[at - 1])) return null;
+  const query = before.slice(at + 1);
+  if (query.includes('\n') || query.length > 24) return null;
+  return { start: at, query };
+}
+
+/** Suggestions : participants dont le nom commence par la saisie (puis contient), sans accents ni casse. */
+export function suggestMentions<T extends { name: string }>(list: T[], query: string, limit = 6): T[] {
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const q = norm(query.trim());
+  const starts: T[] = [];
+  const contains: T[] = [];
+  for (const p of list) {
+    const n = norm(p.name);
+    if (!q || n.startsWith(q)) starts.push(p);
+    else if (n.includes(q)) contains.push(p);
+  }
+  return [...starts, ...contains].slice(0, limit);
+}

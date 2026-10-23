@@ -5,6 +5,7 @@ import './styles.css';
 import './components/home.css';
 import './components/security.css';
 import './ui2.css';
+import './flat.css';
 
 // Chaque page n'est téléchargée que lorsqu'on la visite : /app ne charge pas l'accueil,
 // le dossier sécurité ni les nouveautés.

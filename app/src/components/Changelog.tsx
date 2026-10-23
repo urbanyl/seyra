@@ -1,86 +1,89 @@
 import { SeyraMark } from './Icons';
+import { useT } from '../lib/i18n';
+import LangMenu from './LangMenu';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
-    version: '2.2.1',
-    date: 'octobre 2026',
-    title: 'Sondages plus simples',
+    version: '2.3',
+    date: 'October 2026',
+    title: 'English by default, languages, new patterns',
     items: [
-      'Bouton Sondage dans le menu pi�ces jointes : une question, deux � six options, sans syntaxe � retenir.',
-      'Une commande /sondage incompl�te est refus�e avec le format attendu, au lieu d��tre envoy�e en texte brut.',
+      'The whole interface is in English by default, with French, Chinese, Russian and Korean available from the flag menu.',
+      'Mention suggestions: type @ and pick a name from the list with the mouse or the arrow keys.',
+      'Roles removed: only the session owner can remove a participant.',
+      'Flat design: no gradients, no blur, colours taken from the logo.',
+      'New conversation patterns, and a text size setting.',
+    ],
+  },
+  {
+    version: '2.2.1',
+    date: 'October 2026',
+    title: 'Simpler polls',
+    items: [
+      'Poll button in the attachment menu: one question, two to six options, no syntax to remember.',
+      'An incomplete /sondage command is refused with the expected format instead of being sent as plain text.',
     ],
   },
   {
     version: '2.2',
-    date: 'octobre 2026',
-    title: 'Caméra, édition et animateurs',
+    date: 'October 2026',
+    title: 'Camera, editing and mentions',
     items: [
-      'Caméra pendant un appel, jusqu’à 4 personnes, en 640 × 360. Bouton dédié dans la bulle d’appel.',
-      'Édition de vos messages texte, avec la mention « modifié ». Seul l’auteur peut modifier.',
-      'Accusés de lecture, choisis à la création de la session. Invisibles si l’option est désactivée.',
-      'Animateurs : le propriétaire en désigne, et ils peuvent retirer un invité.',
-      'Recherche filtrable par expéditeur et par type : photos, vidéos, fichiers, vocaux, sondages.',
-      'Nouvelle page d’accueil et nouvelle page de nouveautés.',
+      'Camera during a call, up to 4 people, 640 × 360. Dedicated button in the call bubble.',
+      'Edit your text messages, with an “edited” mark. Only the author can edit.',
+      'Read receipts, chosen when the session is created. Hidden when the option is off.',
+      'Search filtered by sender and by type: photos, videos, files, voice notes, polls.',
+      'New home page and new changelog page.',
     ],
   },
   {
     version: '2.1.1',
-    date: 'octobre 2026',
-    title: 'Corrections',
+    date: 'October 2026',
+    title: 'Fixes',
     items: [
-      'Désépingler fonctionne : un second clic retire le message des épingles, chez tous les participants.',
-      'Mentions avec un pseudo à espaces (« @Invité 1 ») sont reconnues en entier.',
-      'En-tête de session lisible sur téléphone étroit.',
-      'Déploiement : types et tests passent avant chaque mise en ligne.',
+      'Unpinning works: a second click removes the message from pins, for everyone.',
+      'Mentions with a name containing spaces (“@Guest 1”) are matched in full.',
+      'Session header stays readable on narrow phones.',
+      'Deployment runs type checks and tests before every release.',
     ],
   },
   {
     version: '2.1',
-    date: 'octobre 2026',
-    title: 'Sondages et fil de discussion',
+    date: 'October 2026',
+    title: 'Polls and threads',
     items: [
-      'Sondages : tapez /sondage Question | option | option. Le vote est chiffré, le décompte visible de tous.',
-      'Fil de discussion : un message qui a des réponses affiche un bouton « Voir le fil ».',
+      'Polls: type /sondage Question | option | option. Votes are encrypted, counts are visible to all.',
+      'Threads: a message with replies shows a “View thread” button.',
     ],
   },
   {
     version: '2.0',
-    date: 'octobre 2026',
+    date: 'October 2026',
     title: 'Seyra 2.0',
     items: [
-      'Messages épinglés, visibles en haut de la session pour tous.',
-      'Mentions @pseudo, avec surbrillance et son dédié.',
-      'Partage d’écran refait : fermer, masquer, plein écran et rouvrir, son coupé quand c’est fermé.',
-      'Fonds de conversation redessinés, mode clair lisible, réglages regroupés.',
-      'Panneau de session : durée, messages, fichiers et lien d’invitation.',
-      'Recherche avec Ctrl+F, aide des raccourcis avec ?.',
+      'Pinned messages, visible at the top of the session for everyone.',
+      'Mentions @name, with highlight and a dedicated sound.',
+      'Screen sharing rebuilt: close, hide, fullscreen and reopen, sound muted when closed.',
+      'Redrawn conversation backgrounds, readable light theme, grouped settings.',
+      'Session panel: duration, messages, files and invite link.',
+      'Search with Ctrl+F, shortcut help with ?.',
     ],
   },
   {
     version: '1.4',
-    date: 'octobre 2026',
-    title: 'Fichiers, photos et vidéos',
+    date: 'October 2026',
+    title: 'Files, photos and videos',
     items: [
-      'Envoi de fichiers jusqu’à 8 Mo, découpés et chiffrés par morceaux.',
-      'Photos compressées avant envoi, métadonnées EXIF retirées.',
-      'Coller une image depuis le presse-papiers (Ctrl+V).',
-      'Suppression en cascade : un fichier disparaît entièrement.',
-    ],
-  },
-  {
-    version: '1.3',
-    date: 'septembre 2026',
-    title: 'Appels et sécurité',
-    items: [
-      'Appels de groupe en pair-à-pair avec relais TURN de secours.',
-      'Mot de passe de session optionnel, jamais envoyé au serveur.',
-      'Historique masqué par défaut pour les nouveaux arrivants.',
-      'Dossier de sécurité publié sur /securite.',
+      'Send files up to 8 MB, split and encrypted in chunks.',
+      'Photos compressed before sending, EXIF metadata removed.',
+      'Paste an image from the clipboard (Ctrl+V).',
+      'Cascade delete: a file disappears entirely.',
     ],
   },
 ];
 
 export default function Changelog() {
+  const t = useT();
   return (
     <div className="changelog home">
       <header className="home-nav">
@@ -89,15 +92,16 @@ export default function Changelog() {
           <span>Seyra</span>
         </a>
         <nav>
-          <a href="/securite">Sécurité</a>
-          <a className="home-cta-small" href="/app">Ouvrir</a>
+          <a href="/securite">{t('nav.security')}</a>
+          <LangMenu />
+          <a className="home-cta-small" href="/app">{t('nav.open')}</a>
         </nav>
       </header>
 
       <main className="cl-main">
-        <p className="section-kicker">Nouveautés</p>
-        <h1>Ce qui change</h1>
-        <p className="cl-lede">Chaque version est testée avant publication. La plus récente est en haut.</p>
+        <p className="section-kicker">{t('news.kicker')}</p>
+        <h1>{t('news.h1')}</h1>
+        <p className="cl-lede">{t('news.lede')}</p>
 
         <div className="cl-timeline">
           {RELEASES.map((r, i) => (
@@ -106,7 +110,7 @@ export default function Changelog() {
                 <div className="cl-meta">
                   <span className="cl-version">{r.version}</span>
                   <span>{r.date}</span>
-                  {i === 0 && <span className="cl-new">Dernière</span>}
+                  {i === 0 && <span className="cl-new">{t('news.latest')}</span>}
                 </div>
                 <h2>{r.title}</h2>
                 <ul>
@@ -117,7 +121,7 @@ export default function Changelog() {
           ))}
         </div>
 
-        <a className="btn-primary cl-cta" href="/app">Ouvrir une session</a>
+        <a className="btn-primary cl-cta" href="/app">{t('final.cta')}</a>
       </main>
     </div>
   );

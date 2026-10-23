@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { formatCodeInput } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { IconBack, IconCheck, IconLock, IconPlus, IconUsers, SeyraMark } from './Icons';
+import LangMenu from './LangMenu';
 
 export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo, onPseudo, prefillCode }: {
   onCreate: (opts: { password?: string; history?: boolean; receipts?: boolean }) => void;
@@ -12,6 +14,7 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
   onPseudo: (v: string) => void;
   prefillCode?: string;
 }) {
+  const t = useT();
   const [mode, setMode] = useState<'home' | 'join'>(prefillCode ? 'join' : 'home');
   const [code, setCode] = useState(prefillCode ? formatCodeInput(prefillCode) : '');
   const [password, setPassword] = useState('');
@@ -27,9 +30,10 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
           <span>Seyra</span>
         </a>
         <nav>
-          <a href="/securite">Sécurité</a>
-          <a href="/nouveautes">Nouveautés</a>
-          <a className="home-cta-small" href="/">Accueil</a>
+          <a href="/securite">{t('nav.security')}</a>
+          <a href="/nouveautes">{t('nav.news')}</a>
+          <LangMenu />
+          <a className="home-cta-small" href="/">{t('nav.home')}</a>
         </nav>
       </header>
       <div className="landing-card">
@@ -37,7 +41,7 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
           <SeyraMark size={58} />
           <div>
             <h1>Seyra</h1>
-            <p>Sessions privées, éphémères, chiffrées.</p>
+            <p>{t('announce.text')}</p>
           </div>
         </div>
 
@@ -45,11 +49,11 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
         {error && <div className="banner error">{error}</div>}
 
         <label className="field pseudo-field">
-          <span>Votre pseudo</span>
+          <span>{t('common.pseudo')}</span>
           <input
             value={pseudo}
             maxLength={24}
-            placeholder="Invité (par défaut)"
+            placeholder={t('common.pseudoPh')}
             onChange={(e) => onPseudo(e.target.value)}
           />
         </label>
@@ -59,64 +63,56 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
             <label className={`pwd-toggle ${usePassword ? 'on' : ''}`}>
               <input type="checkbox" checked={usePassword} onChange={(e) => { setUsePassword(e.target.checked); if (!e.target.checked) setPassword(''); }} />
               <IconLock size={15} />
-              <span>Protéger la session par un mot de passe</span>
+              <span>{t('create.password')}</span>
             </label>
             {usePassword && (
               <label className="field">
-                <span>Mot de passe de la session</span>
+                <span>{t('create.passwordLabel')}</span>
                 <input
                   type="password"
                   value={password}
                   maxLength={64}
-                  placeholder="À communiquer aux invités"
+                  placeholder={t('create.passwordPh')}
                   autoComplete="new-password"
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <em className="field-hint">Il n'est jamais envoyé au serveur : il est mélangé à la clé de chiffrement.</em>
+                <em className="field-hint">{t('create.passwordHint')}</em>
               </label>
             )}
             <label className={`pwd-toggle ${history ? 'on' : ''}`}>
               <input type="checkbox" checked={history} onChange={(e) => setHistory(e.target.checked)} />
               <IconBack size={15} />
-              <span>Autoriser les nouveaux arrivants à voir l'historique</span>
+              <span>{t('create.history')}</span>
             </label>
-            <p className="field-hint opt-hint">
-              {history
-                ? 'Les personnes qui rejoignent verront les messages déjà envoyés.'
-                : 'Par défaut, un nouvel arrivant ne voit rien de ce qui a été dit avant son arrivée.'}
-            </p>
+            <p className="field-hint opt-hint">{history ? t('create.historyOn') : t('create.historyOff')}</p>
             <label className={`pwd-toggle ${receipts ? 'on' : ''}`}>
               <input type="checkbox" checked={receipts} onChange={(e) => setReceipts(e.target.checked)} />
               <IconCheck size={15} />
-              <span>Accusés de lecture</span>
+              <span>{t('create.receipts')}</span>
             </label>
-            <p className="field-hint opt-hint">
-              {receipts
-                ? 'Chaque participant voit qui a lu les messages. Ce choix est visible de tous.'
-                : 'Désactivés : personne ne voit qui a lu quoi.'}
-            </p>
+            <p className="field-hint opt-hint">{receipts ? t('create.receiptsOn') : t('create.receiptsOff')}</p>
             <div className="landing-actions">
               <button className="choice" onClick={() => onCreate({ password: usePassword ? password : undefined, history, receipts })} disabled={busy || (usePassword && password.length < 4)}>
                 <span className="choice-icon"><IconPlus size={20} /></span>
                 <span className="choice-text">
-                  <strong>Ouvrir une session</strong>
-                  <em>{usePassword && password.length < 4 ? 'Mot de passe : 4 caractères minimum.' : 'Un code apparaît. Partagez-le pour discuter.'}</em>
+                  <strong>{t('create.title')}</strong>
+                  <em>{usePassword && password.length < 4 ? t('create.passwordLabel') : t('create.desc')}</em>
                 </span>
               </button>
               <button className="choice" onClick={() => { setMode('join'); setUsePassword(false); }} disabled={busy}>
                 <span className="choice-icon cyan"><IconUsers size={20} /></span>
                 <span className="choice-text">
-                  <strong>Rejoindre une session</strong>
-                  <em>Entrez le code reçu d'un proche.</em>
+                  <strong>{t('join.title')}</strong>
+                  <em>{t('join.desc')}</em>
                 </span>
               </button>
             </div>
           </>
         ) : (
           <div className="join-form">
-            <button className="back" onClick={() => setMode('home')}><IconBack size={16} /> Retour</button>
+            <button className="back" onClick={() => setMode('home')}><IconBack size={16} /> {t('common.back')}</button>
             <label className="field">
-              <span>Code de session</span>
+              <span>{t('join.codeLabel')}</span>
               <input
                 className="code-input"
                 autoFocus
@@ -129,12 +125,12 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
               />
             </label>
             <label className="field">
-              <span>Mot de passe <em className="opt">(si la session en a un)</em></span>
+              <span>{t('join.password')}</span>
               <input
                 type="password"
                 value={password}
                 maxLength={64}
-                placeholder="Laisser vide s'il n'y en a pas"
+                placeholder={t('join.password')}
                 autoComplete="off"
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -144,11 +140,10 @@ export default function Landing({ onCreate, onJoin, busy, error, notice, pseudo,
               disabled={busy || code.replace(/-/g, '').length !== 12}
               onClick={() => onJoin(code, password || undefined)}
             >
-              {busy ? <span className="spinner" /> : 'Rejoindre la session'}
+              {busy ? <span className="spinner" /> : t('join.join')}
             </button>
           </div>
         )}
-
       </div>
     </div>
   );

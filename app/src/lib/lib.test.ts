@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanPseudo, formatCodeInput, initials, mentionPattern, mentionsName } from './format';
+import { activeMention, cleanPseudo, formatCodeInput, initials, mentionPattern, mentionsName, suggestMentions } from './format';
 import { buildPollCommand, isPollCommand, parsePoll } from './poll';
 import { cleanName as cleanFileName } from './files';
 
@@ -119,5 +119,20 @@ describe('commande sondage', () => {
 
   it('retire les séparateurs saisis dans les champs', () => {
     expect(buildPollCommand('A | B', ['x|y', 'z'])).toBe('/sondage A B | x y | z');
+  });
+});
+
+describe('mentions en cours de saisie', () => {
+  it('trouve le @ en cours avant le curseur', () => {
+    expect(activeMention('salut @inv', 10)).toEqual({ start: 6, query: 'inv' });
+  });
+  it('ignore un @ collé à un mot (adresse e-mail)', () => {
+    expect(activeMention('mail a@b', 8)).toBeNull();
+  });
+  it('propose Invité 1 pour @inv, sans tenir compte de la casse ni des accents', () => {
+    const list = [{ name: 'Alice' }, { name: 'Invité 1' }, { name: 'Ivan' }];
+    expect(suggestMentions(list, 'INV').map((x) => x.name)).toEqual(['Invité 1']);
+    expect(suggestMentions(list, 'inv').map((x) => x.name)).toEqual(['Invité 1']);
+    expect(suggestMentions(list, 'i').map((x) => x.name)).toEqual(['Invité 1', 'Ivan', 'Alice']);
   });
 });

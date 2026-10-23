@@ -1,37 +1,46 @@
 import { useState } from 'react';
-import { IconCamera, IconLock, IconPhone, IconPin, IconTimer, IconUsers, SeyraMark } from './Icons';
+import { IconCamera, IconCheck, IconLock, IconPin, IconTimer, IconUsers, SeyraMark } from './Icons';
+import { useT } from '../lib/i18n';
+import LangMenu from './LangMenu';
 
-const SHARE_TEXT = 'Seyra — sessions privées chiffrées. Un code suffit, rien n’est conservé.';
-
-const NETWORKS: [string, string][] = [
-  ['WhatsApp', `https://wa.me/?text=${encodeURIComponent(SHARE_TEXT)}`],
-  ['Telegram', `https://t.me/share/url?url=${encodeURIComponent(SHARE_TEXT)}`],
-  ['X', `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}`],
-  ['LinkedIn', `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SHARE_TEXT)}`],
-  ['Facebook', `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_TEXT)}`],
+const NETWORKS: [string, (u: string) => string][] = [
+  ['WhatsApp', (u) => `https://wa.me/?text=${encodeURIComponent(u)}`],
+  ['Telegram', (u) => `https://t.me/share/url?url=${encodeURIComponent(u)}`],
+  ['X', (u) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(u)}`],
+  ['LinkedIn', (u) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(u)}`],
+  ['Facebook', (u) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(u)}`],
 ];
 
-const FEATURES: { title: string; text: string; icon: (p: { size?: number }) => JSX.Element }[] = [
-  { title: 'Sans compte', text: 'Aucune inscription, aucun numéro, aucune adresse e-mail. Ouvrez une session et c’est tout.', icon: IconUsers },
-  { title: 'Chiffré sur votre appareil', text: 'La clé est dérivée du code. Les messages sont scellés avant de quitter le navigateur.', icon: IconLock },
-  { title: 'Éphémère', text: 'Rien n’est écrit sur disque. Fermer la session efface tout, pour tous les participants.', icon: IconTimer },
-  { title: 'Appels et caméra', text: 'Voix en pair-à-pair, caméra et partage d’écran avec le son. Micro et casque coupables à tout moment.', icon: IconCamera },
-  { title: 'Sondages et fil', text: 'Lancez un sondage en une commande, répondez en fil. Les votes restent chiffrés.', icon: IconPin },
-  { title: 'Animateurs', text: 'Le propriétaire désigne des animateurs. Accusés de lecture optionnels, choisis à la création.', icon: IconPhone },
+const FEATURES = [
+  { t: 'f1.t', d: 'f1.d', icon: IconUsers },
+  { t: 'f2.t', d: 'f2.d', icon: IconLock },
+  { t: 'f3.t', d: 'f3.d', icon: IconTimer },
+  { t: 'f4.t', d: 'f4.d', icon: IconCamera },
+  { t: 'f5.t', d: 'f5.d', icon: IconPin },
+  { t: 'f6.t', d: 'f6.d', icon: IconCheck },
 ];
 
 const STEPS = [
-  { n: '01', title: 'Ouvrez une session', text: 'Un code à 12 caractères apparaît. Il est la clé.' },
-  { n: '02', title: 'Partagez-le', text: 'Lien, code ou QR code, au choix.' },
-  { n: '03', title: 'Discutez', text: 'Messages, appels, pseudo modifiable à tout moment.' },
+  { n: '01', t: 's1.t', d: 's1.d' },
+  { n: '02', t: 's2.t', d: 's2.d' },
+  { n: '03', t: 's3.t', d: 's3.d' },
+];
+
+const SEC = [
+  { t: 'sec1.t', d: 'sec1.d' },
+  { t: 'sec2.t', d: 'sec2.d' },
+  { t: 'sec3.t', d: 'sec3.d' },
+  { t: 'sec4.t', d: 'sec4.d' },
 ];
 
 export default function Home() {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const shareUrl = typeof window !== 'undefined' ? window.location.origin + '/app' : '/app';
+  const shareText = `Seyra — ${t('announce.title')} ${shareUrl}`;
 
   const copy = () => {
-    navigator.clipboard?.writeText(`${SHARE_TEXT} ${shareUrl}`).then(() => {
+    navigator.clipboard?.writeText(shareText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {});
@@ -45,39 +54,37 @@ export default function Home() {
           <span>Seyra</span>
         </a>
         <nav>
-          <a href="#fonctions">Fonctions</a>
-          <a href="#comment">Comment</a>
-          <a href="/securite">Sécurité</a>
-          <a href="/nouveautes">Nouveautés</a>
-          <a className="home-cta-small" href="/app">Ouvrir</a>
+          <a href="#fonctions">{t('nav.features')}</a>
+          <a href="#comment">{t('nav.how')}</a>
+          <a href="/securite">{t('nav.security')}</a>
+          <a href="/nouveautes">{t('nav.news')}</a>
+          <LangMenu />
+          <a className="home-cta-small" href="/app">{t('nav.open')}</a>
         </nav>
       </header>
 
       <a className="v2-announce" href="/nouveautes">
-        <span className="v2-badge">Seyra 2.2</span>
+        <span className="v2-badge">2.3</span>
         <span className="v2-text">
-          <strong>Caméra, édition de messages, accusés de lecture et animateurs</strong>
-          Recherche par expéditeur et par type, et une nouvelle page de nouveautés.
+          <strong>{t('announce.title')}</strong>
+          {t('announce.text')}
         </span>
-        <span className="v2-go">Voir les nouveautés →</span>
+        <span className="v2-go">{t('announce.cta')} →</span>
       </a>
 
       <section className="home-hero">
         <div className="hero-copy">
-          <p className="eyebrow">Messagerie privée, sans compte</p>
-          <h1>Une session. Un code. <span className="grad">Rien ne reste.</span></h1>
-          <p className="lede">
-            Seyra ouvre des conversations privées chiffrées sur l’appareil. Vous partagez un code,
-            les autres entrent, la session se ferme quand vous le décidez.
-          </p>
+          <p className="eyebrow">{t('hero.eyebrow')}</p>
+          <h1>{t('hero.h1a')} {t('hero.h1b')} <span className="grad">{t('hero.h1c')}</span></h1>
+          <p className="lede">{t('hero.lede')}</p>
           <div className="hero-actions">
-            <a className="btn-primary" href="/app">Ouvrir une session</a>
-            <a className="btn-ghost" href="/app#rejoindre">Rejoindre avec un code</a>
+            <a className="btn-primary" href="/app">{t('hero.cta1')}</a>
+            <a className="btn-ghost" href="/app#rejoindre">{t('hero.cta2')}</a>
           </div>
           <ul className="hero-proof">
-            <li>Aucun compte</li>
-            <li>Aucun historique</li>
-            <li>Appels de groupe</li>
+            <li>{t('hero.p1')}</li>
+            <li>{t('hero.p2')}</li>
+            <li>{t('hero.p3')}</li>
           </ul>
         </div>
 
@@ -85,33 +92,33 @@ export default function Home() {
           <div className="mock">
             <div className="mock-head">
               <span className="mock-live" />
-              <span>Session privée</span>
-              <em>3 connectés</em>
+              <span>{t('mock.title')}</span>
+              <em>{t('mock.online')}</em>
             </div>
             <div className="mock-code">K7Q2 · MX9A · PD4R</div>
-            <div className="mock-msg in">Qui apporte les plans ?</div>
-            <div className="mock-msg out">Je les envoie, ils restent chiffrés.</div>
+            <div className="mock-msg in">{t('mock.q')}</div>
+            <div className="mock-msg out">{t('mock.a')}</div>
             <div className="mock-poll">
-              <b>Pizza ce soir ?</b>
-              <div className="mock-bar"><span style={{ width: '72%' }} /><em>Oui · 3</em></div>
-              <div className="mock-bar alt"><span style={{ width: '28%' }} /><em>Non · 1</em></div>
+              <b>{t('mock.poll')}</b>
+              <div className="mock-bar"><span style={{ width: '72%' }} /><em>{t('mock.yes')} · 3</em></div>
+              <div className="mock-bar alt"><span style={{ width: '28%' }} /><em>{t('mock.no')} · 1</em></div>
             </div>
-            <div className="mock-foot"><IconLock size={12} /> Le serveur ne voit rien</div>
+            <div className="mock-foot"><IconLock size={12} /> {t('mock.foot')}</div>
           </div>
         </div>
       </section>
 
       <section id="fonctions" className="home-section">
-        <p className="section-kicker">Fonctions</p>
-        <h2>Ce qui compte</h2>
+        <p className="section-kicker">{t('feat.kicker')}</p>
+        <h2>{t('feat.h2')}</h2>
         <div className="grid-feat">
           {FEATURES.map((f) => {
             const Icon = f.icon;
             return (
-              <article key={f.title} className="feat">
+              <article key={f.t} className="feat">
                 <span className="feat-icon"><Icon size={20} /></span>
-                <h3>{f.title}</h3>
-                <p>{f.text}</p>
+                <h3>{t(f.t)}</h3>
+                <p>{t(f.d)}</p>
               </article>
             );
           })}
@@ -119,15 +126,15 @@ export default function Home() {
       </section>
 
       <section id="comment" className="home-section alt">
-        <p className="section-kicker">Comment</p>
-        <h2>Trois gestes</h2>
+        <p className="section-kicker">{t('how.kicker')}</p>
+        <h2>{t('how.h2')}</h2>
         <ol className="steps">
           {STEPS.map((s) => (
             <li key={s.n}>
               <span className="step-n">{s.n}</span>
               <div>
-                <h3>{s.title}</h3>
-                <p>{s.text}</p>
+                <h3>{t(s.t)}</h3>
+                <p>{t(s.d)}</p>
               </div>
             </li>
           ))}
@@ -135,44 +142,34 @@ export default function Home() {
       </section>
 
       <section id="securite" className="home-section">
-        <p className="section-kicker">Sécurité</p>
-        <h2>Ce qui est chiffré, et comment</h2>
+        <p className="section-kicker">{t('sec.kicker')}</p>
+        <h2>{t('sec.h2')}</h2>
         <div className="sec-grid">
-          <div>
-            <h3>Clé dérivée du code</h3>
-            <p>PBKDF2-SHA256, 210 000 itérations. Le code n’est jamais envoyé au serveur.</p>
-          </div>
-          <div>
-            <h3>Messages scellés</h3>
-            <p>XSalsa20-Poly1305 avec un nonce aléatoire par message.</p>
-          </div>
-          <div>
-            <h3>Pas de journal</h3>
-            <p>Les sessions vivent en mémoire vive. Un redémarrage efface tout.</p>
-          </div>
-          <div>
-            <h3>Appels chiffrés</h3>
-            <p>WebRTC, média chiffré DTLS-SRTP, relais TURN pour les réseaux restrictifs.</p>
-          </div>
+          {SEC.map((s) => (
+            <div key={s.t}>
+              <h3>{t(s.t)}</h3>
+              <p>{t(s.d)}</p>
+            </div>
+          ))}
         </div>
         <p className="sec-more">
-          <a className="doc-link" href="/securite">Lire le dossier technique complet : primitives, limites, chiffres, modèle de menace →</a>
+          <a className="doc-link" href="/securite">{t('sec.link')}</a>
         </p>
       </section>
 
       <section className="home-final">
-        <h2>Ouvrez une session maintenant.</h2>
-        <a className="btn-primary big" href="/app">Ouvrir une session</a>
+        <h2>{t('final.h2')}</h2>
+        <a className="btn-primary big" href="/app">{t('final.cta')}</a>
 
         <div className="home-share">
-          <p>Partager Seyra</p>
+          <p>{t('share.title')}</p>
           <div className="share-row">
-            {NETWORKS.map(([name, href]) => (
-              <a key={name} className="share-chip" href={href} target="_blank" rel="noopener noreferrer">
+            {NETWORKS.map(([name, build]) => (
+              <a key={name} className="share-chip" href={build(shareText)} target="_blank" rel="noopener noreferrer">
                 {name}
               </a>
             ))}
-            <button className="share-chip" onClick={copy}>{copied ? 'Lien copié' : 'Copier le lien'}</button>
+            <button className="share-chip" onClick={copy}>{copied ? t('share.copied') : t('share.copy')}</button>
           </div>
         </div>
       </section>

@@ -88,7 +88,6 @@ function createRoom(id) {
     pwd: false, // la session annonce (sans le connaître) qu'un mot de passe est requis
     history: false, // par défaut, un nouvel arrivant ne voit pas ce qui a été dit avant
     receipts: false, // accusés de lecture : choisis à la création, visibles de tous
-    mods: new Set(), // animateurs (désignés par le propriétaire)
     wall: null, // fond de conversation partagé (identifiant d'un motif prédéfini)
     banned: new Set(), // IP bannies de cette session
     clients: new Map(), // clientId -> participant
@@ -153,7 +152,6 @@ function leaveRoom(p, reason = 'left') {
   if (!room) return;
   room.clients.delete(p.id);
   broadcast(room, p.id, { t: 'peer:left', reason, participant: { id: p.id, name: p.name } });
-  room.mods.delete(p.id);
   p.camId = null;
   p.screenId = null;
   if (p.voice) {
@@ -210,7 +208,6 @@ function join(ws, p, roomId, mode, rawName, wantPwd, wantHistory, wantReceipts) 
     messages: room.history || p.id === room.ownerId ? room.messages : [],
     createdAt: room.createdAt,
     receipts: room.receipts,
-    mods: [...room.mods],
     wall: room.wall,
   });
   broadcast(room, p.id, { t: 'peer:joined', participant: { id: p.id, name: p.name, color: p.color } });
@@ -347,24 +344,11 @@ wss.on('connection', (ws, req) => {
       return leaveRoom(p);
     }
 
-    // Animateurs : seul le propriétaire les désigne ou les retire.
-    if (m.t === 'role') {
-      if (p.id !== room.ownerId) return;
-      const targetId = String(m.id || '');
-      if (!room.clients.has(targetId) || targetId === room.ownerId) return;
-      if (m.on) room.mods.add(targetId); else room.mods.delete(targetId);
-      return broadcast(room, null, { t: 'role:set', id: targetId, on: !!m.on });
-    }
-
     if (m.t === 'kick') {
-      // Le propriétaire retire qui il veut ; un animateur retire seulement un invité.
-      const isOwner = p.id === room.ownerId;
-      const isMod = room.mods.has(p.id);
-      if (!isOwner && !isMod) return;
+      // Seul le propriétaire retire un participant.
+      if (p.id !== room.ownerId) return;
       const target = room.clients.get(String(m.id || ''));
       if (!target || target.id === p.id) return;
-      if (!isOwner && (target.id === room.ownerId || room.mods.has(target.id))) return;
-      room.mods.delete(target.id);
       room.banned.add(target.ip);
       send(target.ws, { t: 'session:kicked' });
       leaveRoom(target, 'kicked');

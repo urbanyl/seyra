@@ -242,7 +242,6 @@ export default function App() {
   /* Éditions (texte de remplacement par message), accusés de lecture, animateurs. */
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [readers, setReaders] = useState<Record<string, number>>({});
-  const [mods, setMods] = useState<string[]>([]);
   const [receipts, setReceipts] = useState(false);
   const applyPin = useCallback((mid: string, on: boolean) => {
     setPinned((prev) => {
@@ -371,7 +370,6 @@ export default function App() {
           setOwnerId(m.ownerId || null);
           setSessionWall(typeof m.wall === 'string' ? m.wall : null);
           setParticipants(m.participants || []);
-          setMods(Array.isArray(m.mods) ? m.mods : []);
           setReceipts(!!m.receipts);
           // Fusionne l'historique reçu, applique les réactions, ignore ce qui a expiré.
           const map = new Map((stateRef.current.messages as Msg[]).map((x) => [x.id, x]));
@@ -462,10 +460,6 @@ export default function App() {
             setNotice('Le propriétaire vous a retiré de la session.');
             voice.leave();
           }
-          break;
-
-        case 'role:set':
-          setMods((prev) => (m.on ? [...new Set([...prev, m.id])] : prev.filter((x) => x !== m.id)));
           break;
 
         case 'msg': {
@@ -785,10 +779,6 @@ export default function App() {
     return () => window.clearTimeout(ackTimer.current);
   }, [messages, receipts, phase, session]);
 
-  /** Animateurs : le propriétaire désigne ou retire. */
-  const setMod = useCallback((id: string, on: boolean) => {
-    rt.send({ t: 'role', id, on });
-  }, []);
 
   const togglePin = useCallback((msgId: string) => {
     const cur = stateRef.current;
@@ -949,8 +939,6 @@ export default function App() {
         copied={copied}
         onClose={() => setAskClose(true)}
         onKick={(p) => setAskKick(p)}
-        mods={mods}
-        onSetMod={setMod}
         onInvite={() => setShowInvite(true)}
         onSettings={() => { setShowSettings(true); setSideOpen(false); }}
         onHide={() => setSideOpen(false)}
@@ -958,6 +946,7 @@ export default function App() {
         onRename={() => { setRenameValue(session.selfName || pseudo); setAskRename(true); }}
         voiceById={Object.fromEntries(vstate.peers.map((x) => [x.id, x]))}
         selfVoice={vstate.active ? { muted: vstate.muted, deaf: vstate.deafened } : null}
+        onHome={goHome}
         since={session.createdAt}
         messageCount={messages.filter((m) => m.kind === 'text' || m.kind === 'voice' || m.kind === 'file').length}
         fileCount={messages.filter((m) => m.kind === 'file').length}
@@ -994,7 +983,6 @@ export default function App() {
           onJoinCall={joinCall}
           onDismissCall={() => setCallInvite(null)}
           connection={connection}
-          onHome={goHome}
           onShareScreen={() => voice.toggleScreen()}
           pinned={pinned}
           onTogglePin={togglePin}

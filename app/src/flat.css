@@ -1,0 +1,152 @@
+/* Seyra — style à plat (couche finale).
+ * Palette issue du logo : cyan #00b2ff, bleu #2b52f2. Aucun dégradé, aucun flou, ombres minimales.
+ * Contraste : texte principal ≥ 12:1, texte secondaire ≥ 5:1 sur chaque fond.
+ */
+
+:root {
+  --bg: #0f1419;          /* fond de l'application */
+  --chat-bg: #0e1621;     /* fond de conversation */
+  --panel: #17212b;       /* colonne latérale */
+  --head: #1c2733;        /* barres, cartes */
+  --field: #232f3c;       /* champs, pilules */
+  --bubble-in: #1c2733;
+  --bubble-out: #1f4f9f;  /* bulle sortante : bleu du logo, assombri pour le texte blanc */
+  --accent: #00b2ff;
+  --accent-dark: #2b52f2;
+  --txt: #e9f0f5;
+  --muted: #8a9db0;
+  --line: #243140;
+  --danger: #ff6b7a;
+  --grad-brand: #00b2ff;  /* plus de dégradé : aplat */
+  --shadow-card: none;
+  --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.28);
+  --radius: 10px;
+  --r-md: 14px;
+}
+
+/* suppression systématique des dégradés, flous et ombres lourdes */
+*, *::before, *::after {
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.landing, .home, .changelog, .home-hero, .home-final, .home-section,
+.session, .pane, .side, .messages, .composer { background-color: transparent; }
+.home-final, .home-section.alt, .sec-grid > div, .feat, .steps li, .cl-card, .mock { box-shadow: none !important; }
+.landing { background-color: var(--bg); }
+.landing-card, .modal, .share-tile, .cam-tile, .voice-dock, .pin-bar, .share-pill, .voice-pill, .attach-pop, .react-pop, .msg-menu {
+  box-shadow: var(--shadow-float) !important;
+}
+.share-tile, .cam-tile, .voice-dock { box-shadow: var(--shadow-float) !important; }
+
+/* boutons plats */
+.btn.primary, .choice-icon, .send.ready, .composer button.send, .home-cta-small, .btn-primary, .note-save {
+  background: var(--accent) !important; color: #05121b !important; box-shadow: none !important;
+}
+.btn.primary:hover:not(:disabled), .btn-primary:hover, .home-cta-small:hover { background: #1ab8ff !important; }
+.choice-icon.cyan { background: var(--accent-dark) !important; color: #fff; }
+.btn-ghost { background: var(--field) !important; border: none !important; color: var(--accent) !important; }
+.btn-ghost:hover { background: #2b3947 !important; }
+
+/* bulles façon messagerie : coins légers, pas d'ombre */
+.bubble { box-shadow: none !important; border-radius: 14px; }
+.msg.out .bubble { background: var(--bubble-out) !important; color: #f4f8ff; }
+.msg.in .bubble { background: var(--bubble-in) !important; color: var(--txt); }
+.msg.out .bubble time, .msg.out .read-state, .msg.out .edited { color: rgba(244, 248, 255, 0.72) !important; }
+.msg-author { color: var(--accent) !important; }
+.day-sep span, .sys-line, .e2e-note { background: rgba(255, 255, 255, 0.05) !important; color: var(--muted) !important; box-shadow: none !important; }
+
+/* surfaces plates et séparateurs nets */
+.side, .pane, .landing-card, .modal, .composer, .pane-head, .side-head { border-color: var(--line) !important; }
+.pane { border-radius: 0; border: none; }
+.side { border-radius: 0; border: none; border-right: 1px solid var(--line) !important; }
+.pane-head { border-bottom: 1px solid var(--line); }
+.composer { border-radius: 0 !important; border: none; border-top: 1px solid var(--line) !important; background: var(--panel) !important; padding: 8px 10px; }
+.composer textarea { background: var(--field); border-radius: 18px; padding: 10px 14px; }
+.composer .icon-btn { color: var(--muted); }
+
+/* listes plates, sans fond par carte */
+.participant { border-radius: 0; margin: 0; }
+.participant:hover { background: rgba(255, 255, 255, 0.03); }
+.choice { background: var(--head) !important; border: none; }
+.choice:hover { background: #22303d !important; border-color: transparent; }
+.side-action, .code-card, .side-stats div { background: transparent; }
+.side-stats div { background: var(--head); border-radius: var(--radius); }
+.code-card { background: var(--head); border: none; border-radius: var(--r-md); }
+
+/* mentions */
+.mention { color: var(--accent); font-weight: 600; }
+.mention-me { background: rgba(0, 178, 255, 0.18); border-radius: 4px; }
+.msg.out .mention { color: #fff; }
+
+/* liste de suggestions de mention (au-dessus du compositeur) */
+.composer-wrap { position: relative; }
+.mention-list {
+  position: absolute; left: 0; right: 0; bottom: 100%; z-index: 30; list-style: none; margin: 0; padding: 6px;
+  background: var(--panel); border-top: 1px solid var(--line); max-height: 280px; overflow-y: auto;
+}
+.mention-list li { margin: 0; }
+.mention-list button {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 10px;
+  border-radius: 10px; text-align: left; color: var(--txt); font-size: 15px;
+}
+.mention-list button.on, .mention-list button:hover { background: rgba(0, 178, 255, 0.14); }
+.mention-list em { margin-left: auto; font-style: normal; font-size: 13px; color: var(--muted); }
+.mention-list .avatar { flex: none; }
+
+/* focus visible, bien marqué pour le clavier */
+:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent) !important; }
+
+/* taille du texte réglable : appliquée aux messages */
+:root[data-fs="small"] .bubble-text { font-size: 14px; }
+:root[data-fs="large"] .bubble-text { font-size: 17px; }
+
+/* tablettes (768–1100 px) : panneau latéral réduit, zone de conversation large */
+@media (min-width: 861px) and (max-width: 1100px) {
+  .side { width: 290px; flex-basis: 290px; }
+  .messages { padding-left: 18px; padding-right: 18px; }
+  .bubble { max-width: 74%; }
+}
+
+/* réduction de mouvement */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- s�lecteur de langue ---------- */
+.lang { position: relative; }
+.lang-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 10px;
+  border-radius: 999px; background: rgba(255,255,255,0.05); color: var(--txt); font-size: 13.5px; font-weight: 500;
+}
+.lang-btn:hover { background: rgba(255,255,255,0.09); }
+.flag { font-size: 17px; line-height: 1; }
+.lang-code { letter-spacing: 0.02em; }
+.lang-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 190px; list-style: none; margin: 0; padding: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-float);
+}
+.lang-list button {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; padding: 0 10px;
+  border-radius: 8px; color: var(--txt); font-size: 14px; text-align: left;
+}
+.lang-list button:hover, .lang-list button.on { background: rgba(0,178,255,0.12); }
+.lang-list button span:nth-child(2) { flex: 1; }
+.lang-list svg { color: var(--accent); }
+@media (max-width: 600px) {
+  .home-nav .lang-btn { height: 40px; }
+  .lang-list { right: auto; left: 0; }
+}
+
+/* motif de fond de conversation : seul �l�ment autoris� � garder une image */
+.messages { background-image: var(--chat-wall, none) !important; }
+
+/* marque cliquable du panneau : m�me traitement que la barre de l'accueil */
+.side-brand {
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
+  padding: 2px 6px 2px 0; margin: -2px 0; border-radius: 10px; text-align: left; color: var(--txt);
+}
+.side-brand:hover { background: rgba(255,255,255,0.05); }
+.side-brand div { min-width: 0; }
+.side-brand strong { display: block; font-size: 15px; font-weight: 600; }
+.side-brand span { font-size: 12.5px; color: var(--muted); }

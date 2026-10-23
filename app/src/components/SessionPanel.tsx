@@ -4,6 +4,7 @@ import type { VoicePeer } from '../lib/voice';
 import { IconCopy, IconGear, IconHeadset, IconLock, IconLogout, IconMicOff, IconPencil, IconUsers, IconX } from './Icons';
 import { Avatar, IconButton } from './ui';
 import { SeyraMark } from './Icons';
+import { useT } from '../lib/i18n';
 
 /** Durée lisible depuis l'ouverture : 12 min, 1 h 05, 2 j 3 h. */
 function elapsed(since: number, now: number) {
@@ -16,11 +17,9 @@ function elapsed(since: number, now: number) {
 
 export default function SessionPanel({
   code, participants, selfId, ownerId, onCopy, copied, onClose, onKick, onHide, open,
-  onRename, voiceById, selfVoice, onInvite, onSettings, since, messageCount, fileCount, inviteLink,
-  mods, onSetMod,
+  onRename, voiceById, selfVoice, onInvite, onSettings, since, messageCount, fileCount, inviteLink, onHome,
 }: {
-  mods: string[];
-  onSetMod: (id: string, on: boolean) => void;
+  onHome: () => void;
   onInvite: () => void;
   onSettings: () => void;
   since: number;
@@ -41,8 +40,8 @@ export default function SessionPanel({
   voiceById: Record<string, VoicePeer>;
   selfVoice: { muted: boolean; deaf: boolean } | null;
 }) {
+  const t = useT();
   const isOwner = ownerId === selfId;
-  const isMod = mods.includes(selfId);
   const [now, setNow] = useState(() => Date.now());
   const [linkCopied, setLinkCopied] = useState(false);
   useEffect(() => {
@@ -58,12 +57,14 @@ export default function SessionPanel({
   return (
     <aside className={open ? 'side open' : 'side'}>
       <header className="side-head">
-        <SeyraMark size={36} />
-        <div>
-          <strong>Seyra</strong>
-          <span>session privée</span>
-        </div>
-        <button className="side-hide" onClick={onHide} aria-label="Fermer le panneau"><IconX size={20} /></button>
+        <button className="side-brand" onClick={onHome} title={t('nav.home')}>
+          <SeyraMark size={36} />
+          <div>
+            <strong>Seyra</strong>
+            <span>{t('app.brandSub')}</span>
+          </div>
+        </button>
+        <button className="side-hide" onClick={onHide} aria-label={t('common.close')}><IconX size={20} /></button>
       </header>
 
       <div className="side-quick">
@@ -102,7 +103,7 @@ export default function SessionPanel({
                 <Avatar name={p.name} color={p.color} size={38} online />
                 <div className="participant-name">
                   <span>{isSelf ? `${p.name} (vous)` : p.name}</span>
-                  {p.id === ownerId ? <em>propriétaire</em> : mods.includes(p.id) && <em className="role-mod">animateur</em>}
+                  {p.id === ownerId && <em>propriétaire</em>}
                 </div>
                 {v && (
                   <span className="voice-flags">
@@ -113,12 +114,7 @@ export default function SessionPanel({
                 {isSelf && (
                   <IconButton label="Changer de pseudo" onClick={onRename}><IconPencil size={16} /></IconButton>
                 )}
-                {isOwner && !isSelf && p.id !== ownerId && (
-                  <button className={`role-btn ${mods.includes(p.id) ? 'on' : ''}`} onClick={() => onSetMod(p.id, !mods.includes(p.id))}>
-                    {mods.includes(p.id) ? 'Retirer animateur' : 'Animateur'}
-                  </button>
-                )}
-                {(isOwner || (isMod && p.id !== ownerId && !mods.includes(p.id))) && !isSelf && (
+                {isOwner && !isSelf && (
                   <button className="kick" onClick={() => onKick(p)}>Retirer</button>
                 )}
               </div>
