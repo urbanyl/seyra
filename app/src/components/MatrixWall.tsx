@@ -3,22 +3,25 @@ import { useEffect, useRef, useState } from 'react';
 const CHARS =
   'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン' +
   'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+// Texte long : une colonne doit couvrir deux hauteurs d'écran pour ne jamais laisser de trou.
+const STREAM = CHARS.repeat(3);
 
 /**
- * Fond animé « pluie de caractères », repris du motif fourni par l'utilisateur.
- * - Une colonne par tranche de 20 px (7 px pour l'aperçu), calculée à la taille réelle.
- * - Couleur prise dans l'accent du thème, opacité faible, dégradé de queue par masque.
- * - Animation désactivée si l'utilisateur préfère réduire les mouvements.
+ * Fond animé « pluie de caractères », d'après le motif fourni par l'utilisateur.
+ * - Une colonne tous les 14 px (6 px pour l'aperçu), recalculée à la taille réelle.
+ * - Chute lente (8 à 15 s), opacité constante pendant la traversée, effacement en fin de course.
+ * - Couleur prise dans l'accent du thème, opacité d'ensemble faible.
+ * - Animation coupée si le système demande de réduire les mouvements.
  */
 export default function MatrixWall({ mini = false }: { mini?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(0);
-  const step = mini ? 7 : 20;
+  const step = mini ? 6 : 14;
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const compute = () => setCount(Math.max(1, Math.ceil(el.clientWidth / step)));
+    const compute = () => setCount(Math.max(1, Math.ceil(el.clientWidth / step) + 1));
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(el);
@@ -33,12 +36,11 @@ export default function MatrixWall({ mini = false }: { mini?: boolean }) {
           className="matrix-col"
           style={{
             left: `${i * step}px`,
-            animationDelay: `${-(((i * 37) % 400) / 100).toFixed(2)}s`,
-            animationDuration: `${2.4 + ((i * 7) % 23) / 10}s`,
-            opacity: mini ? 1 : 0.9,
+            animationDelay: `${-(((i * 53) % 1500) / 100).toFixed(2)}s`,
+            animationDuration: `${8 + ((i * 7) % 71) / 10}s`,
           }}
         >
-          {CHARS.slice(i % 20) + CHARS}
+          {STREAM.slice(i % 24)}
         </span>
       ))}
     </div>

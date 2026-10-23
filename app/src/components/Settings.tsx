@@ -3,6 +3,7 @@ import { WALLPAPERS, THEMES, type Prefs } from '../lib/prefs';
 import { Modal } from './ui';
 import { IconImage, IconScreenShare } from './Icons';
 import MatrixWall from './MatrixWall';
+import CracksWall from './CracksWall';
 import { useT } from '../lib/i18n';
 
 export default function Settings({ prefs, onChange, sessionWall, onSetWall, onClose }: {
@@ -39,6 +40,7 @@ export default function Settings({ prefs, onChange, sessionWall, onSetWall, onCl
                 onClick={() => onSetWall(w.id === 'none' ? '' : w.id)}
               >
                 {w.id === 'matrix' && <MatrixWall mini />}
+                {w.id === 'cracks' && <CracksWall mini />}
               </button>
             ))}
           </div>

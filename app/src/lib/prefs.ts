@@ -48,6 +48,12 @@ export const WALLPAPERS: { id: string; name: string; css: string }[] = [
     // Rendu par le composant MatrixWall (colonnes animées), pas par un fond CSS.
     css: 'none',
   },
+  {
+    id: 'cracks',
+    name: 'wall.cracks',
+    // Rendu par le composant CracksWall (filtre SVG), pas par un fond CSS.
+    css: 'none',
+  },
 ];
 const KEY = 'seyra.prefs.v1';
 

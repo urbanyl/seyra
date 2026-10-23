@@ -158,33 +158,46 @@
 /* aperÃ§u du motif : plus grand, et le motif dÃ©marre au coin */
 .wall-swatch { width: 74px; height: 54px; background-size: auto !important; background-position: 0 0 !important; }
 
-/* ---------- fond animé « matrix » ---------- */
-.matrix-wall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; opacity: 0.16; }
+/* ---------- fond animï¿½ ï¿½ matrix ï¿½ ---------- */
+.matrix-wall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; opacity: 0.18; }
 .matrix-wall.mini { opacity: 0.9; border-radius: inherit; }
 .matrix-col {
-  position: absolute; top: -100%; width: 20px; font: 700 16px/1.15 ui-monospace, "Cascadia Mono", Consolas, monospace;
-  white-space: nowrap; letter-spacing: 1px; writing-mode: vertical-lr; color: var(--accent);
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 8%, rgba(0, 0, 0, 0.8) 45%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 8%, rgba(0, 0, 0, 0.8) 45%, transparent 100%);
+  position: absolute; top: -100%; height: 200%; width: 14px; font: 700 13px/1.05 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  white-space: nowrap; letter-spacing: 0; writing-mode: vertical-lr; color: var(--accent);
+  /* queue effacÃ©e en bas de chaque colonne, tÃªte nette en haut */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, rgba(0, 0, 0, 0.35) 92%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 72%, rgba(0, 0, 0, 0.35) 92%, transparent 100%);
   animation: matrix-fall linear infinite;
-  will-change: transform;
+  will-change: transform, opacity;
 }
-.matrix-wall.mini .matrix-col { width: 7px; font-size: 6px; line-height: 6.6px; letter-spacing: 0; }
+.matrix-wall.mini .matrix-col { width: 6px; font-size: 5px; line-height: 5.4px; }
 @keyframes matrix-fall {
-  0% { transform: translateY(-10%); opacity: 1; }
-  100% { transform: translateY(200%); opacity: 0; }
+  0% { transform: translateY(-100%); opacity: 0; }
+  6% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
 }
-@media (max-width: 768px) { .matrix-col { width: 18px; font-size: 14px; line-height: 16px; } }
-@media (max-width: 480px) { .matrix-col { width: 15px; font-size: 12px; line-height: 14px; } }
+@media (max-width: 768px) { .matrix-col { width: 12px; font-size: 11px; line-height: 1.05; } }
+@media (max-width: 480px) { .matrix-col { width: 10px; font-size: 10px; } }
 
-/* quand le fond matrix est actif, la conversation laisse voir la couche animée */
-.pane.with-matrix { background: var(--chat-bg); }
-.pane.with-matrix .messages { background: transparent !important; }
+/* quand le fond matrix est actif, la conversation laisse voir la couche animï¿½e */
+.pane.with-wall { background: var(--chat-bg); }
+.pane.with-wall .messages { background: transparent !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .matrix-col { animation: none !important; opacity: 0.35; }
 }
 
-/* vignette d'aperçu : le fond matrix est un composant, il lui faut un cadre */
+/* vignette d'aperï¿½u : le fond matrix est un composant, il lui faut un cadre */
 .wall-swatch { position: relative; overflow: hidden; }
 .wall-swatch .matrix-wall { opacity: 0.55; }
+
+/* ---------- fond ï¿½ terre craquelï¿½e ï¿½ ---------- */
+.cracks-wall {
+  position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.55;
+  background-color: var(--chat-bg);
+}
+.cracks-wall.mini { opacity: 1; border-radius: inherit; }
+/* la couleur des fissures suit l'accent du thï¿½me */
+.cracks-defs feFlood { flood-color: var(--accent); }
+.wall-swatch .cracks-wall { opacity: 0.9; }
