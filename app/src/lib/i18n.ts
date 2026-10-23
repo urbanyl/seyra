@@ -473,13 +473,19 @@ Object.assign(DICT.ru, { 'wall.matrix': '???????' });
 Object.assign(DICT.ko, { 'wall.matrix': '????' });
 
 Object.assign(DICT.en, { 'wall.cracks': 'Cracked earth' });
-Object.assign(DICT.fr, { 'wall.cracks': 'Terre craquel�e' });
+Object.assign(DICT.fr, { 'wall.cracks': 'Terre craquel�e' });
 Object.assign(DICT.zh, { 'wall.cracks': '????' });
 Object.assign(DICT.ru, { 'wall.cracks': '???????' });
 Object.assign(DICT.ko, { 'wall.cracks': '??? ?' });
 
 Object.assign(DICT.en, { 'wall.plates': 'Tiles' });
-Object.assign(DICT.fr, { 'wall.plates': '�cailles' });
+Object.assign(DICT.fr, { 'wall.plates': '�cailles' });
 Object.assign(DICT.zh, { 'wall.plates': '??' });
 Object.assign(DICT.ru, { 'wall.plates': '???????' });
 Object.assign(DICT.ko, { 'wall.plates': '??' });
+
+Object.assign(DICT.en, { 'settings.wallPersonalLabel': 'Conversation background', 'settings.wallPersonalHint': 'Only on this device, saved in your browser. Nothing is sent to the session.' });
+Object.assign(DICT.fr, { 'settings.wallPersonalLabel': 'Fond de la conversation', 'settings.wallPersonalHint': 'Uniquement sur cet appareil, enregistré dans le navigateur. Rien n’est envoyé à la session.' });
+Object.assign(DICT.zh, { 'settings.wallPersonalLabel': '聊天背景', 'settings.wallPersonalHint': '仅保存在本设备浏览器中，不会发送到会话。' });
+Object.assign(DICT.ru, { 'settings.wallPersonalLabel': 'Фон беседы', 'settings.wallPersonalHint': 'Только на этом устройстве, сохраняется в браузере. В сессию ничего не отправляется.' });
+Object.assign(DICT.ko, { 'settings.wallPersonalLabel': '대화 배경', 'settings.wallPersonalHint': '이 기기의 브라우저에만 저장되며 세션으로 전송되지 않습니다.' });

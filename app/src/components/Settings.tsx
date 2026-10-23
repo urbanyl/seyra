@@ -6,11 +6,9 @@ import MatrixWall from './MatrixWall';
 import CracksWall from './CracksWall';
 import { useT } from '../lib/i18n';
 
-export default function Settings({ prefs, onChange, sessionWall, onSetWall, onClose }: {
+export default function Settings({ prefs, onChange, onClose }: {
   prefs: Prefs;
   onChange: (patch: Partial<Prefs>) => void;
-  sessionWall: string | null;
-  onSetWall: (wall: string) => void;
   onClose: () => void;
 }) {
   const t = useT();
@@ -23,28 +21,37 @@ export default function Settings({ prefs, onChange, sessionWall, onSetWall, onCl
     reader.readAsDataURL(f);
   };
 
-  const isShared = (id: string) => sessionWall === id || (id === 'none' && !sessionWall);
+  const isChosen = (id: string) => prefs.wallpaper === id;
 
   return (
     <Modal title={t('settings.title')} onClose={onClose} width={480}>
       <div className="settings-grid">
         <div className="settings-row">
-          <label>{t('settings.wallShared')}</label>
+          <label>{t('settings.wallPersonalLabel')}</label>
           <div className="wall-swatches">
             {WALLPAPERS.map((w) => (
               <button
                 key={w.id}
-                className={`wall-swatch ${isShared(w.id) ? 'on' : ''}`}
+                className={`wall-swatch ${isChosen(w.id) ? 'on' : ''}`}
                 title={t(w.name)}
                 style={{ background: w.css }}
-                onClick={() => onSetWall(w.id === 'none' ? '' : w.id)}
+                onClick={() => onChange({ wallpaper: w.id, customWall: '' })}
               >
                 {w.id === 'matrix' && <MatrixWall mini />}
                 {w.id === 'cracks' && <CracksWall mini />}
               </button>
             ))}
+            <button
+              className={`wall-swatch ${prefs.wallpaper === 'custom' && prefs.customWall ? 'on' : ''}`}
+              title={t('settings.import')}
+              onClick={() => fileRef.current?.click()}
+              style={{ display: 'grid', placeItems: 'center', backgroundImage: prefs.customWall && prefs.wallpaper === 'custom' ? `url(${prefs.customWall})` : 'none' }}
+            >
+              {!(prefs.wallpaper === 'custom' && prefs.customWall) && <IconImage size={18} />}
+            </button>
           </div>
-          <em className="field-hint">{t('settings.wallSharedHint')}</em>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { pickWall(e.target.files?.[0]); e.target.value = ''; }} />
+          <em className="field-hint">{t('settings.wallPersonalHint')}</em>
         </div>
 
         <div className="settings-row">
@@ -62,24 +69,6 @@ export default function Settings({ prefs, onChange, sessionWall, onSetWall, onCl
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="settings-row">
-          <label>{t('settings.wallPersonal')}</label>
-          <div className="wall-swatches">
-            {prefs.customWall && (
-              <button
-                className={`wall-swatch ${prefs.wallpaper === 'custom' ? 'on' : ''}`}
-                style={{ backgroundImage: `url(${prefs.customWall})` }}
-                title={t('settings.wallPersonal')}
-                onClick={() => { onChange({ wallpaper: 'custom' }); onSetWall(''); }}
-              />
-            )}
-            <button className="wall-swatch" title={t('settings.import')} onClick={() => fileRef.current?.click()} style={{ display: 'grid', placeItems: 'center' }}>
-              <IconImage size={18} />
-            </button>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { pickWall(e.target.files?.[0]); e.target.value = ''; }} />
         </div>
 
         <div className="settings-row">

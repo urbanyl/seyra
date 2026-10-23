@@ -5,7 +5,7 @@
 export type Prefs = {
   theme: string;
   wallpaper: string;
-  customWall: string; // data-URL, session uniquement (pas persisté)
+  customWall: string; // data-URL, enregistrée sur l'appareil
   density: 'comfortable' | 'compact';
   fontScale: 'small' | 'normal' | 'large';
   discreet: boolean;
@@ -98,17 +98,23 @@ function hexToRgba(hex: string, alpha: number): string {
 export function loadPrefs(): Prefs {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw), customWall: '' };
+    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
   } catch { /* préférences illisibles */ }
   return { ...DEFAULTS };
 }
 
 export function savePrefs(p: Prefs) {
+  // L'image perso est une data-URL : on tente de la garder. Si le quota du navigateur
+  // est dépassé, on sauvegarde le reste (le fond revient alors au motif par défaut).
   try {
-    const { customWall, ...rest } = p;
-    void customWall;
-    localStorage.setItem(KEY, JSON.stringify(rest));
-  } catch { /* stockage indisponible */ }
+    localStorage.setItem(KEY, JSON.stringify(p));
+  } catch {
+    try {
+      const { customWall, ...rest } = p;
+      void customWall;
+      localStorage.setItem(KEY, JSON.stringify(rest));
+    } catch { /* stockage indisponible */ }
+  }
 }
 
 export function applyPrefs(p: Prefs) {

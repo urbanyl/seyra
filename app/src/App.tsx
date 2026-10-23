@@ -16,7 +16,7 @@ import { parsePoll } from './lib/poll';
 import { CHUNK, MAX_FILE, base64ToBytes, bytesToBase64, cleanName, compressImage, fileKind, formatSize, isCompressibleImage, stripImageMetadata } from './lib/files';
 import { cryptoReady, deriveSession, newCode, normalizeCode, openBody, sealBody } from './lib/session';
 import { rt } from './lib/rt';
-import { applyPrefs, loadPrefs, savePrefs, WALLPAPERS, type Prefs } from './lib/prefs';
+import { applyPrefs, loadPrefs, savePrefs, type Prefs } from './lib/prefs';
 import type { ChunkBody, ControlBody, Envelope, FileMeta, Msg, Notice, Participant, Poll, ReactBody, Reactions, ReplyTo, SessionInfo, VoiceClip, Votes } from './lib/types';
 import { voice, type VoiceState } from './lib/voice';
 
@@ -105,7 +105,6 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-  const [sessionWall, setSessionWall] = useState<string | null>(null);
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
   const [fileProgress, setFileProgress] = useState<Record<string, number>>({});
 
@@ -135,17 +134,7 @@ export default function App() {
   }, []);
 
   useEffect(() => { applyPrefs(prefs); savePrefs(prefs); }, [prefs]);
-  // Le fond partagé de la session prend le pas sur le fond personnel.
-  useEffect(() => {
-    if (!sessionWall) { applyPrefs(prefs); return; }
-    const w = WALLPAPERS.find((x) => x.id === sessionWall)?.css ?? 'none';
-    document.documentElement.style.setProperty('--chat-wall', w);
-  }, [sessionWall, prefs]);
   const updatePrefs = useCallback((patch: Partial<Prefs>) => setPrefs((p) => ({ ...p, ...patch })), []);
-  const setWall = useCallback((wall: string) => {
-    setSessionWall(wall);
-    rt.send({ t: 'wall', wall });
-  }, []);
 
   /* ---------------- messages ---------------- */
   const cleanupFile = useCallback((fid: string) => {
@@ -368,7 +357,6 @@ export default function App() {
           }
           setSession({ roomId: m.roomId, selfId: m.selfId, selfName: m.selfName, createdAt: m.createdAt });
           setOwnerId(m.ownerId || null);
-          setSessionWall(typeof m.wall === 'string' ? m.wall : null);
           setParticipants(m.participants || []);
           setReceipts(!!m.receipts);
           // Fusionne l'historique reçu, applique les réactions, ignore ce qui a expiré.
@@ -414,10 +402,6 @@ export default function App() {
           setBusy(false);
           setError(m.message || 'Session indisponible.');
           rt.close();
-          break;
-
-        case 'wall:set':
-          setSessionWall(typeof m.wall === 'string' ? m.wall : null);
           break;
 
         case 'session:locked': {
@@ -990,7 +974,7 @@ export default function App() {
           onVote={votePoll}
           sharing={vstate.sharing}
           shareStream={vstate.screen}
-          wall={sessionWall || prefs.wallpaper}
+          wall={prefs.wallpaper}
         />
       </main>
 
@@ -1103,7 +1087,7 @@ export default function App() {
       )}
 
       {showSettings && (
-        <Settings prefs={prefs} onChange={updatePrefs} sessionWall={sessionWall} onSetWall={setWall} onClose={() => setShowSettings(false)} />
+        <Settings prefs={prefs} onChange={updatePrefs} onClose={() => setShowSettings(false)} />
       )}
 
       {toast && <div className="toast">{toast}</div>}
