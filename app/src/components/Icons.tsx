@@ -18,6 +18,12 @@ export const IconPhone = ({ size, className, strokeWidth = 1.7 }: P) => (
   </svg>
 );
 
+export const IconDots = ({ size, className, strokeWidth = 2.2 }: P) => (
+  <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
+    <path d="M12 5.5h.01M12 12h.01M12 18.5h.01" />
+  </svg>
+);
+
 export const IconChevron = ({ size, className, strokeWidth = 1.7 }: P) => (
   <svg {...base(size)} strokeWidth={strokeWidth} className={className}>
     <path d="M5 9l7 7 7-7" />

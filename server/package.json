@@ -1,6 +1,6 @@
 {
   "name": "@urbanyl/seyra-server",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Seyra server: encrypted chat sessions over WebSocket, serves the built client.",
   "type": "module",
   "main": "src/index.js",

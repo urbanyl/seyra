@@ -4,6 +4,17 @@ import LangMenu from './LangMenu';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.4.1',
+    date: 'October 2026',
+    title: 'Faster typing on phones',
+    items: [
+      'The composer is now its own component: typing no longer re-renders the whole conversation.',
+      'On phones, the bar keeps only attach, text and send. Emoji, whispers, dictation and message timers move into the attach menu.',
+      'The header folds the whiteboard, selection and screen share into a "more" menu.',
+      'Typing signals are throttled, and the text field autosize no longer forces a layout on every keystroke.',
+    ],
+  },
+  {
     version: '2.4.0',
     date: 'October 2026',
     title: 'Whiteboard, whispers, ghost sessions',

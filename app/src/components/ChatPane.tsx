@@ -1,19 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { AudioRecorder, MAX_VOICE_MS, formatTime } from '../lib/audio';
-import { MAX_FILE, formatSize } from '../lib/files';
-import { activeMention, dayLabel, mentionPattern, suggestMentions, timeOf } from '../lib/format';
+import { dayLabel, mentionPattern, timeOf } from '../lib/format';
 import { useT } from '../lib/i18n';
-import type { Envelope, FileMeta, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
-import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconFile, IconImage, IconLock, IconMaximize, IconMic, IconMinimize, IconBoard, IconPaperclip, IconPencil, IconPoll, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSend, IconSmile, IconTimer, IconTrash, IconUsers, IconVideoFile, IconX } from './Icons';
+import type { Envelope, Msg, Notice, Participant, Poll, Reactions, ReplyTo, VoiceClip, Votes } from '../lib/types';
+import { IconArrowDown, IconCheck, IconCopy, IconEyeOff, IconLock, IconMaximize, IconMinimize, IconBoard, IconDots, IconPencil, IconPhone, IconPin, IconReply, IconThread, IconScreenShare, IconSmile, IconTimer, IconTrash, IconUsers, IconX } from './Icons';
 import { Avatar, Empty, IconButton, Modal } from './ui';
 import FileBubble from './FileBubble';
 import VoicePlayer from './VoicePlayer';
 import MatrixWall from './MatrixWall';
-import VoiceType from './VoiceType';
-import { getLang } from '../lib/i18n';
 import CracksWall from './CracksWall';
-import { buildPollCommand, isPollCommand, parsePoll, POLL_FORMAT } from '../lib/poll';
+import Composer from './Composer';
 
 type Props = {
   code: string;
@@ -55,44 +51,6 @@ type Props = {
   receipts: boolean;
   readers: Record<string, number>;
 };
-
-/** Formulaire de sondage : une question, 2 à 6 options. Envoie la même commande que /sondage. */
-function PollBuilder({ onClose, onCreate }: { onClose: () => void; onCreate: (command: string) => void }) {
-  const t = useT();
-  const [question, setQuestion] = useState('');
-  const [opts, setOpts] = useState<string[]>(['', '']);
-  const command = buildPollCommand(question, opts);
-  const setOpt = (i: number, v: string) => setOpts((prev) => prev.map((x, k) => (k === i ? v : x)));
-  return (
-    <Modal title={t('poll.new')} onClose={onClose} width={460}>
-      <label className="poll-field">
-        <span>{t('poll.question')}</span>
-        <input autoFocus value={question} maxLength={200} placeholder={t('poll.example')} onChange={(e) => setQuestion(e.target.value)} />
-      </label>
-      <div className="poll-field">
-        <span>{t('poll.options')}</span>
-        {opts.map((o, i) => (
-          <div key={i} className="poll-opt-row">
-            <input value={o} maxLength={120} placeholder={`Option ${i + 1}`} onChange={(e) => setOpt(i, e.target.value)} />
-            {opts.length > 2 && (
-              <button type="button" className="poll-rm" aria-label={t('poll.removeOption')} onClick={() => setOpts((prev) => prev.filter((_, k) => k !== i))}>
-                <IconX size={14} />
-              </button>
-            )}
-          </div>
-        ))}
-        {opts.length < 6 && (
-          <button type="button" className="poll-add" onClick={() => setOpts((prev) => [...prev, ''])}>+ {t('poll.add')}</button>
-        )}
-      </div>
-      <p className="edit-hint">{t('poll.hint')}</p>
-      <div className="modal-actions">
-        <button className="btn ghost" onClick={onClose}>{t('common.cancel')}</button>
-        <button className="btn primary" disabled={!command} onClick={() => command && onCreate(command)}>{t('poll.create')}</button>
-      </div>
-    </Modal>
-  );
-}
 
 /** Édition d'un message texte : seul l'auteur y accède. */
 function EditModal({ initial, onClose, onSave }: { initial: string; onClose: () => void; onSave: (text: string) => void }) {
@@ -145,8 +103,6 @@ function PollCard({ poll, votes, selfId, nameOf, onVote }: {
   );
 }
 
-const EMOJIS = ['😀', '😂', '😍', '🥳', '😎', '🤔', '👍', '🙏', '🔥', '💙', '✨', '🎧', '📌', '✅'];
-
 type TypeFilter = 'text' | 'photo' | 'video' | 'file' | 'voice' | 'poll';
 const TYPE_KEYS: Record<TypeFilter, string> = {
   text: 'type.text', photo: 'type.photo', video: 'type.video', file: 'type.file', voice: 'type.voice', poll: 'type.poll',
@@ -165,22 +121,12 @@ function matchesType(t: TypeFilter, m: Msg, e: Envelope | null): boolean {
   }
 }
 const REACTS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅'];
-const TTL_OPTIONS: [number | null, string, string][] = [
-  [null, 'ttl.perm', ''],
-  [30, 'ttl.s30', '30 s'],
-  [60, 'ttl.m1', '1 min'],
-  [300, 'ttl.m5', '5 min'],
-  [900, 'ttl.m15', '15 min'],
-  [3600, 'ttl.h1', '1 h'],
-];
 
 export default function ChatPane(p: Props) {
   const t = useT();
   const matrix = p.wall === 'matrix';
   const cracks = p.wall === 'cracks';
   const domWall = matrix || cracks;
-  const [draft, setDraft] = useState('');
-  const [emojiOpen, setEmojiOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<{ m: Msg; text: string } | null>(null);
@@ -189,44 +135,14 @@ export default function ChatPane(p: Props) {
   const [reply, setReply] = useState<ReplyTo | null>(null);
   const [reactPop, setReactPop] = useState<string | null>(null);
   const [delArm, setDelArm] = useState<string | null>(null);
-  const [ttl, setTtl] = useState<number | null>(null);
-  const [ttlPop, setTtlPop] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [recMs, setRecMs] = useState<number | null>(null);
   const [showJump, setShowJump] = useState(false);
-  const [attachOpen, setAttachOpen] = useState(false);
-  const [pollOpen, setPollOpen] = useState(false);
-  /** Chuchotement : destinataire choisi, vide = message normal. */
-  const [whisperTo, setWhisperTo] = useState('');
   // Sélection multiple : clics sur les messages, copie ou suppression en lot.
   const [selectMode, setSelectMode] = useState(false);
+  /** Menu « plus » de l'en-tête sur mobile. */
+  const [moreOpen, setMoreOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  // Mentions : liste de suggestions pendant la saisie d'un « @ ».
-  const [mentionCaret, setMentionCaret] = useState(-1);
-  const [mentionIdx, setMentionIdx] = useState(0);
-  const mention = useMemo(() => {
-    const at = mentionCaret >= 0 ? activeMention(draft, mentionCaret) : null;
-    if (!at) return { at: null as null | { start: number; query: string }, list: [] as Participant[] };
-    const others = p.participants.filter((x) => x.id !== p.selfId);
-    return { at, list: suggestMentions(others, at.query) };
-  }, [draft, mentionCaret, p.participants, p.selfId]);
-  useEffect(() => { setMentionIdx(0); }, [mention.at?.query]);
-
-  /** Insère « @Nom » à la place de la saisie en cours, suivi d'un espace. */
-  function pickMention(member: Participant | undefined) {
-    if (!member || !mention.at) return;
-    const before = draft.slice(0, mention.at.start);
-    const after = draft.slice(mentionCaret);
-    const next = before + '@' + member.name + ' ' + after;
-    const pos = (before + '@' + member.name + ' ').length;
-    setDraft(next);
-    setMentionCaret(-1);
-    requestAnimationFrame(() => {
-      const el = input.current;
-      if (el) { el.focus(); el.setSelectionRange(pos, pos); }
-    });
-  }
 
   // Raccourci : Ctrl+F (ou Cmd+F) ouvre la recherche dans la session.
   useEffect(() => {
@@ -242,20 +158,13 @@ export default function ChatPane(p: Props) {
   }, []);
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const seenTs = useRef(Date.now());
-  const imgInput = useRef<HTMLInputElement>(null);
-  const vidInput = useRef<HTMLInputElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const imgQuality = useRef<number | null>(0.82);
   const scroller = useRef<HTMLDivElement>(null);
-  const input = useRef<HTMLTextAreaElement>(null);
   const atBottom = useRef(true);
   const longPress = useRef<number | undefined>(undefined);
   // Dernier message atteint par la navigation clavier J / K.
   const navId = useRef<string | null>(null);
   const delTimer = useRef<number | undefined>(undefined);
   const flashTimer = useRef<number | undefined>(undefined);
-  const recorder = useRef<AudioRecorder | null>(null);
-  const recTimer = useRef<number | undefined>(undefined);
 
   const byId = useMemo(() => Object.fromEntries(p.participants.map((x) => [x.id, x])), [p.participants]);
   const nameOf = (id: string) => (id === p.selfId ? t('chat.you') : byId[id]?.name || t('chat.guest'));
@@ -377,14 +286,10 @@ export default function ChatPane(p: Props) {
     const el = scroller.current;
     if (el) el.scrollTop = el.scrollHeight;
     atBottom.current = true;
-    input.current?.focus();
     return () => {
       window.clearTimeout(delTimer.current);
       window.clearTimeout(flashTimer.current);
-      window.clearTimeout(recTimer.current);
       window.clearTimeout(longPress.current);
-      recorder.current?.cancel();
-      recorder.current = null;
     };
   }, []);
 
@@ -405,8 +310,6 @@ export default function ChatPane(p: Props) {
   function closePops(e: React.MouseEvent) {
     const t = e.target as HTMLElement;
     if (!t.closest('.react-pop') && !t.closest('.msg-actions')) setReactPop(null);
-    if (!t.closest('.ttl-pop') && !t.closest('.ttl-btn')) setTtlPop(false);
-    if (!t.closest('.attach-pop') && !t.closest('.attach-btn')) setAttachOpen(false);
     if (!t.closest('.msg-actions')) {
       window.clearTimeout(delTimer.current);
       setDelArm(null);
@@ -420,7 +323,6 @@ export default function ChatPane(p: Props) {
     setReactPop(null);
     setOpenActions(null);
     setReply({ id: m.id, from: m.from, text });
-    input.current?.focus();
   }
 
   function armDelete(m: Msg) {
@@ -511,133 +413,6 @@ export default function ChatPane(p: Props) {
     setSelected(new Set());
   }
 
-  function send() {
-    const text = draft.trim();
-    if (!text) return;
-    // Commande sondage mal écrite : on la refuse et on dit pourquoi, au lieu de l'envoyer en texte brut.
-    if (isPollCommand(text) && !parsePoll(text)) {
-      p.onNotify(`${t('poll.incomplete')} ${POLL_FORMAT}`);
-      return;
-    }
-    if (whisperTo) p.onWhisper(text, whisperTo);
-    else p.onSend(text, reply, ttl);
-    setDraft('');
-    setWhisperTo('');
-    setReply(null);
-    setEmojiOpen(false);
-    setAttachOpen(false);
-    if (input.current) input.current.style.height = 'auto';
-    atBottom.current = true;
-    input.current?.focus();
-  }
-
-  /* ---------------- fichiers ---------------- */
-
-  function pickImage(quality: number | null) {
-    imgQuality.current = quality;
-    setAttachOpen(false);
-    imgInput.current?.click();
-  }
-
-  function pickInput(ref: React.RefObject<HTMLInputElement | null>) {
-    setAttachOpen(false);
-    ref.current?.click();
-  }
-
-  function onPicked(e: React.ChangeEvent<HTMLInputElement>, compress: number | null) {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    const willCompress = compress !== null && /^image\//.test(f.type) && !/gif|svg/i.test(f.type);
-    // Une photo destinée à la compression peut être lourde au départ : c'est le
-    // résultat compressé qui doit tenir sous la limite (vérifié dans sendFile).
-    const ceiling = willCompress ? 60 * 1024 * 1024 : MAX_FILE;
-    if (f.size > ceiling) {
-      p.onNotify(willCompress
-        ? `Image trop lourde pour être compressée (${formatSize(f.size)}).`
-        : `Trop lourd : ${formatSize(f.size)}. Maximum ${formatSize(MAX_FILE)}.`);
-      return;
-    }
-    p.onSendFile(f, compress, reply, ttl);
-    setReply(null);
-    atBottom.current = true;
-  }
-
-  /** Ctrl+V : une image (ou un fichier) copié dans le presse-papiers part directement. */
-  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    const files: File[] = [];
-    for (const it of items) {
-      if (it.kind !== 'file') continue;
-      const f = it.getAsFile();
-      if (f) files.push(f);
-    }
-    if (!files.length) return;
-    e.preventDefault();
-    for (const f of files.slice(0, 5)) {
-      const isImage = /^image\//.test(f.type);
-      const name = f.name || (isImage ? 'copie.png' : 'copie');
-      const file = f.name ? f : new File([f], name, { type: f.type || 'application/octet-stream' });
-      const compress = isImage && !/gif|svg/i.test(f.type) ? 0.82 : null;
-      const ceiling = compress !== null ? 60 * 1024 * 1024 : MAX_FILE;
-      if (file.size > ceiling) {
-        p.onNotify(compress !== null
-          ? `Image trop lourde pour être compressée (${formatSize(file.size)}).`
-          : `Trop lourd : ${formatSize(file.size)}. Maximum ${formatSize(MAX_FILE)}.`);
-        continue;
-      }
-      p.onSendFile(file, compress, reply, ttl);
-      setReply(null);
-      atBottom.current = true;
-    }
-  }
-
-  /* ---------------- messages vocaux ---------------- */
-
-  async function startRec() {
-    if (recorder.current) return;
-    const r = new AudioRecorder();
-    try {
-      await r.start();
-    } catch {
-      p.onNotify('Micro indisponible. Autorisez l’accès au microphone.');
-      return;
-    }
-    recorder.current = r;
-    setRecMs(0);
-    setEmojiOpen(false);
-    setReactPop(null);
-    setOpenActions(null);
-    const tick = () => {
-      const ms = r.elapsed();
-      setRecMs(ms);
-      if (ms >= MAX_VOICE_MS) void sendRec();
-      else recTimer.current = window.setTimeout(tick, 200);
-    };
-    recTimer.current = window.setTimeout(tick, 200);
-  }
-
-  async function sendRec() {
-    const r = recorder.current;
-    window.clearTimeout(recTimer.current);
-    recorder.current = null;
-    setRecMs(null);
-    if (!r) return;
-    const clip = await r.stop();
-    if (!clip) return;
-    p.onSendVoice(clip, reply, ttl);
-    setReply(null);
-    atBottom.current = true;
-  }
-
-  function cancelRec() {
-    window.clearTimeout(recTimer.current);
-    recorder.current?.cancel();
-    recorder.current = null;
-    setRecMs(null);
-  }
-
   return (
     <section className={`pane${domWall ? ' with-wall' : ''}`} onClick={closePops}>
         {matrix && <MatrixWall />}
@@ -656,19 +431,24 @@ export default function ChatPane(p: Props) {
           </p>
         </div>
         <div className="pane-actions">
-          <IconButton label={t('board.open')} onClick={p.onWhiteboard}><IconBoard size={19} /></IconButton>
           <IconButton label="Participants" className="mobile-only" onClick={p.onOpenSide}><IconUsers size={19} /></IconButton>
           <IconButton label={t("chat.search")} active={searchOpen} onClick={() => { setSearchOpen((v) => !v); setQuery(''); }}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
               <circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.2 4.2" />
             </svg>
           </IconButton>
-          <IconButton label={selectMode ? t('select.exit') : t('select.enter')} active={selectMode} onClick={toggleSelectMode}>
-            <IconCheck size={19} />
-          </IconButton>
-          <button className={`call-btn share-btn ${p.sharing ? 'on' : ''}`} onClick={p.onShareScreen} title={p.sharing ? "Arrêter le partage d'écran" : "Partager l'écran"} disabled={!p.inVoice}>
-            <IconScreenShare size={18} />
+          <button className="icon-btn mobile-only" aria-label="More" title="More" onClick={() => setMoreOpen((v) => !v)}>
+            <IconDots size={19} />
           </button>
+          <div className={`pane-more ${moreOpen ? 'open' : ''}`}>
+            <IconButton label={t('board.open')} onClick={() => { setMoreOpen(false); p.onWhiteboard(); }}><IconBoard size={19} /></IconButton>
+            <IconButton label={selectMode ? t('select.exit') : t('select.enter')} active={selectMode} onClick={() => { setMoreOpen(false); toggleSelectMode(); }}>
+              <IconCheck size={19} />
+            </IconButton>
+            <button className={`call-btn share-btn ${p.sharing ? 'on' : ''}`} onClick={() => { setMoreOpen(false); p.onShareScreen(); }} title={p.sharing ? "Arrêter le partage d'écran" : "Partager l'écran"} disabled={!p.inVoice}>
+              <IconScreenShare size={18} />
+            </button>
+          </div>
           <button className={`call-btn ${p.inVoice ? 'on' : ''}`} onClick={p.onCall} title={p.inVoice ? t('call.leave') : t('call.voice')}>
             <IconPhone size={18} />
           </button>
@@ -961,186 +741,19 @@ export default function ChatPane(p: Props) {
         </div>
       )}
 
-      <div className="composer-wrap">
-      {whisperTo && (
-        <div className="whisper-bar">
-          <IconLock size={13} />
-          <span>{t('whisper.to')} {p.participants.find((x) => x.id === whisperTo)?.name || ''}</span>
-          <em>{t('whisper.hint')}</em>
-          <button type="button" onClick={() => setWhisperTo('')} aria-label={t('common.cancel')}><IconX size={14} /></button>
-        </div>
-      )}
-      {mention.list.length > 0 && recMs === null && (
-        <ul className="mention-list" role="listbox" aria-label={t('chat.mentionList')}>
-          {mention.list.map((m, i) => (
-            <li key={m.id} role="option" aria-selected={i === mentionIdx}>
-              <button
-                type="button"
-                className={i === mentionIdx ? 'on' : ''}
-                onMouseDown={(e) => { e.preventDefault(); pickMention(m); }}
-                onMouseEnter={() => setMentionIdx(i)}
-              >
-                <Avatar name={m.name} color={m.color} size={28} />
-                <span>{m.name}</span>
-                <em>@{m.name}</em>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="composer">
-        {recMs === null && emojiOpen && (
-          <div className="emoji-pop">
-            {EMOJIS.map((e) => (
-              <button key={e} onClick={() => { setDraft((d) => d + e); input.current?.focus(); }}>{e}</button>
-            ))}
-          </div>
-        )}
-
-        {recMs === null && (
-          <>
-          <button
-            type="button"
-            className={`icon-btn ${whisperTo ? 'active' : ''}`}
-            title={t('whisper.toggle')}
-            aria-label={t('whisper.toggle')}
-            onClick={() => {
-              if (whisperTo) { setWhisperTo(''); return; }
-              const other = p.participants.find((x) => x.id !== p.selfId);
-              if (other) setWhisperTo(other.id);
-            }}
-          >
-            <IconLock size={19} />
-          </button>
-          <VoiceType lang={getLang() === 'fr' ? 'fr-FR' : getLang() === 'zh' ? 'zh-CN' : getLang() === 'ru' ? 'ru-RU' : getLang() === 'ko' ? 'ko-KR' : 'en-US'} onAppend={(txt) => { setDraft((d) => d + txt); input.current?.focus(); }} disabled={!!recMs} />
-          <div className="attach-wrap">
-            <button
-              type="button"
-              className={`icon-btn attach-btn ${attachOpen ? 'active' : ''}`}
-              onClick={() => { setAttachOpen((v) => !v); setEmojiOpen(false); setTtlPop(false); }}
-              title="Joindre"
-              aria-label={t('attach.file')}
-            >
-              <IconPaperclip size={20} />
-            </button>
-            {attachOpen && (
-              <div className="attach-pop">
-                <button type="button" onClick={() => pickImage(0.6)}>
-                  <IconImage size={18} /><span>{t('attach.photoLight')}</span><em>0,6</em>
-                </button>
-                <button type="button" onClick={() => pickImage(0.82)}>
-                  <IconImage size={18} /><span>{t('attach.photoBalanced')}</span><em>0,82</em>
-                </button>
-                <button type="button" onClick={() => pickImage(0.95)}>
-                  <IconImage size={18} /><span>{t('attach.photoMax')}</span><em>0,95</em>
-                </button>
-                <button type="button" onClick={() => pickImage(null)}>
-                  <IconImage size={18} /><span>{t('attach.photoOriginal')}</span><em>∞</em>
-                </button>
-                <button type="button" onClick={() => pickInput(vidInput)}>
-                  <IconVideoFile size={18} /><span>{t('type.video')}</span><em>{formatSize(MAX_FILE)}</em>
-                </button>
-                <button type="button" onClick={() => pickInput(fileInput)}>
-                  <IconFile size={18} /><span>{t('type.file')}</span><em>{formatSize(MAX_FILE)}</em>
-                </button>
-                <button type="button" onClick={() => { setAttachOpen(false); setPollOpen(true); }}>
-                  <IconPoll size={18} /><span>{t('poll.new')}</span><em>2–6</em>
-                </button>
-              </div>
-            )}
-            <input ref={imgInput} type="file" accept="image/*" hidden onChange={(e) => onPicked(e, imgQuality.current)} />
-            <input ref={vidInput} type="file" accept="video/*" hidden onChange={(e) => onPicked(e, null)} />
-            <input ref={fileInput} type="file" hidden onChange={(e) => onPicked(e, null)} />
-          </div>
-          </>
-        )}
-
-        {recMs === null && (
-          <IconButton label="Émojis" onClick={() => setEmojiOpen((v) => !v)} active={emojiOpen}><IconSmile size={21} /></IconButton>
-        )}
-
-        {recMs === null && (
-          <div className="ttl-wrap">
-            {ttlPop && (
-              <div className="ttl-pop">
-                {TTL_OPTIONS.map(([v, label, short]) => (
-                  <button
-                    key={String(v)}
-                    type="button"
-                    className={ttl === v ? 'on' : ''}
-                    onClick={() => { setTtl(v); setTtlPop(false); }}
-                    title={v ? t('ttl.titleOn') : t('ttl.titleOff')}
-                  >
-                    {t(label)}
-                    <em className="ttl-hint">{v ? short : '∞'}</em>
-                  </button>
-                ))}
-              </div>
-            )}
-            <button
-              type="button"
-              className={`icon-btn ttl-btn ${ttl ? 'active' : ''}`}
-              onClick={() => setTtlPop((v) => !v)}
-              title="Durée du message"
-              aria-label="Durée du message"
-            >
-              <IconTimer size={20} />
-              {ttl !== null && <b className="ttl-flag">{TTL_OPTIONS.find(([v]) => v === ttl)?.[2]}</b>}
-            </button>
-          </div>
-        )}
-
-        {recMs !== null ? (
-          <div className="rec-bar">
-            <span className="rec-dot" />
-            <span className="rec-time">{formatTime(recMs / 1000)}</span>
-            <span className="rec-hint">{t('rec.hint')}</span>
-            <button type="button" className="rec-cancel" onClick={cancelRec} title="Annuler" aria-label="Annuler l’enregistrement">
-              <IconTrash size={18} />
-            </button>
-            <button type="button" className="send ready" onClick={sendRec} title={t("chat.send")} aria-label={t("rec.send")}>
-              <IconSend size={20} />
-            </button>
-          </div>
-        ) : (
-          <>
-            <textarea
-              ref={input}
-              value={draft}
-              rows={1}
-              placeholder={reply ? t('chat.reply') : t('chat.placeholder')}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                setMentionCaret(e.target.selectionStart);
-                p.onTyping();
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 140) + 'px';
-              }}
-              onKeyDown={(e) => {
-                if (mention.list.length) {
-                  if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx((i) => (i + 1) % mention.list.length); return; }
-                  if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIdx((i) => (i - 1 + mention.list.length) % mention.list.length); return; }
-                  if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickMention(mention.list[mentionIdx]); return; }
-                  if (e.key === 'Escape') { e.preventDefault(); setMentionCaret(-1); return; }
-                }
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-                if (e.key === 'Escape' && reply) setReply(null);
-              }}
-              onClick={(e) => setMentionCaret((e.target as HTMLTextAreaElement).selectionStart)}
-              onKeyUp={(e) => { if (!['ArrowUp', 'ArrowDown', 'Enter', 'Tab', 'Escape'].includes(e.key)) setMentionCaret((e.target as HTMLTextAreaElement).selectionStart); }}
-              onPaste={onPaste}
-            />
-            {draft.trim() ? (
-              <button className="send ready" onClick={send} title={t("chat.send")} aria-label={t("chat.send")}><IconSend size={20} /></button>
-            ) : (
-              <button className="send" onClick={startRec} title={t("chat.voice")} aria-label={t("rec.start")}>
-                <IconMic size={21} />
-              </button>
-            )}
-          </>
-        )}
-      </div>
-      </div>
+      <Composer
+        participants={p.participants}
+        selfId={p.selfId}
+        reply={reply}
+        onCancelReply={() => setReply(null)}
+        onSend={p.onSend}
+        onSendFile={p.onSendFile}
+        onSendVoice={p.onSendVoice}
+        onWhisper={p.onWhisper}
+        onNotify={p.onNotify}
+        onTyping={p.onTyping}
+        onSent={() => { setReply(null); atBottom.current = true; }}
+      />
 
       {showJump && (
         <button
@@ -1157,13 +770,6 @@ export default function ChatPane(p: Props) {
           <IconArrowDown size={unread ? 16 : 18} />
           {unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
         </button>
-      )}
-
-      {pollOpen && (
-        <PollBuilder
-          onClose={() => setPollOpen(false)}
-          onCreate={(cmd) => { p.onSend(cmd, reply, ttl); setReply(null); setPollOpen(false); }}
-        />
       )}
 
       {editing && (

@@ -394,3 +394,25 @@
   .whisper-bar { margin: 0 8px 6px; }
   .whisper-bar em { display: none; }
 }
+
+/* ---------- en-tête mobile : actions secondaires repliées ---------- */
+.pane-more { display: contents; }
+@media (max-width: 600px) {
+  .pane-actions { gap: 0; }
+  .pane-more {
+    position: absolute; top: 56px; right: 8px; z-index: 32;
+    display: none; flex-direction: column; gap: 2px; padding: 6px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: var(--shadow-float);
+  }
+  .pane-more.open { display: flex; }
+  .pane-more .icon-btn, .pane-more .call-btn { width: 44px; height: 44px; }
+  .pane-title h2 { max-width: 46vw; }
+  .pane-title p { max-width: 46vw; }
+}
+@media (max-width: 860px) {
+  .composer { gap: 4px; }
+  .composer textarea { min-height: 40px; padding: 9px 10px; }
+  .composer .icon-btn, .composer .send { width: 38px; height: 38px; flex: none; }
+  .composer-wrap .mention-list { max-height: 46vh; }
+}
