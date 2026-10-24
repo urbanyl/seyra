@@ -1,23 +1,89 @@
 {
   "name": "seyra-desktop",
-  "version": "1.0.0",
+  "version": "2.4.3",
   "private": true,
-  "description": "Seyra — client de bureau",
+  "author": "Seyra",
+  "description": "Seyra — sessions privées, éphémères et chiffrées. Client de bureau.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win portable"
+    "build": "electron-builder --win nsis",
+    "build:dir": "electron-builder --win dir",
+    "build:linux": "electron-builder --linux AppImage deb",
+    "build:mac": "electron-builder --mac dmg zip"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0"
   },
   "build": {
     "appId": "com.seyra.chat",
     "productName": "Seyra",
-    "files": ["main.js", "config.json", "icon.png"],
-    "directories": { "output": "dist" },
-    "win": { "icon": "icon.png", "target": ["portable"] },
-    "portable": { "artifactName": "Seyra-${version}.exe" }
-  }
+    "copyright": "Seyra",
+    "files": [
+      "main.js",
+      "config.json",
+      "icon.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://seyra.website/downloads/"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Seyra",
+      "uninstallDisplayName": "Seyra",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Seyra-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icon.png",
+      "category": "Network",
+      "maintainer": "Seyra <contact@seyra.website>",
+      "synopsis": "Sessions privees, ephemeres et chiffrees",
+      "description": "Seyra : sessions de discussion privees par code, chiffrees de bout en bout, sans compte ni historique.",
+      "syncDesktopName": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.social-networking",
+      "hardenedRuntime": false,
+      "identity": null
+    }
+  },
+  "homepage": "https://seyra.website",
+  "desktopName": "Seyra"
 }
