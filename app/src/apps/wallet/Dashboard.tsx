@@ -9,11 +9,13 @@ import SendPanel from './SendPanel';
 import SeedPanel from './SeedPanel';
 import ImportPanel from './ImportPanel';
 import { Notice, SafetyNotes } from './ui';
-import { IconGlobe, IconLock } from './icons';
+import { IconChevronDown, IconGlobe, IconLock } from './icons';
 import ChainLogo from './chainIcons';
 import { useMarkets } from './useMarkets';
 import { chainMarket, formatEur } from './prices';
+import { Modal } from '../../components/ui';
 import AppFrame from '../../components/AppFrame';
+import { useT } from '../../lib/i18n';
 
 type Props = {
   wallet: WalletData;
@@ -29,9 +31,11 @@ type BalanceStatus = {
 };
 
 export default function Dashboard({ wallet, onChainChange, onReplace }: Props) {
+  const t = useT();
   const chain = chainById(wallet.chainId);
   const { markets } = useMarkets();
   const market = chainMarket(chain, markets);
+  const [chainPicker, setChainPicker] = useState(false);
   const account = useMemo(() => {
     try {
       return mnemonicToAccount(wallet.mnemonic);
@@ -80,15 +84,15 @@ export default function Dashboard({ wallet, onChainChange, onReplace }: Props) {
     return () => {
       alive = false;
     };
-  }, [address, chain, tick]);
+  }, [address, chain, tick, t]);
 
   const refresh = () => setTick((value) => value + 1);
 
   /* Barre latérale : liste des réseaux avec logo, prix et adresse. */
   const networkNav = (
     <>
-      <span className="side-title"><IconGlobe size={13} /> Réseau</span>
-      <div className="w-chain-list" role="listbox" aria-label="Choisir le réseau">
+      <span className="side-title"><IconGlobe size={13} /> {t('wl.network')}</span>
+      <div className="w-chain-list" role="listbox" aria-label={t('wl.pickNetwork')}>
         {CHAINS.map((item) => {
           const price = chainMarket(item, markets);
           const on = item.id === chain.id;
@@ -104,7 +108,7 @@ export default function Dashboard({ wallet, onChainChange, onReplace }: Props) {
               <ChainLogo chain={item} size={26} />
               <span className="w-chain-row-name">
                 {item.name}
-                {item.testnet ? ' (test)' : ''}
+                {item.testnet ? ` (${t('wl.testShort')})` : ''}
               </span>
               <span className="w-chain-row-price">
                 {price ? `${formatEur(price.priceEur)} ${price.change24h !== null ? (price.change24h >= 0 ? '▲' : '▼') : ''}` : item.symbol}
@@ -115,9 +119,9 @@ export default function Dashboard({ wallet, onChainChange, onReplace }: Props) {
       </div>
       {address && (
         <div className="code-card">
-          <span className="code-label"><IconLock size={12} /> Adresse</span>
+          <span className="code-label"><IconLock size={12} /> {t('wl.address')}</span>
           <code>{`${address.slice(0, 8)}…${address.slice(-6)}`}</code>
-          <em>Même adresse sur tous les réseaux EVM listés.</em>
+          <em>{t('wl.sameAddr')}</em>
         </div>
       )}
     </>
@@ -128,26 +132,26 @@ export default function Dashboard({ wallet, onChainChange, onReplace }: Props) {
       app="wallet"
       className="w-frame"
       fixedBody
-      sideSub="Clés locales · EVM"
-      title="Portefeuille"
+      sideSub={t('wl.sideSub')}
+      title={t('wl.title')}
       subtitle={
         <>
-          <ChainLogo chain={chain} size={14} className="inline" /> {chain.name}{chain.testnet ? ' (test)' : ''}
-          <i className="live online" /> {market ? `1 ${market.symbol} ≈ ${formatEur(market.priceEur)}` : 'Non dépositaire'}
+          <ChainLogo chain={chain} size={14} className="inline" /> {chain.name}{chain.testnet ? ` (${t('wl.testShort')})` : ''}
+          <i className="live online" /> {market ? t('wl.oneUnit', { sym: market.symbol, price: formatEur(market.priceEur) }) : t('wl.nonCustodial')}
         </>
       }
-      note={<>Non dépositaire : vos clés restent sur cet appareil, dans le coffre.</>}
+      note={<>{t('wl.note')}</>}
       stats={
         market
           ? [
               [formatEur(market.priceEur), `${market.symbol} (EUR)`],
-              [market.change24h === null ? '—' : `${market.change24h >= 0 ? '+' : ''}${market.change24h.toFixed(1)} %`, '24 heures'],
-              [CHAINS.length, 'Réseaux'],
+              [market.change24h === null ? '—' : `${market.change24h >= 0 ? '+' : ''}${market.change24h.toFixed(1)} %`, '24 h'],
+              [CHAINS.length, t('wl.statNetworks')],
             ]
           : [
-              [chain.symbol, 'Devise'],
-              [CHAINS.length, 'Réseaux'],
-              [chain.testnet ? 'Test' : 'Principal', 'Type'],
+              [chain.symbol, t('wl.statCurrency')],
+              [CHAINS.length, t('wl.statNetworks')],
+              [chain.testnet ? t('wl.test') : t('wl.main'), t('wl.statType')],
             ]
       }
       quick={
@@ -158,14 +162,58 @@ export default function Dashboard({ wallet, onChainChange, onReplace }: Props) {
             disabled={!address}
             onClick={() => { if (address) navigator.clipboard?.writeText(address).catch(() => {}); }}
           >
-            Copier l’adresse
+            {t('wl.copyAddress')}
           </button>
-          <a className="side-action" href="/compte">Compte</a>
+          <a className="side-action" href="/compte">{t('wl.accountLink')}</a>
         </>
       }
       nav={networkNav}
+      actions={
+        <button
+          type="button"
+          className="w-chain-pick icon-btn"
+          onClick={() => setChainPicker(true)}
+          aria-label={t('wl.pickNetwork')}
+          title={t('wl.pickNetwork')}
+        >
+          <ChainLogo chain={chain} size={20} />
+          <IconChevronDown size={13} />
+        </button>
+      }
     >
       <div className="w-scroll">
+        {chainPicker && (
+          <Modal title={t('wl.pickNetwork')} onClose={() => setChainPicker(false)} width={380}>
+            <div className="w-chain-list w-sheet-list" role="listbox" aria-label={t('wl.pickNetwork')}>
+              {CHAINS.map((item) => {
+                const price = chainMarket(item, markets);
+                const on = item.id === chain.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    className={`w-chain-row${on ? ' is-on' : ''}`}
+                    onClick={() => {
+                      onChainChange(item.id);
+                      setChainPicker(false);
+                    }}
+                  >
+                    <ChainLogo chain={item} size={28} />
+                    <span className="w-chain-row-name">
+                      {item.name}
+                      {item.testnet ? ` (${t('wl.testShort')})` : ''}
+                    </span>
+                    <span className="w-chain-row-price">
+                      {price && !item.testnet ? formatEur(price.priceEur) : item.symbol}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </Modal>
+        )}
         <main className="w-main">
           {account ? (
             <>
@@ -196,9 +244,8 @@ export default function Dashboard({ wallet, onChainChange, onReplace }: Props) {
             </>
           ) : (
             <>
-              <Notice tone="danger" title="Phrase illisible">
-                La phrase stockée dans le coffre ne permet pas de dériver une adresse. Importe ta
-                phrase de récupération pour retrouver l'accès.
+              <Notice tone="danger" title={t('wl.unreadableTitle')}>
+                {t('wl.unreadableText')}
               </Notice>
               <ImportPanel onReplace={onReplace} defaultOpen />
               <SafetyNotes />

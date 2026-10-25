@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useT } from '../../lib/i18n';
 import {
   ApiError,
   fetchWikiArticle,
@@ -19,6 +20,18 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const CATEGORY_RE = /\[\[\s*(?:Cat[ée]gorie|Category|Kategorie|Категория|分类|分類|类目|분류|تصنيف|Categor[íi]a|Categoria)\s*:\s*([^\]|\n]{1,40}?)(?:\|[^\]\n]*)?\]\]/gi;
+
+function articleCategories(body: string): string[] {
+  const seen = new Set<string>();
+  for (const m of body.matchAll(CATEGORY_RE)) {
+    const name = m[1].trim().toLocaleLowerCase('fr');
+    if (name) seen.add(name);
+    if (seen.size >= 8) break;
+  }
+  return [...seen];
+}
+
 async function loadBody(slug: string, signal: AbortSignal): Promise<string> {
   const cached = bodyCache.get(slug);
   if (cached !== undefined) return cached;
@@ -29,6 +42,7 @@ async function loadBody(slug: string, signal: AbortSignal): Promise<string> {
 }
 
 export default function WikiArticle({ slug }: { slug: string }) {
+  const t = useT();
   const [article, setArticle] = useState<WikiArticleData | null>(null);
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState('');
@@ -63,7 +77,7 @@ export default function WikiArticle({ slug }: { slug: string }) {
       })
       .catch((cause: unknown) => {
         if (!alive || isAbortError(cause)) return;
-        setError(cause instanceof Error ? cause.message : 'Impossible de charger cet article.');
+        setError(t('wk.loadFail'));
         setErrorStatus(cause instanceof ApiError ? cause.status : 0);
         setStatus('error');
       });
@@ -126,7 +140,7 @@ export default function WikiArticle({ slug }: { slug: string }) {
       actions={
         head?.actions ?? (
           <a className="wiki-button wiki-button--primary" href="/wiki/nouveau">
-            Écrire un article
+            {t('wk.write')}
           </a>
         )
       }
@@ -138,7 +152,11 @@ export default function WikiArticle({ slug }: { slug: string }) {
   if (status === 'loading') {
     return chrome(
       <div className="wiki-reading">
-        <p className="wiki-status">Chargement…</p>
+        <div className="wiki-skel-list" aria-hidden="true">
+          <span className="wiki-skel" />
+          <span className="wiki-skel wiki-skel-1" style={{ height: 220 }} />
+          <span className="wiki-skel wiki-skel-3" />
+        </div>
       </div>,
     );
   }
@@ -147,10 +165,10 @@ export default function WikiArticle({ slug }: { slug: string }) {
     if (errorStatus === 404) {
       return chrome(
         <div className="wiki-reading wiki-empty">
-          <h1>Aucun article</h1>
-          <p>Cet article n’existe pas encore. Vous pouvez l’écrire.</p>
+          <h1>{t('wk.noneTitle')}</h1>
+          <p>{t('wk.notFound')}</p>
           <a className="wiki-button wiki-button--primary" href="/wiki/nouveau">
-            Écrire un article
+            {t('wk.write')}
           </a>
         </div>,
       );
@@ -158,9 +176,9 @@ export default function WikiArticle({ slug }: { slug: string }) {
     return chrome(
       <div className="wiki-reading">
         <div className="wiki-error" role="alert">
-          <p>{error || 'Impossible de charger cet article.'}</p>
+          <p>{error || t('wk.loadFail')}</p>
           <button className="wiki-button" type="button" onClick={() => setReloadKey((value) => value + 1)}>
-            Réessayer
+            {t('wk.retry')}
           </button>
         </div>
       </div>,
@@ -176,8 +194,8 @@ export default function WikiArticle({ slug }: { slug: string }) {
         {article.summary && <p className="wiki-article__summary">{article.summary}</p>}
 
         {toc.length > 0 && (
-          <nav className="wiki-toc" aria-label="Sommaire">
-            <p className="wiki-toc__title">Sommaire</p>
+          <nav className="wiki-toc" aria-label={t('wk.summaryToc')}>
+            <p className="wiki-toc__title">{t('wk.summaryToc')}</p>
             <ol>
               {toc.map((heading) => (
                 <li key={heading.id}>
@@ -191,13 +209,13 @@ export default function WikiArticle({ slug }: { slug: string }) {
         {article.body.trim() ? (
           <div className="wiki-markdown" dangerouslySetInnerHTML={{ __html: rendered.html }} />
         ) : (
-          <p className="wiki-status">Article vide.</p>
+          <p className="wiki-status">{t('wk.empty')}</p>
         )}
       </article>
 
       {history.length > 0 && (
         <details className="wiki-history">
-          <summary>Historique ({history.length})</summary>
+          <summary>{t('wk.history', { n: history.length })}</summary>
           <ul>
             {history.slice(0, 20).map((entry, index) => (
               <li key={`${entry.ts}-${index}`}>
@@ -208,9 +226,24 @@ export default function WikiArticle({ slug }: { slug: string }) {
         </details>
       )}
 
+      {(() => {
+        const cats = articleCategories(article.body);
+        if (cats.length === 0) return null;
+        return (
+          <footer className="wiki-cats" aria-label={t('wk.categories')}>
+            {t('wk.categoriesOf')}
+            {cats.map((cat) => (
+              <a key={cat} className="wiki-cat-chip" href={`/wiki?cat=${encodeURIComponent(cat)}`}>
+                {cat}
+              </a>
+            ))}
+          </footer>
+        );
+      })()}
+
       {backlinks.length > 0 && (
         <section className="wiki-backlinks" aria-labelledby="wiki-backlinks-title">
-          <h2 id="wiki-backlinks-title">Liens entrants ({backlinks.length})</h2>
+          <h2 id="wiki-backlinks-title">{t('wk.backlinks', { n: backlinks.length })}</h2>
           <ul>
             {backlinks.map((item) => (
               <li key={item.slug}>
@@ -223,10 +256,10 @@ export default function WikiArticle({ slug }: { slug: string }) {
     </div>,
     {
       title: article.title || article.slug,
-      subtitle: <>Modifié le <time>{formatDate(article.updatedAt)}</time> par {displayAuthor(article.author)}</>,
+      subtitle: <>{t('wk.modified', { date: '', author: '' })}<time>{formatDate(article.updatedAt)}</time> {t('wk.by')} {displayAuthor(article.author)}</>,
       actions: (
         <a className="wiki-button wiki-button--primary" href={editHref}>
-          Modifier
+          {t('wk.edit')}
         </a>
       ),
     },

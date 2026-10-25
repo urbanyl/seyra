@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { CopyButton, Notice } from './ui';
 import { IconEye, IconEyeOff, IconKey, IconLock } from './icons';
+import { useT } from '../../lib/i18n';
 
 export default function SeedPanel({ mnemonic }: { mnemonic: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
   const words = mnemonic.split(' ');
@@ -13,30 +15,29 @@ export default function SeedPanel({ mnemonic }: { mnemonic: string }) {
   };
 
   return (
-    <section className="w-card" aria-label="Phrase secrète">
+    <section className="w-card" aria-label={t('wl.seedAria')}>
       <div className="w-card-head">
         <div className="w-card-title">
           <IconKey size={17} />
-          Phrase secrète
+          {t('wl.seedTitle')}
         </div>
         <button type="button" className="w-btn small ghost" onClick={toggle} aria-expanded={open}>
-          {open ? 'Fermer' : 'Gérer'}
+          {open ? t('wl.close') : t('wl.manage')}
         </button>
       </div>
       <p className="w-muted-text">
-        Ton seul moyen de restaurer le portefeuille. Seyra ne peut pas la récupérer.
+        {t('wl.seedMuted')}
       </p>
 
       {open && (
         <div className="w-seed">
-          <Notice tone="danger" title="Ne partage jamais cette phrase">
-            Toute personne qui voit ces mots peut vider le portefeuille. Ne la photographie pas, ne
-            la colle pas dans un site tiers et ne l'envoie jamais par message.
+          <Notice tone="danger" title={t('wl.seedDangerTitle')}>
+            {t('wl.seedDangerText')}
           </Notice>
 
           {visible ? (
             <>
-              <div className="w-words" aria-label="Phrase de récupération">
+              <div className="w-words" aria-label={t('wl.phraseLabel')}>
                 {words.map((word, index) => (
                   <div className="w-word" key={`${index}-${word}`}>
                     <span>{String(index + 1).padStart(2, '0')}</span>
@@ -47,23 +48,23 @@ export default function SeedPanel({ mnemonic }: { mnemonic: string }) {
               <div className="w-btn-row">
                 <CopyButton
                   text={mnemonic}
-                  label="Copier la phrase"
-                  copiedLabel="Phrase copiée"
+                  label={t('wl.copyPhrase')}
+                  copiedLabel={t('wl.phraseCopied')}
                 />
                 <button type="button" className="w-btn small ghost" onClick={() => setVisible(false)}>
                   <IconEyeOff size={15} />
-                  Masquer
+                  {t('wl.hide')}
                 </button>
               </div>
               <p className="w-muted-text">
-                Exporte-la uniquement vers un support hors ligne. C'est la seule sauvegarde.
+                {t('wl.exportHint')}
               </p>
             </>
           ) : (
             <>
               <div className="w-seed-locked">
                 <IconLock size={20} />
-                <span>Phrase masquée · {words.length} mots</span>
+                <span>{t('wl.seedLocked', { n: words.length })}</span>
               </div>
               <button
                 type="button"
@@ -71,7 +72,7 @@ export default function SeedPanel({ mnemonic }: { mnemonic: string }) {
                 onClick={() => setVisible(true)}
               >
                 <IconEye size={16} />
-                Afficher la phrase
+                {t('wl.show')}
               </button>
             </>
           )}

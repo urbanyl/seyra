@@ -1,4 +1,5 @@
 import type { ChainInfo } from './chains';
+import { getLang } from '../../lib/i18n';
 
 export type Market = {
   id: string;
@@ -95,8 +96,15 @@ export function chainMarket(chain: ChainInfo, markets: Markets): Market | null {
   return null;
 }
 
-const eur = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+const EUR_LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-IE', zh: 'zh-CN', ru: 'ru-RU', ko: 'ko-KR', ar: 'ar-EG' };
+let eurFmt: Intl.NumberFormat | null = null;
+let eurFmtLang = '';
 
 export function formatEur(value: number): string {
-  return eur.format(value);
+  const lang = getLang();
+  if (!eurFmt || eurFmtLang !== lang) {
+    eurFmt = new Intl.NumberFormat(EUR_LOCALES[lang] ?? 'en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 });
+    eurFmtLang = lang;
+  }
+  return eurFmt.format(value);
 }

@@ -3,6 +3,7 @@ import { inspectPhrase } from './mnemonic';
 import type { PhraseCheck } from './mnemonic';
 import { Notice } from './ui';
 import { IconImport } from './icons';
+import { useT } from '../../lib/i18n';
 
 type Props = {
   onReplace: (phrase: string) => void;
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export default function ImportPanel({ onReplace, defaultOpen = false }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const [text, setText] = useState('');
   const [check, setCheck] = useState<PhraseCheck | null>(null);
@@ -31,11 +33,11 @@ export default function ImportPanel({ onReplace, defaultOpen = false }: Props) {
   };
 
   return (
-    <section className="w-card" aria-label="Importer une phrase">
+    <section className="w-card" aria-label={t('wl.importTitle')}>
       <div className="w-card-head">
         <div className="w-card-title">
           <IconImport size={17} />
-          Importer une phrase
+          {t('wl.importTitle')}
         </div>
         <button
           type="button"
@@ -48,30 +50,28 @@ export default function ImportPanel({ onReplace, defaultOpen = false }: Props) {
           }}
           aria-expanded={open}
         >
-          {open ? 'Fermer' : 'Ouvrir'}
+          {open ? t('wl.close') : t('wl.open')}
         </button>
       </div>
       <p className="w-muted-text">
-        Restaure un portefeuille depuis sa phrase BIP-39 de 12 ou 24 mots. Le portefeuille actuel
-        sera remplacé après confirmation.
+        {t('wl.importMuted')}
       </p>
 
       {done && (
         <div className="w-import-done">
-          <Notice tone="success" title="Portefeuille remplacé">
-            Le nouveau portefeuille est actif dans ce coffre.
+          <Notice tone="success" title={t('wl.importDoneTitle')}>
+            {t('wl.importDoneText')}
           </Notice>
         </div>
       )}
 
       {open && (
         <div className="w-seed">
-          <Notice tone="warn" title="Remplacement définitif">
-            Si tu n'as pas la phrase du portefeuille actuel, ses fonds seront perdus. Aucune
-            récupération serveur.
+          <Notice tone="warn" title={t('wl.replaceWarnTitle')}>
+            {t('wl.replaceWarnText')}
           </Notice>
           <div className="w-field">
-            <label htmlFor="w-import-phrase">Phrase de récupération</label>
+            <label htmlFor="w-import-phrase">{t('wl.phraseLabel')}</label>
             <textarea
               id="w-import-phrase"
               className="w-textarea"
@@ -88,30 +88,29 @@ export default function ImportPanel({ onReplace, defaultOpen = false }: Props) {
               autoCorrect="off"
             />
             <div className="w-field-hint">
-              {wordCount} mot(s) · 12 ou 24 attendus · BIP-39 anglais ou français
+              {t('wl.wordsHint', { n: wordCount })}
             </div>
           </div>
 
           {check && !check.ok && (
-            <Notice tone="danger" title="Phrase refusée">
-              {check.error}
+            <Notice tone="danger" title={t('wl.refused')}>
+              {t(check.error)}
             </Notice>
           )}
 
           {check && check.ok ? (
             <div className="w-import-preview">
-              <span>Adresse détectée</span>
+              <span>{t('wl.detected')}</span>
               <code>{check.address}</code>
               <p>
-                Confirme le remplacement uniquement si cette adresse est la bonne. L'opération est
-                irréversible dans le coffre.
+                {t('wl.importConfirmText')}
               </p>
               <div className="w-btn-row">
                 <button type="button" className="w-btn danger" onClick={apply}>
-                  Confirmer le remplacement
+                  {t('wl.confirmReplace')}
                 </button>
                 <button type="button" className="w-btn ghost" onClick={reset}>
-                  Annuler
+                  {t('wl.cancel')}
                 </button>
               </div>
             </div>
@@ -122,7 +121,7 @@ export default function ImportPanel({ onReplace, defaultOpen = false }: Props) {
               onClick={() => setCheck(inspectPhrase(text))}
               disabled={!text.trim()}
             >
-              Vérifier la phrase
+              {t('wl.verifyPhrase')}
             </button>
           )}
         </div>

@@ -953,3 +953,12 @@
 .ch-frame .ch-feed { padding: 14px 10px 10px; }
 .ch-frame .ch-composer-wrap { padding: 0; border-top: 1px solid var(--line); background: var(--head); }
 .ch-frame .ch-composer-hint { display: none; }
+/* mobile */
+@media (max-width: 860px) {
+  .ch-frame .ch-composer textarea { font-size: 16px; }
+  .ch-frame .ch-search { font-size: 16px; }
+  .ch-frame .ch-new { flex: none; min-height: 42px; padding: 0 14px; }
+  .ch-frame .ch-item { min-height: 56px; }
+  .ch-frame .ch-feed { padding: 10px 6px 8px; }
+  .ch-frame .ch-msg { padding: 7px 4px; }
+}

@@ -1278,3 +1278,26 @@
 .w-change.down { color: #ff6b6b; }
 .w-unit { color: var(--muted); font-size: 12px; }
 .w-amount-fiat { margin: 4px 2px 0; color: var(--muted); font-size: 12.5px; }
+
+/* ---------- squelette instantane (restauration du coffre) ---------- */
+.w-skel { display: flex; flex-direction: column; gap: 14px; }
+.w-skel-line {
+  display: block; height: 16px; border-radius: 8px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.05) 40%, rgba(255, 255, 255, 0.11) 50%, rgba(255, 255, 255, 0.05) 60%);
+  background-size: 200% 100%; animation: w-shimmer 1.3s linear infinite;
+}
+.w-skel-line-short { width: 40%; }
+.w-skel-line-xl { width: 70%; height: 34px; }
+@keyframes w-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .w-skel-line { animation: none; } }
+
+/* ---------- selecteur de reseaux sur telephone ---------- */
+.w-chain-pick { display: none; }
+.w-chain-pick .w-chain-logo { margin: 0; }
+@media (max-width: 860px) {
+  .w-chain-pick {
+    display: inline-flex; align-items: center; gap: 4px;
+    width: auto; padding: 0 10px; border-radius: 999px;
+  }
+  .w-sheet-list { padding: 4px 0 8px; }
+}

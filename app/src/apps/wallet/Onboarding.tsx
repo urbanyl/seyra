@@ -3,6 +3,7 @@ import { CHAINS } from './chains';
 import { createMnemonic, deriveAddress, inspectPhrase } from './mnemonic';
 import type { PhraseCheck } from './mnemonic';
 import AppFrame from '../../components/AppFrame';
+import { useT } from '../../lib/i18n';
 import { CopyButton, Notice, SafetyNotes } from './ui';
 import {
   IconArrowLeft,
@@ -21,6 +22,7 @@ type Props = {
 type Mode = 'intro' | 'create' | 'import';
 
 export default function Onboarding({ onCreate, onImport }: Props) {
+  const t = useT();
   const [mode, setMode] = useState<Mode>('intro');
   const [draft, setDraft] = useState<string | null>(null);
   const [ack, setAck] = useState(false);
@@ -64,8 +66,8 @@ export default function Onboarding({ onCreate, onImport }: Props) {
     setCheck(null);
   };
 
-  const pageTitle = mode === 'create' ? 'Créer un portefeuille' : mode === 'import' ? 'Importer une phrase' : 'Portefeuille';
-  const pageSub = mode === 'create' ? 'Nouveau portefeuille' : mode === 'import' ? 'Restauration' : 'Non dépositaire · EVM';
+  const pageTitle = mode === 'create' ? t('wl.onbCreateTitle') : mode === 'import' ? t('wl.onbImportTitle') : t('wl.onbTitle');
+  const pageSub = mode === 'create' ? t('wl.onbCreateSub') : mode === 'import' ? t('wl.onbImportSub') : t('wl.onbSub');
 
   return (
     <AppFrame
@@ -76,18 +78,18 @@ export default function Onboarding({ onCreate, onImport }: Props) {
       subtitle={pageSub}
       nav={
         <>
-          <p className="app-nav-title">Démarrer</p>
+          <p className="app-nav-title">{t('wl.onbStart')}</p>
           <button type="button" className={`app-nav-item${mode === 'intro' ? ' is-on' : ''}`} onClick={back}>
             <IconWallet size={17} />
-            <span>Accueil du wallet</span>
+            <span>{t('wl.onbHome')}</span>
           </button>
           <button type="button" className={`app-nav-item${mode === 'create' ? ' is-on' : ''}`} onClick={startCreate}>
             <IconWallet size={17} />
-            <span>Créer un portefeuille</span>
+            <span>{t('wl.onbCreate')}</span>
           </button>
           <button type="button" className={`app-nav-item${mode === 'import' ? ' is-on' : ''}`} onClick={startImport}>
             <IconImport size={17} />
-            <span>Importer une phrase</span>
+            <span>{t('wl.onbImport')}</span>
           </button>
         </>
       }
@@ -96,37 +98,34 @@ export default function Onboarding({ onCreate, onImport }: Props) {
         <div className="w-onboard-inner">
           {mode === 'intro' && (
             <>
-              <p className="w-eyebrow">Non dépositaire · EVM uniquement</p>
-              <h1 className="w-onboard-title">Tes clés restent sur ton appareil.</h1>
+              <p className="w-eyebrow">{t('wl.onbEyebrow')}</p>
+              <h1 className="w-onboard-title">{t('wl.onbH1')}</h1>
               <p className="w-lede">
-                Seyra génère ton portefeuille localement. La phrase secrète est chiffrée dans ton
-                coffre et n'est jamais envoyée au serveur.
+                {t('wl.onbLede')}
               </p>
-              <div className="w-networks" aria-label="Réseaux disponibles">
+              <div className="w-networks" aria-label={t('wl.onbNetworks')}>
                 {CHAINS.map((item) => (
                   <span className="w-net" key={item.id}>
                     {item.name}
                   </span>
                 ))}
               </div>
-              <Notice tone="warn" title="La sauvegarde, c'est toi">
-                Ta phrase de récupération est ta seule sauvegarde. Personne — pas même Seyra — ne peut
-                la retrouver à ta place.
+              <Notice tone="warn" title={t('wl.onbWarnTitle')}>
+                {t('wl.onbWarnText')}
               </Notice>
               <div className="w-actions-stack">
                 <button type="button" className="w-btn primary full" onClick={startCreate}>
                   <IconWallet size={18} />
-                  Créer un portefeuille
+                  {t('wl.onbCreate')}
                 </button>
                 <button type="button" className="w-btn ghost full" onClick={startImport}>
                   <IconImport size={17} />
-                  Importer une phrase
+                  {t('wl.onbImport')}
                 </button>
               </div>
               <SafetyNotes />
               <p className="w-onboard-foot">
-                Aucune clé privée, aucune phrase et aucune transaction ne transitent par les serveurs
-                Seyra.
+                {t('wl.onbFoot')}
               </p>
             </>
           )}
@@ -135,19 +134,17 @@ export default function Onboarding({ onCreate, onImport }: Props) {
             <>
               <button type="button" className="w-back" onClick={back}>
                 <IconArrowLeft size={16} />
-                Retour
+                {t('wl.back')}
               </button>
-              <p className="w-eyebrow">Nouveau portefeuille</p>
-              <h1 className="w-onboard-title">Créer un portefeuille</h1>
+              <p className="w-eyebrow">{t('wl.onbCreateSub')}</p>
+              <h1 className="w-onboard-title">{t('wl.onbCreateTitle')}</h1>
               <p className="w-lede">
-                Voici ta phrase de récupération de 12 mots. Note-la dans l'ordre, hors ligne, avant
-                de continuer.
+                {t('wl.onbCreateLede')}
               </p>
-              <Notice tone="danger" title="Ne partage jamais cette phrase">
-                Quiconque possède ces mots peut vider le portefeuille. Seyra ne peut pas la
-                récupérer.
+              <Notice tone="danger" title={t('wl.seedDangerTitle')}>
+                {t('wl.seedDangerText')}
               </Notice>
-              <div className="w-words" aria-label="Phrase de récupération">
+              <div className="w-words" aria-label={t('wl.phraseLabel')}>
                 {draftWords.map((word, index) => (
                   <div className="w-word" key={`${index}-${word}`}>
                     <span>{String(index + 1).padStart(2, '0')}</span>
@@ -156,15 +153,15 @@ export default function Onboarding({ onCreate, onImport }: Props) {
                 ))}
               </div>
               <div className="w-btn-row">
-                <CopyButton text={draft ?? ''} label="Copier la phrase" copiedLabel="Phrase copiée" />
+                <CopyButton text={draft ?? ''} label={t('wl.copyPhrase')} copiedLabel={t('wl.phraseCopied')} />
                 <button type="button" className="w-btn small ghost" onClick={regenerate}>
                   <IconRefresh size={15} />
-                  Régénérer
+                  {t('wl.onbRegenerate')}
                 </button>
               </div>
               {draftAddress && (
                 <div className="w-address-preview">
-                  <span>Adresse dérivée</span>
+                  <span>{t('wl.onbDerived')}</span>
                   <code>{draftAddress}</code>
                 </div>
               )}
@@ -176,8 +173,7 @@ export default function Onboarding({ onCreate, onImport }: Props) {
                   disabled={!draft}
                 />
                 <span>
-                  J'ai noté ma phrase de récupération en lieu sûr. Je comprends que sans elle, mes
-                  fonds sont perdus.
+                  {t('wl.onbAck')}
                 </span>
               </label>
               <button
@@ -189,10 +185,10 @@ export default function Onboarding({ onCreate, onImport }: Props) {
                 }}
               >
                 <IconShield size={17} />
-                Créer le portefeuille
+                {t('wl.onbCreate')}
               </button>
               <p className="w-onboard-foot">
-                L'export de la phrase est la seule sauvegarde. Aucune récupération serveur.
+                {t('wl.onbCreateFoot')}
               </p>
             </>
           )}
@@ -201,16 +197,15 @@ export default function Onboarding({ onCreate, onImport }: Props) {
             <>
               <button type="button" className="w-back" onClick={back}>
                 <IconArrowLeft size={16} />
-                Retour
+                {t('wl.back')}
               </button>
-              <p className="w-eyebrow">Restauration</p>
-              <h1 className="w-onboard-title">Importer une phrase</h1>
+              <p className="w-eyebrow">{t('wl.onbImportSub')}</p>
+              <h1 className="w-onboard-title">{t('wl.onbImportTitle')}</h1>
               <p className="w-lede">
-                Colle une phrase BIP-39 de 12 ou 24 mots. L'import écrase le portefeuille stocké
-                dans ce coffre après confirmation.
+                {t('wl.onbImportLede')}
               </p>
               <div className="w-field">
-                <label htmlFor="w-onboard-import">Phrase de récupération</label>
+                <label htmlFor="w-onboard-import">{t('wl.phraseLabel')}</label>
                 <textarea
                   id="w-onboard-import"
                   className="w-textarea"
@@ -226,19 +221,19 @@ export default function Onboarding({ onCreate, onImport }: Props) {
                   autoCorrect="off"
                 />
                 <div className="w-field-hint">
-                  {wordCount} mot(s) · 12 ou 24 attendus · BIP-39 anglais ou français
+                  {t('wl.wordsHint', { n: wordCount })}
                 </div>
               </div>
               {check && !check.ok && (
-                <Notice tone="danger" title="Phrase refusée">
-                  {check.error}
+                <Notice tone="danger" title={t('wl.refused')}>
+                  {t(check.error)}
                 </Notice>
               )}
               {check && check.ok && (
                 <div className="w-import-preview">
-                  <span>Adresse détectée</span>
+                  <span>{t('wl.detected')}</span>
                   <code>{check.address}</code>
-                  <p>Vérifie que cette adresse correspond bien à ton portefeuille.</p>
+                  <p>{t('wl.onbDetectedCheck')}</p>
                 </div>
               )}
               {!(check && check.ok) ? (
@@ -249,7 +244,7 @@ export default function Onboarding({ onCreate, onImport }: Props) {
                   disabled={!importText.trim()}
                 >
                   <IconKey size={17} />
-                  Vérifier la phrase
+                  {t('wl.verifyPhrase')}
                 </button>
               ) : (
                 <button
@@ -258,7 +253,7 @@ export default function Onboarding({ onCreate, onImport }: Props) {
                   onClick={() => onImport(check.phrase)}
                 >
                   <IconImport size={17} />
-                  Importer ce portefeuille
+                  {t('wl.onbImportBtn')}
                 </button>
               )}
               <SafetyNotes />

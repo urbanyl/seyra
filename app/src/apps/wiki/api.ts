@@ -4,6 +4,7 @@ export type WikiArticleSummary = {
   summary: string;
   updatedAt: string | number;
   author: string;
+  categories?: string[];
 };
 
 export type WikiHistoryEntry = {
@@ -30,11 +31,13 @@ export type WikiSavePayload = {
 
 export class ApiError extends Error {
   status: number;
+  code: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code = '') {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -53,8 +56,12 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> 
     const message =
       data && typeof data === 'object' && 'error' in data && typeof (data as { error?: unknown }).error === 'string'
         ? (data as { error: string }).error
-        : `Erreur ${response.status}`;
-    throw new ApiError(response.status, message);
+        : '';
+    const code =
+      data && typeof data === 'object' && 'code' in data && typeof (data as { code?: unknown }).code === 'string'
+        ? (data as { code: string }).code
+        : '';
+    throw new ApiError(response.status, message, code);
   }
   return data as T;
 }
@@ -76,6 +83,22 @@ export function saveWikiArticle(slug: string, payload: WikiSavePayload): Promise
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  });
+}
+
+export type WikiDraft = {
+  title: string;
+  summary: string;
+  body: string;
+};
+
+/** Brouillon d'article généré par l'IA (proxy serveur, clé jamais exposée). */
+export function generateWikiDraft(topic: string, lang: string, signal?: AbortSignal): Promise<WikiDraft> {
+  return fetchJson<WikiDraft>('/api/wiki/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic, lang }),
+    signal,
   });
 }
 

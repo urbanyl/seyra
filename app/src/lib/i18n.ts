@@ -1,3 +1,4 @@
+import { APPSTR } from './appstrings';
 import { useEffect, useState } from 'react';
 
 export type Lang = 'en' | 'fr' | 'zh' | 'ru' | 'ko' | 'ar';
@@ -44,16 +45,24 @@ export function useLang(): Lang {
   return l;
 }
 
-export function t(lang: Lang, k: string): string {
-  return DICT[lang]?.[k] ?? DICT.en[k] ?? k;
+export type Vars = Record<string, string | number>;
+
+/** Remplace les {marqueurs} d’une chaîne traduite. */
+export function fill(value: string, vars?: Vars): string {
+  if (!vars) return value;
+  return value.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+}
+
+export function t(lang: Lang, k: string, vars?: Vars): string {
+  return fill(DICT[lang]?.[k] ?? DICT.en[k] ?? k, vars);
 }
 
 export function useT() {
   const lang = useLang();
-  return (k: string) => t(lang, k);
+  return (k: string, vars?: Vars) => t(lang, k, vars);
 }
 
-type Dict = Record<string, string>;
+export type Dict = Record<string, string>;
 
 const en: Dict = {
   'nav.features': 'Features', 'nav.how': 'How it works', 'nav.security': 'Security', 'nav.news': "What's new", 'nav.open': 'Open', 'nav.home': 'Home',
@@ -368,6 +377,11 @@ const ar: Dict = {
 };
 
 const DICT: Record<Lang, Dict> = { en, fr, zh, ru, ko, ar };
+
+/** Chaînes des applications (appstrings) : même clés pour les six langues. */
+for (const lang of Object.keys(APPSTR) as Lang[]) {
+  if (DICT[lang]) Object.assign(DICT[lang], APPSTR[lang]);
+}
 
 Object.assign(DICT.ar, {
   'wall.none': 'سادة', 'wall.dots': 'نقاط', 'wall.grid': 'شبكة', 'wall.lines': 'خطوط', 'wall.cross': 'صلبان', 'wall.bubbles': 'فقاعات', 'wall.waves': 'أمواج', 'wall.arcs': 'أقواس',

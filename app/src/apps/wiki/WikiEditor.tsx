@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { fetchWikiArticle, isAbortError, saveWikiArticle } from './api';
+import { useT } from '../../lib/i18n';
+import { apiErrorMessage } from '../../lib/apierr';
+import { fetchWikiArticle, generateWikiDraft, isAbortError, saveWikiArticle } from './api';
 import { readAuthor, writeAuthor } from './format';
 import { renderMarkdown, slugify } from './markdown';
 import WikiFrame from './WikiFrame';
+import { getLang } from '../../lib/i18n';
 
 const BODY_LIMIT = 65536;
 
 export default function WikiEditor() {
+  const t = useT();
   const editSlug = useMemo(() => new URLSearchParams(window.location.search).get('slug')?.trim() || '', []);
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState(editSlug);
@@ -18,7 +22,45 @@ export default function WikiEditor() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handleTitle = (value: string) => {
+    setTitle(value);
+    if (!slugTouched) setSlug(slugify(value));
+  };
+
+  const runAi = async () => {
+    if (aiBusy) return;
+    const topic = aiTopic.trim();
+    setAiError('');
+    if (topic.length < 3) {
+      setAiError(t('wk.aiShort'));
+      return;
+    }
+    if (body.trim() && !window.confirm(t('wk.aiConfirm'))) return;
+    setAiBusy(true);
+    try {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 200_000);
+      try {
+        const draft = await generateWikiDraft(topic, getLang(), controller.signal);
+        handleTitle(draft.title || topic);
+        setSummary(draft.summary || '');
+        setBody(draft.body || '');
+        setError('');
+      } finally {
+        window.clearTimeout(timer);
+      }
+    } catch (cause: unknown) {
+      if (isAbortError(cause)) setAiError(t('wk.aiTimeout'));
+      else setAiError(apiErrorMessage(cause, t, t('wk.aiFail')));
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!editSlug) {
@@ -104,11 +146,6 @@ export default function WikiEditor() {
     else wrapSelection('`', '`', 'code');
   };
 
-  const handleTitle = (value: string) => {
-    setTitle(value);
-    if (!slugTouched) setSlug(slugify(value));
-  };
-
   const handleAuthor = (value: string) => {
     setAuthor(value);
     writeAuthor(value);
@@ -124,27 +161,27 @@ export default function WikiEditor() {
     const cleanAuthor = author.trim() || 'anonyme';
 
     if (!cleanTitle) {
-      setError('Le titre est obligatoire.');
+      setError(t('wk.errTitle'));
       return;
     }
     if (cleanTitle.length > 120) {
-      setError('Le titre ne peut pas dépasser 120 caractères.');
+      setError(t('wk.errTitleLen'));
       return;
     }
     if (!cleanSlug) {
-      setError('L’adresse (slug) est obligatoire.');
+      setError(t('wk.errSlug'));
       return;
     }
     if (!/^[^\s/?#]+$/.test(cleanSlug)) {
-      setError('L’adresse ne peut pas contenir d’espace, de « / », de « ? » ni de « # ».');
+      setError(t('wk.errSlugChars'));
       return;
     }
     if (cleanSummary.length > 500) {
-      setError('Le résumé ne peut pas dépasser 500 caractères.');
+      setError(t('wk.errSummaryLen'));
       return;
     }
     if (bodyBytes > BODY_LIMIT) {
-      setError('Le corps de l’article ne peut pas dépasser 64 Ko.');
+      setError(t('wk.errBodyLen'));
       return;
     }
 
@@ -161,7 +198,7 @@ export default function WikiEditor() {
       });
       window.location.href = '/wiki/' + cleanSlug;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'L’enregistrement a échoué.');
+      setError(apiErrorMessage(cause, t, t('wk.errSave')));
       setSaving(false);
     }
   };
@@ -171,19 +208,55 @@ export default function WikiEditor() {
 
   return (
     <WikiFrame
-      title={editSlug ? 'Modifier l’article' : 'Écrire un article'}
-      subtitle={editSlug ? 'Édition' : 'Nouvel article'}
+      title={editSlug ? t('wk.editTitle') : t('wk.newTitle')}
+      subtitle={editSlug ? t('wk.edition') : t('wk.newSub')}
       actions={
         <a className="wiki-button wiki-button--ghost" href={cancelHref}>
-          Annuler
+          {t('wk.cancel')}
         </a>
       }
     >
       <main className="wiki-editor-page">
 
-        <p className="wiki-warning">Tout est public et modifiable par anyone. N'écrivez pas de secrets.</p>
+        <p className="wiki-warning">{t('wk.warning')}</p>
 
-        {loading && <p className="wiki-status">Chargement de l’article…</p>}
+        {loading && <p className="wiki-status">{t('wk.loadingArticle')}</p>}
+
+        <section className="wiki-ai" aria-label={t('wk.aiTitle')}>
+          <div className="wiki-ai-head">
+            <span className="wiki-ai-star" aria-hidden="true">✦</span>
+            <strong>{t('wk.aiTitle')}</strong>
+            <span className="wiki-ai-note">{t('wk.aiNote')}</span>
+          </div>
+          <div className="wiki-ai-row">
+            <label className="wiki-visually-hidden" htmlFor="wiki-ai-topic">{t('wk.aiTopic')}</label>
+            <input
+              id="wiki-ai-topic"
+              className="wiki-input"
+              type="text"
+              value={aiTopic}
+              maxLength={200}
+              placeholder={t('wk.aiPh')}
+              disabled={aiBusy || loading}
+              onChange={(event) => setAiTopic(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void runAi();
+                }
+              }}
+            />
+            <button type="button" className="wiki-button wiki-button--primary" onClick={() => void runAi()} disabled={aiBusy || loading}>
+              {aiBusy ? t('wk.aiBusy') : t('wk.aiBtn')}
+            </button>
+          </div>
+          {aiBusy && (
+            <p className="wiki-status" role="status">
+              <span className="wiki-spinner" aria-hidden="true" /> {t('wk.aiWait')}
+            </p>
+          )}
+          {aiError && <p className="wiki-ai-error" role="alert">{aiError}</p>}
+        </section>
 
         <form
           className="wiki-form"
@@ -195,7 +268,7 @@ export default function WikiEditor() {
         >
           <div className="wiki-form-grid">
             <div className="wiki-field">
-              <label htmlFor="wiki-title">Titre</label>
+              <label htmlFor="wiki-title">{t('wk.title')}</label>
               <input
                 id="wiki-title"
                 className="wiki-input"
@@ -204,12 +277,12 @@ export default function WikiEditor() {
                 disabled={loading}
                 onChange={(event) => handleTitle(event.target.value)}
               />
-              <span className="wiki-counter">{title.length} / 120</span>
+              <span className="wiki-counter">{t('wk.words', { n: title.length })}</span>
             </div>
 
             <div className="wiki-field">
               <div className="wiki-label-row">
-                <label htmlFor="wiki-slug">Adresse (slug)</label>
+                <label htmlFor="wiki-slug">{t('wk.slug')}</label>
                 <button
                   type="button"
                   className="wiki-link-button"
@@ -219,7 +292,7 @@ export default function WikiEditor() {
                   }}
                   disabled={disabled}
                 >
-                  Régénérer
+                  {t('wk.regenerate')}
                 </button>
               </div>
               <input
@@ -233,12 +306,12 @@ export default function WikiEditor() {
                   setSlugTouched(true);
                 }}
               />
-              <span className="wiki-hint">Lettres, chiffres et tirets recommandés.</span>
+              <span className="wiki-hint">{t('wk.slugHint')}</span>
             </div>
           </div>
 
           <div className="wiki-field">
-            <label htmlFor="wiki-author">Votre pseudo</label>
+            <label htmlFor="wiki-author">{t('wk.author')}</label>
             <input
               id="wiki-author"
               className="wiki-input"
@@ -247,11 +320,11 @@ export default function WikiEditor() {
               disabled={loading}
               onChange={(event) => handleAuthor(event.target.value)}
             />
-            <span className="wiki-hint">Enregistré sur cet appareil.</span>
+            <span className="wiki-hint">{t('wk.authorHint')}</span>
           </div>
 
           <div className="wiki-field">
-            <label htmlFor="wiki-summary">Résumé</label>
+            <label htmlFor="wiki-summary">{t('wk.summary')}</label>
             <textarea
               id="wiki-summary"
               className="wiki-textarea"
@@ -266,36 +339,36 @@ export default function WikiEditor() {
 
           <div className="wiki-field">
             <div className="wiki-body-head">
-              <label htmlFor="wiki-body">Corps de l’article (Markdown)</label>
+              <label htmlFor="wiki-body">{t('wk.body')}</label>
               <button
                 type="button"
                 className="wiki-button wiki-preview-toggle"
                 onClick={() => setPreviewOpen((value) => !value)}
               >
-                {previewOpen ? 'Fermer l’aperçu' : 'Aperçu'}
+                {previewOpen ? t('wk.closePreview') : t('wk.preview')}
               </button>
             </div>
 
             <div className={`wiki-editor-grid${previewOpen ? ' wiki-editor--preview' : ''}`}>
               <div className="wiki-editor__pane">
-                <div className="wiki-toolbar" role="toolbar" aria-label="Mise en forme">
-                  <button type="button" className="wiki-tool" title="Gras" aria-label="Gras" onMouseDown={(event) => event.preventDefault()} onClick={() => wrapSelection('**', '**', 'gras')} disabled={disabled}>
+                <div className="wiki-toolbar" role="toolbar" aria-label={t('wk.formatAria')}>
+                  <button type="button" className="wiki-tool" title={t('wk.bold')} aria-label={t('wk.bold')} onMouseDown={(event) => event.preventDefault()} onClick={() => wrapSelection('**', '**', t('wk.boldPh'))} disabled={disabled}>
                     <strong>B</strong>
                   </button>
-                  <button type="button" className="wiki-tool" title="Italique" aria-label="Italique" onMouseDown={(event) => event.preventDefault()} onClick={() => wrapSelection('*', '*', 'italique')} disabled={disabled}>
+                  <button type="button" className="wiki-tool" title={t('wk.italic')} aria-label={t('wk.italic')} onMouseDown={(event) => event.preventDefault()} onClick={() => wrapSelection('*', '*', t('wk.italicPh'))} disabled={disabled}>
                     <em>I</em>
                   </button>
-                  <button type="button" className="wiki-tool" title="Lien" aria-label="Lien" onMouseDown={(event) => event.preventDefault()} onClick={() => wrapSelection('[', '](https://exemple.com)', 'texte')} disabled={disabled}>
-                    Lien
+                  <button type="button" className="wiki-tool" title={t('wk.link')} aria-label={t('wk.link')} onMouseDown={(event) => event.preventDefault()} onClick={() => wrapSelection('[', '](https://exemple.com)', t('wk.linkPh'))} disabled={disabled}>
+                    {t('wk.link')}
                   </button>
-                  <button type="button" className="wiki-tool" title="Titre" aria-label="Titre" onMouseDown={(event) => event.preventDefault()} onClick={() => prefixLines('## ', 'Titre', false)} disabled={disabled}>
+                  <button type="button" className="wiki-tool" title={t('wk.heading')} aria-label={t('wk.heading')} onMouseDown={(event) => event.preventDefault()} onClick={() => prefixLines('## ', t('wk.heading'), false)} disabled={disabled}>
                     H2
                   </button>
-                  <button type="button" className="wiki-tool" title="Code" aria-label="Code" onMouseDown={(event) => event.preventDefault()} onClick={insertCode} disabled={disabled}>
+                  <button type="button" className="wiki-tool" title={t('wk.code')} aria-label={t('wk.code')} onMouseDown={(event) => event.preventDefault()} onClick={insertCode} disabled={disabled}>
                     Code
                   </button>
-                  <button type="button" className="wiki-tool" title="Liste" aria-label="Liste" onMouseDown={(event) => event.preventDefault()} onClick={() => prefixLines('- ', 'élément', true)} disabled={disabled}>
-                    Liste
+                  <button type="button" className="wiki-tool" title={t('wk.list')} aria-label={t('wk.list')} onMouseDown={(event) => event.preventDefault()} onClick={() => prefixLines('- ', t('wk.listPh'), true)} disabled={disabled}>
+                    {t('wk.list')}
                   </button>
                 </div>
 
@@ -310,16 +383,16 @@ export default function WikiEditor() {
                   onChange={(event) => setBody(event.target.value)}
                 />
                 <span className={`wiki-counter${overLimit ? ' wiki-counter--over' : ''}`}>
-                  {bodyBytes.toLocaleString('fr-FR')} / 65 536 octets
+                  {t('wk.bytes', { n: bodyBytes.toLocaleString('fr-FR') })}
                 </span>
               </div>
 
               <div className="wiki-editor__preview">
-                <p className="wiki-preview-title">Aperçu</p>
+                <p className="wiki-preview-title">{t('wk.preview')}</p>
                 {body.trim() ? (
                   <div className="wiki-markdown" dangerouslySetInnerHTML={{ __html: preview.html }} />
                 ) : (
-                  <p className="wiki-status">L’aperçu apparaîtra ici.</p>
+                  <p className="wiki-status">{t('wk.previewHere')}</p>
                 )}
               </div>
             </div>
@@ -327,7 +400,7 @@ export default function WikiEditor() {
 
           {editSlug && !loading && (
             <p className="wiki-hint">
-              Si vous changez l’adresse, un nouvel article sera créé et l’ancien restera en ligne.
+              {t('wk.slugChange')}
             </p>
           )}
 
@@ -339,10 +412,10 @@ export default function WikiEditor() {
 
           <div className="wiki-editor-actions">
             <button type="submit" className="wiki-button wiki-button--primary" disabled={disabled}>
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
+              {saving ? t('wk.saving') : t('wk.save')}
             </button>
             <a className="wiki-button wiki-button--ghost" href={cancelHref}>
-              Annuler
+              {t('wk.cancel')}
             </a>
           </div>
         </form>

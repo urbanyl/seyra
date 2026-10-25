@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { SeyraMark, IconUsers, IconX } from './Icons';
-import { AppTile, APP_NAMES, type AppId } from './AppIcons';
+import { AppTile, type AppId } from './AppIcons';
 import { Avatar } from './ui';
+import { useT } from '../lib/i18n';
 import './appframe.css';
 
 type Stat = [value: ReactNode, label: string];
@@ -67,6 +68,8 @@ export function SideRow({
  * panneau de droite (en-tête, fond de conversation, barre du bas).
  */
 export default function AppFrame(p: Props) {
+  const t = useT();
+  const appName = t('app.' + p.app);
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
 
@@ -74,7 +77,7 @@ export default function AppFrame(p: Props) {
     <div className={`session app-frame${p.className ? ` ${p.className}` : ''}`}>
       <aside
         className={`side${open ? ' open' : ''}`}
-        aria-label={APP_NAMES[p.app]}
+        aria-label={appName}
         onClick={(event) => {
           // Sur mobile, choisir un élément de la liste referme la feuille.
           const target = event.target as HTMLElement | null;
@@ -82,14 +85,14 @@ export default function AppFrame(p: Props) {
         }}
       >
         <header className="side-head">
-          <a className="side-brand" href="/" title="Accueil">
+          <a className="side-brand" href="/" title={t('fw.home')}>
             <SeyraMark size={36} />
             <div>
               <strong>Seyra</strong>
-              <span>{p.sideSub ?? APP_NAMES[p.app]}</span>
+              <span>{p.sideSub ?? appName}</span>
             </div>
           </a>
-          <button type="button" className="side-hide" onClick={close} aria-label="Fermer">
+          <button type="button" className="side-hide" onClick={close} aria-label={t('fw.close')}>
             <IconX size={20} />
           </button>
         </header>
@@ -97,7 +100,7 @@ export default function AppFrame(p: Props) {
         {p.quick && <div className="side-quick">{p.quick}</div>}
 
         {p.stats && (
-          <div className="side-stats" aria-label={`Statistiques ${APP_NAMES[p.app]}`}>
+          <div className="side-stats" aria-label={appName}>
             {p.stats.map(([value, label]) => (
               <div key={label}>
                 <strong>{value}</strong>
@@ -128,7 +131,7 @@ export default function AppFrame(p: Props) {
       <main className="main">
         <section className="pane app-pane">
           <header className="pane-head">
-            <button type="button" className="icon-btn mobile-only" onClick={() => setOpen(true)} aria-label="Afficher la liste">
+            <button type="button" className="icon-btn mobile-only" onClick={() => setOpen(true)} aria-label={t('fw.menu')}>
               <IconUsers size={19} />
             </button>
             {p.avatars ? <div className="stack">{p.avatars}</div> : <AppTile id={p.app} size={34} />}

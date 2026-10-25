@@ -1,5 +1,6 @@
 import type { ChainInfo } from './chains';
 import { formatToken } from './format';
+import { getLang, t } from '../../lib/i18n';
 
 const NETWORK_HINTS = [
   'failed to fetch',
@@ -40,14 +41,16 @@ function isNetworkIssue(message: string): boolean {
 }
 
 export function balanceErrorMessage(err: unknown, chain: ChainInfo): string {
+  const lang = getLang();
   const message = rawError(err).toLowerCase();
   if (isNetworkIssue(message)) {
-    return `Impossible de joindre le RPC public de ${chain.name}. Vérifie ta connexion, puis réessaie.`;
+    return t(lang, 'wl.errBalanceNetwork', { chain: chain.name });
   }
-  return `Impossible de lire le solde sur ${chain.name}. Réessaie dans un instant.`;
+  return t(lang, 'wl.errBalanceRead', { chain: chain.name });
 }
 
 export function sendErrorMessage(err: unknown, chain: ChainInfo, balance: bigint | null): string {
+  const lang = t.bind(null, getLang());
   const message = rawError(err).toLowerCase();
   if (
     message.includes('insufficient funds') ||
@@ -56,32 +59,16 @@ export function sendErrorMessage(err: unknown, chain: ChainInfo, balance: bigint
     message.includes('total cost')
   ) {
     const available =
-      balance === null ? '' : ` Solde disponible : ${formatToken(balance)} ${chain.symbol}.`;
-    return `Fonds insuffisants pour payer le montant et les frais de réseau.${available}`;
+      balance === null ? '' : lang('wl.errFundsAvail', { amt: formatToken(balance), sym: chain.symbol });
+    return lang('wl.errFunds') + available;
   }
-  if (message.includes('replacement transaction underpriced')) {
-    return 'Une transaction identique est déjà en attente. Attends sa confirmation avant de réessayer.';
-  }
-  if (message.includes('already known')) {
-    return 'Cette transaction est déjà en attente sur le réseau. Vérifie-la avant de réessayer.';
-  }
-  if (message.includes('nonce')) {
-    return 'Le nonce de la transaction est invalide. Patiente quelques secondes, puis réessaie.';
-  }
-  if (message.includes('gas limit') || message.includes('intrinsic gas')) {
-    return 'La transaction dépasse la limite de gaz du réseau. Vérifie le montant et réessaie.';
-  }
-  if (message.includes('underpriced') || message.includes('fee too low')) {
-    return 'Les frais proposés sont trop bas pour ce réseau. Réessaie dans un instant.';
-  }
-  if (isNetworkIssue(message)) {
-    return `Impossible de joindre le RPC public de ${chain.name}. La transaction n'a pas été envoyée. Vérifie ta connexion, puis réessaie.`;
-  }
-  if (message.includes('invalid address')) {
-    return "L'adresse de destination est invalide. Vérifie-la avant de réessayer.";
-  }
-  if (message.includes('execution reverted') || message.includes('revert')) {
-    return "Le réseau a rejeté la transaction. Vérifie l'adresse et le montant.";
-  }
-  return "La transaction a échoué. Vérifie l'adresse, le montant et ta connexion, puis réessaie.";
+  if (message.includes('replacement transaction underpriced')) return lang('wl.errReplacement');
+  if (message.includes('already known')) return lang('wl.errKnown');
+  if (message.includes('nonce')) return lang('wl.errNonce');
+  if (message.includes('gas limit') || message.includes('intrinsic gas')) return lang('wl.errGas');
+  if (message.includes('underpriced') || message.includes('fee too low')) return lang('wl.errUnderpriced');
+  if (isNetworkIssue(message)) return lang('wl.errSendNetwork', { chain: chain.name });
+  if (message.includes('invalid address')) return lang('wl.errSendAddress');
+  if (message.includes('execution reverted') || message.includes('revert')) return lang('wl.errReverted');
+  return lang('wl.errSendGeneric');
 }

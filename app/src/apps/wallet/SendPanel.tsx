@@ -9,6 +9,7 @@ import { CopyButton, Notice, TechDetails } from './ui';
 import { IconCheck, IconExternal, IconSend, IconWarning } from './icons';
 import ChainLogo from './chainIcons';
 import { formatEur, type Market } from './prices';
+import { useT } from '../../lib/i18n';
 
 type Props = {
   account: HDAccount;
@@ -26,26 +27,8 @@ type TxState = {
   status: TxStatus;
 };
 
-const TX_COPY: Record<TxStatus, { title: string; text: string }> = {
-  pending: {
-    title: 'Transaction envoyée',
-    text: 'Diffusée sur le réseau. En attente de confirmation…',
-  },
-  confirmed: {
-    title: 'Transaction confirmée',
-    text: 'Le transfert est confirmé et le solde a été actualisé.',
-  },
-  unconfirmed: {
-    title: 'Transaction diffusée',
-    text: "Confirmation non détectée dans le délai. Vérifie l'explorateur avant de réessayer.",
-  },
-  reverted: {
-    title: 'Transaction rejetée par le réseau',
-    text: "La transaction a été confirmée mais a échoué. Aucun montant n'a été transféré.",
-  },
-};
-
 export default function SendPanel({ account, chain, balance, onRefreshBalance, market }: Props) {
+  const t = useT();
   const [step, setStep] = useState<'form' | 'confirm'>('form');
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
@@ -71,38 +54,36 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
     clearError();
     const destination = to.trim();
     if (!destination) {
-      setError("Indique l'adresse de destination.");
+      setError(t('wl.errDest'));
       return;
     }
     if (!isAddress(destination)) {
-      setError(
-        "Adresse de destination invalide. Elle doit commencer par 0x et contenir 42 caractères.",
-      );
+      setError(t('wl.errDestFormat'));
       return;
     }
     const normalized = getAddress(destination);
     const raw = amount.trim().replace(',', '.');
     if (!raw) {
-      setError('Indique le montant à envoyer.');
+      setError(t('wl.errAmount'));
       return;
     }
     if (!/^\d+(?:\.\d+)?$/.test(raw)) {
-      setError('Montant invalide. Utilise un nombre, par exemple 0.01.');
+      setError(t('wl.errAmountFormat'));
       return;
     }
     let value: bigint;
     try {
       value = parseEther(raw);
     } catch {
-      setError('Montant invalide. Utilise un nombre, par exemple 0.01.');
+      setError(t('wl.errAmountFormat'));
       return;
     }
     if (value <= 0n) {
-      setError('Le montant doit être supérieur à zéro.');
+      setError(t('wl.errAmountZero'));
       return;
     }
     if (balance !== null && value > balance) {
-      setError(`Montant supérieur au solde disponible (${formatToken(balance)} ${chain.symbol}).`);
+      setError(t('wl.errAmountOver', { amt: formatToken(balance), sym: chain.symbol }));
       return;
     }
     setTo(normalized);
@@ -167,11 +148,11 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
   };
 
   return (
-    <section className="w-card" aria-label="Envoyer des fonds">
+    <section className="w-card" aria-label={t('wl.sendAria')}>
       <div className="w-card-head">
         <div className="w-card-title">
           <IconSend size={17} />
-          Envoyer
+          {t('wl.send')}
         </div>
         <span className="w-chip">
           <ChainLogo chain={chain} size={14} className="inline" /> {chain.symbol}
@@ -184,45 +165,45 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
         <div className="w-send-confirm">
           <dl className="w-summary">
             <div>
-              <dt>Réseau</dt>
+              <dt>{t('wl.networkLabel')}</dt>
               <dd>
                 <ChainLogo chain={chain} size={14} className="inline" /> {chain.name}
-                {chain.testnet ? ' (test)' : ''}
+                {chain.testnet ? ` (${t('wl.testShort')})` : ''}
               </dd>
             </div>
             <div>
-              <dt>Depuis</dt>
+              <dt>{t('wl.from')}</dt>
               <dd>
                 <code>{account.address}</code>
               </dd>
             </div>
             <div>
-              <dt>Vers</dt>
+              <dt>{t('wl.to')}</dt>
               <dd>
                 <code>{to}</code>
               </dd>
             </div>
             <div>
-              <dt>Montant</dt>
+              <dt>{t('wl.amount')}</dt>
               <dd className="w-summary-amount">
                 {amount} {chain.symbol}
               </dd>
             </div>
             <div>
-              <dt>Frais</dt>
-              <dd>Estimés par le réseau au moment de l'envoi</dd>
+              <dt>{t('wl.fees')}</dt>
+              <dd>{t('wl.feesEstimate')}</dd>
             </div>
           </dl>
-          <Notice tone="warn" title="Transaction irréversible">
-            Vérifie l'adresse et le réseau. Un envoi confirmé ne peut pas être annulé.
+          <Notice tone="warn" title={t('wl.irreversibleTitle')}>
+            {t('wl.irreversibleText')}
           </Notice>
           {chain.testnet && (
             <Notice tone="info">
-              Réseau de test : ces fonds n'ont aucune valeur réelle.
+              {t('wl.testnetNote')}
             </Notice>
           )}
           {error && (
-            <Notice tone="danger" title="Envoi impossible">
+            <Notice tone="danger" title={t('wl.sendFailTitle')}>
               <p>{error}</p>
               {tech && <TechDetails text={tech} />}
             </Notice>
@@ -232,10 +213,10 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
               {sending ? (
                 <>
                   <span className="w-spinner" aria-hidden="true" />
-                  Envoi en cours…
+                  {t('wl.sendingBtn')}
                 </>
               ) : (
-                "Confirmer l'envoi"
+                t('wl.confirmSend')
               )}
             </button>
             <button
@@ -247,7 +228,7 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
               }}
               disabled={sending}
             >
-              Modifier
+              {t('wl.modify')}
             </button>
           </div>
         </div>
@@ -260,7 +241,7 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
           }}
         >
           <div className="w-field">
-            <label htmlFor="w-send-to">Adresse de destination</label>
+            <label htmlFor="w-send-to">{t('wl.destination')}</label>
             <input
               id="w-send-to"
               className="w-input mono"
@@ -277,9 +258,9 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
           </div>
           <div className="w-field">
             <div className="w-label-row">
-              <label htmlFor="w-send-amount">Montant</label>
+              <label htmlFor="w-send-amount">{t('wl.amount')}</label>
               <span>
-                Disponible : {balance === null ? '—' : `${formatToken(balance)} ${chain.symbol}`}
+                {t('wl.available')} {balance === null ? '—' : `${formatToken(balance)} ${chain.symbol}`}
               </span>
             </div>
             <div className="w-amount-wrap">
@@ -307,13 +288,13 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
             })()}
           </div>
           {error && (
-            <Notice tone="danger" title="Vérification impossible">
+            <Notice tone="danger" title={t('wl.checkFail')}>
               <p>{error}</p>
               {tech && <TechDetails text={tech} />}
             </Notice>
           )}
           <button type="submit" className="w-btn primary full">
-            Continuer
+            {t('wl.continue')}
           </button>
         </form>
       )}
@@ -322,7 +303,14 @@ export default function SendPanel({ account, chain, balance, onRefreshBalance, m
 }
 
 function TxResult({ tx, onReset }: { tx: TxState; onReset: () => void }) {
-  const copy = TX_COPY[tx.status];
+  const t = useT();
+  const copy: Record<TxStatus, { title: string; text: string }> = {
+    pending: { title: t('wl.txPendingTitle'), text: t('wl.txPendingText') },
+    confirmed: { title: t('wl.txConfirmedTitle'), text: t('wl.txConfirmedText') },
+    unconfirmed: { title: t('wl.txUnconfirmedTitle'), text: t('wl.txUnconfirmedText') },
+    reverted: { title: t('wl.txRevertedTitle'), text: t('wl.txRevertedText') },
+  };
+  const chosen = copy[tx.status];
   return (
     <div className={`w-tx w-tx-${tx.status}`}>
       <div className="w-tx-head">
@@ -336,13 +324,13 @@ function TxResult({ tx, onReset }: { tx: TxState; onReset: () => void }) {
           )}
         </span>
         <div>
-          <strong>{copy.title}</strong>
-          <p>{copy.text}</p>
+          <strong>{chosen.title}</strong>
+          <p>{chosen.text}</p>
         </div>
       </div>
       <div className="w-addr-row">
         <code>{tx.hash}</code>
-        <CopyButton text={tx.hash} iconOnly label="Copier le hash" copiedLabel="Hash copié" />
+        <CopyButton text={tx.hash} iconOnly label={t('wl.copyHash')} copiedLabel={t('wl.hashCopied')} />
       </div>
       <div className="w-btn-row">
         <a
@@ -351,11 +339,11 @@ function TxResult({ tx, onReset }: { tx: TxState; onReset: () => void }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Voir sur l'explorateur
+          {t('wl.viewExplorer')}
           <IconExternal size={14} />
         </a>
         <button type="button" className="w-btn small" onClick={onReset}>
-          Nouvelle transaction
+          {t('wl.newTx')}
         </button>
       </div>
     </div>

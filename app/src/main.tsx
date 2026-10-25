@@ -1,8 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { installPrivacyShield } from './lib/privacy';
-import { useAccount, useAutoRestore } from './lib/vault';
-import AppBoot from './components/AppBoot';
+import { hasStoredSession, useAccount, useAutoRestore } from './lib/vault';
 import './styles.css';
 import './components/home.css';
 import './components/security.css';
@@ -43,12 +42,17 @@ if (cap?.isNativePlatform?.()) {
   }, true);
 }
 
+/**
+ * Pages protégées : affichage immédiat, sans écran intermédiaire.
+ * S'il y a une session en cours de restauration, on rend l'appli direct
+ * (elle affiche son propre squelette) ; sinon, la page Compte.
+ */
 function Gate({ children }: { children: ReactNode }) {
   useAutoRestore();
   const { user, restored } = useAccount();
-  if (!restored) return <AppBoot label="Ouverture du coffre…" />;
-  if (!user) return <Account />;
-  return <>{children}</>;
+  if (user) return <>{children}</>;
+  if (!restored && hasStoredSession()) return <>{children}</>;
+  return <Account />;
 }
 
 const page =
@@ -64,11 +68,10 @@ const page =
   <App />;
 
 createRoot(document.getElementById('root')!).render(
-  <Suspense fallback={<AppBoot label="Chargement…" />}>{page}</Suspense>,
+  <Suspense fallback={null}>{page}</Suspense>,
 );
 
 // Pas de service worker : évite que d'anciens fichiers restent en cache.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
 }
-

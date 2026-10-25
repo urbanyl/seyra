@@ -51,12 +51,12 @@ function checksumOk(words: string[], wordlist: string[]): boolean {
 
 export function inspectPhrase(input: string): PhraseCheck {
   const phrase = normalizePhrase(input);
-  if (!phrase) return { ok: false, error: 'Colle ta phrase de récupération.' };
+  if (!phrase) return { ok: false, error: 'wl.mnEmpty' };
   const words = phrase.split(' ');
   if (words.length !== 12 && words.length !== 24) {
     return {
       ok: false,
-      error: `La phrase doit contenir 12 ou 24 mots (${words.length} actuellement).`,
+      error: 'wl.mnWords',
     };
   }
   const wordlist = WORDLISTS.find((list) => {
@@ -66,19 +66,18 @@ export function inspectPhrase(input: string): PhraseCheck {
   if (!wordlist) {
     return {
       ok: false,
-      error: 'Un ou plusieurs mots sont inconnus. Utilise une phrase BIP-39 (anglais ou français).',
+      error: 'wl.mnUnknownMany',
     };
   }
   if (!checksumOk(words, wordlist)) {
     return {
       ok: false,
-      error:
-        "La phrase est invalide (somme de contrôle incorrecte). Vérifie l'ordre et l'orthographe des mots.",
+      error: 'wl.mnChecksum',
     };
   }
   try {
     return { ok: true, phrase, address: deriveAddress(phrase) };
   } catch {
-    return { ok: false, error: 'Impossible de dériver une adresse depuis cette phrase.' };
+    return { ok: false, error: 'wl.mnDerive' };
   }
 }

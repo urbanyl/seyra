@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { useAutoRestore, useVault } from '../../lib/vault';
 import AppFrame from '../../components/AppFrame';
 import { renderMarkdown } from './markdown';
+import { useT } from '../../lib/i18n';
+import { locale } from '../../lib/locale';
 import './notes.css';
 
 type Note = {
@@ -61,17 +63,18 @@ function formatWhen(timestamp: number): string {
   if (!timestamp) return '';
   const date = new Date(timestamp);
   const now = new Date();
+  const loc = locale();
   if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
   }
   if (date.getFullYear() !== now.getFullYear()) {
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString(loc, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
   }
-  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  return date.toLocaleDateString(loc, { day: '2-digit', month: 'short' });
 }
 
 function snippet(body: string): string {
@@ -183,6 +186,7 @@ const IconNote = () => (
 );
 
 export default function Notes() {
+  const t = useT();
   useAutoRestore();
   const { vault, update } = useVault();
 
@@ -381,7 +385,7 @@ export default function Notes() {
 
   const removeSelected = () => {
     if (!selectedId) return;
-    if (!window.confirm('Supprimer cette note ? Cette action est définitive.')) return;
+    if (!window.confirm(t('nt.deleteConfirm'))) return;
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -419,15 +423,15 @@ export default function Notes() {
 
   const parsedTags = parseTags(tagsRaw);
   const previewHtml = useMemo(() => renderMarkdown(body), [body]);
-  const countLabel = `${ordered.length} note${ordered.length > 1 ? 's' : ''}`;
+  const countLabel = t('nt.statNotes') + ' · ' + ordered.length;
   const words = wordCount(body);
 
   /* Barre latérale : création, recherche et liste des notes. */
   const listNav = (
-    <div className="notes-list-pane" aria-label="Liste des notes">
-      <button type="button" className="app-nav-item notes-new" onClick={createNote} aria-label="Nouvelle note">
+    <div className="notes-list-pane" aria-label={t('nt.listAria')}>
+      <button type="button" className="app-nav-item notes-new" onClick={createNote} aria-label={t('nt.newAria')}>
         <IconPlus />
-        <span className="notes-new-label">Nouvelle note</span>
+        <span className="notes-new-label">{t('nt.new')}</span>
         <kbd className="notes-kbd">{MOD} N</kbd>
       </button>
           <div className="notes-search">
@@ -436,7 +440,7 @@ export default function Notes() {
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              aria-label="Rechercher une note"
+              aria-label={t('nt.searchAria')}
               spellCheck={false}
             />
             {query ? (
@@ -447,7 +451,7 @@ export default function Notes() {
                   setQuery('');
                   searchRef.current?.focus();
                 }}
-                aria-label="Effacer la recherche"
+                aria-label={t('nt.clearSearch')}
               >
                 ×
               </button>
@@ -458,23 +462,23 @@ export default function Notes() {
 
           <div className="notes-count">
             {query.trim()
-              ? `${filtered.length} sur ${ordered.length}`
-              : `${ordered.length} note${ordered.length > 1 ? 's' : ''}`}
+              ? t('nt.countOf', { n: filtered.length, total: ordered.length })
+              : `${t('nt.statNotes')} · ${ordered.length}`}
           </div>
 
           <div className="notes-items">
             {!ordered.length ? (
               <div className="notes-list-empty">
                 <IconNote />
-                <p>Aucune note pour l’instant.</p>
+                <p>{t('nt.listEmpty')}</p>
                 <button type="button" className="notes-btn notes-btn--accent" onClick={createNote}>
-                  Créer une note
+                  {t('nt.create')}
                 </button>
               </div>
             ) : !filtered.length ? (
               <div className="notes-list-empty">
                 <IconSearch />
-                <p>Aucun résultat pour « {query.trim()} ».</p>
+                <p>{t('nt.noResult', { q: query.trim() })}</p>
               </div>
             ) : (
               filtered.map((note) => {
@@ -489,7 +493,7 @@ export default function Notes() {
                   >
                     <span className="notes-item-top">
                       <span className="notes-item-title">
-                        {note.title.trim() || 'Sans titre'}
+                        {note.title.trim() || t('nt.untitled')}
                       </span>
                       {note.pinned ? (
                         <span className="notes-item-pin">
@@ -497,7 +501,7 @@ export default function Notes() {
                         </span>
                       ) : null}
                     </span>
-                    <span className="notes-item-snippet">{text || 'Note vide'}</span>
+                    <span className="notes-item-snippet">{text || t('nt.emptyBody')}</span>
                     <span className="notes-item-meta">
                       <span>{formatWhen(note.updatedAt)}</span>
                       {note.tags.slice(0, 3).map((tag) => (
@@ -524,8 +528,8 @@ export default function Notes() {
         type="button"
         className={`notes-icon-btn${selected.pinned ? ' is-on' : ''}`}
         onClick={() => togglePin(selected.id)}
-        aria-label={selected.pinned ? 'Désépingler la note' : 'Épingler la note'}
-        title={selected.pinned ? 'Désépingler' : 'Épingler'}
+        aria-label={selected.pinned ? t('nt.unpinAria') : t('nt.pinAria')}
+        title={selected.pinned ? t('nt.unpin') : t('nt.pin')}
       >
         <IconPin />
       </button>
@@ -533,8 +537,8 @@ export default function Notes() {
         type="button"
         className={`notes-icon-btn${preview ? ' is-on' : ''}`}
         onClick={() => setPreview((value) => !value)}
-        aria-label={preview ? 'Revenir à l’édition' : 'Afficher l’aperçu Markdown'}
-        title={preview ? 'Éditer' : 'Aperçu Markdown'}
+        aria-label={preview ? t('nt.toEdit') : t('nt.previewMd')}
+        title={preview ? t('nt.edit') : t('nt.preview')}
         aria-pressed={preview}
       >
         {preview ? <IconEdit /> : <IconEye />}
@@ -543,8 +547,8 @@ export default function Notes() {
         type="button"
         className="notes-icon-btn"
         onClick={exportNote}
-        aria-label="Exporter en Markdown"
-        title="Exporter en .md"
+        aria-label={t('nt.export')}
+        title={t('nt.exportDot')}
       >
         <IconDownload />
       </button>
@@ -552,8 +556,8 @@ export default function Notes() {
         type="button"
         className="notes-icon-btn notes-danger"
         onClick={removeSelected}
-        aria-label="Supprimer la note"
-        title="Supprimer"
+        aria-label={t('nt.delete')}
+        title={t('nt.delete')}
       >
         <IconTrash />
       </button>
@@ -563,35 +567,35 @@ export default function Notes() {
   return (
     <AppFrame
       app="notes"
-      sideSub="Coffre chiffré"
-      title={selected ? title.trim() || 'Sans titre' : 'Notes chiffrées'}
+      sideSub={t('nt.sideSub')}
+      title={selected ? title.trim() || t('nt.untitled') : t('nt.title')}
       subtitle={
         <>
           <IconLock /> {countLabel}
-          <i className={`live ${dirty ? 'connecting' : 'online'}`} /> {selected ? (dirty ? 'Enregistrement…' : 'Enregistré') : 'Prêt'}
+          <i className={`live ${dirty ? 'connecting' : 'online'}`} /> {selected ? (dirty ? t('nt.saving') : t('nt.saved')) : t('nt.ready')}
         </>
       }
-      note={<>Chiffré sur cet appareil avec la clé de votre coffre. Le serveur ne voit rien.</>}
+      note={<>{t('nt.banner')}</>}
       stats={[
-        [ordered.length, 'Notes'],
-        [ordered.filter((note) => note.pinned).length, 'Épinglées'],
-        [words, 'Mots'],
+        [ordered.length, t('nt.statNotes')],
+        [ordered.filter((note) => note.pinned).length, t('nt.pinned')],
+        [words, t('nt.words')],
       ]}
       quick={
         <>
           <button type="button" className="side-action" onClick={createNote}>
-            <IconPlus /> Nouvelle note
+            <IconPlus /> {t('nt.new')}
           </button>
           <button type="button" className="side-action" onClick={() => { searchRef.current?.focus(); searchRef.current?.select(); }}>
-            <IconSearch /> Rechercher
+            <IconSearch /> {t('nt.search')}
           </button>
         </>
       }
       card={
         <>
-          <span className="code-label"><IconLock /> Note sélectionnée</span>
-          <code>{selected ? title.trim() || 'Sans titre' : 'Aucune note'}</code>
-          <em>{selected ? `Modifiée ${formatWhen(savedAt ?? selected.updatedAt)}` : 'Choisissez une note dans la liste.'}</em>
+          <span className="code-label"><IconLock /> {t('nt.selected')}</span>
+          <code>{selected ? title.trim() || t('nt.untitled') : t('nt.none')}</code>
+          <em>{selected ? t('nt.modified', { when: formatWhen(savedAt ?? selected.updatedAt) }) : t('nt.pick')}</em>
         </>
       }
       actions={toolbar}
@@ -600,10 +604,10 @@ export default function Notes() {
       foot={
         selected ? (
           <button type="button" className="btn danger wide" onClick={removeSelected}>
-            Supprimer la note
+            {t('nt.delete')}
           </button>
         ) : (
-          <p>Les notes restent dans votre coffre.</p>
+          <p>{t('nt.keep')}</p>
         )
       }
       className="notes-frame"
@@ -611,11 +615,11 @@ export default function Notes() {
           {!selected ? (
             <div className="notes-empty">
               <IconNote />
-              <h2>Vos notes, en sécurité</h2>
-              <p>Sélectionnez une note ou créez-en une nouvelle pour commencer.</p>
+              <h2>{t('nt.emptyTitle')}</h2>
+              <p>{t('nt.emptyText')}</p>
               <button type="button" className="notes-btn notes-btn--accent" onClick={createNote}>
                 <IconPlus />
-                Nouvelle note
+                {t('nt.new')}
               </button>
             </div>
           ) : (
@@ -626,7 +630,7 @@ export default function Notes() {
                   className="notes-title-input"
                   value={title}
                   onChange={(event) => changeTitle(event.target.value)}
-                  aria-label="Titre de la note"
+                  aria-label={t('nt.titleAria')}
                   spellCheck
                 />
                 <div className="notes-tags-line">
@@ -635,7 +639,7 @@ export default function Notes() {
                     className="notes-tags-input"
                     value={tagsRaw}
                     onChange={(event) => changeTags(event.target.value)}
-                    aria-label="Tags de la note"
+                    aria-label={t('nt.tagsAria')}
                     spellCheck={false}
                   />
                 </div>
@@ -658,14 +662,14 @@ export default function Notes() {
                       dangerouslySetInnerHTML={{ __html: previewHtml }}
                     />
                   ) : (
-                    <p className="notes-preview-empty">Rien à prévisualiser pour l’instant.</p>
+                    <p className="notes-preview-empty">{t('nt.nothingPreview')}</p>
                   )
                 ) : (
                   <textarea
                     className="notes-body"
                     value={body}
                     onChange={(event) => changeBody(event.target.value)}
-                    aria-label="Contenu de la note"
+                    aria-label={t('nt.bodyAria')}
                     spellCheck
                   />
                 )}
@@ -673,9 +677,9 @@ export default function Notes() {
 
               <div className="notes-foot">
                 <span>
-                  {words} mot{words > 1 ? 's' : ''}
+                  {words === 1 ? t('nt.wordOne', { n: words }) : t('nt.wordMany', { n: words })}
                 </span>
-                <span>Modifié {formatWhen(savedAt ?? selected.updatedAt)}</span>
+                <span>{t('nt.modShort')} {formatWhen(savedAt ?? selected.updatedAt)}</span>
               </div>
             </>
           )}

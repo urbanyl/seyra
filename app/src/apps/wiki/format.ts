@@ -1,8 +1,11 @@
+import { getLang, t as tr } from '../../lib/i18n';
+import { locale } from '../../lib/locale';
+
 const AUTHOR_KEY = 'seyra.wiki.author';
 
 export function readAuthor(): string {
   try {
-    return localStorage.getItem(AUTHOR_KEY) || 'anonyme';
+    return localStorage.getItem(AUTHOR_KEY) || '';
   } catch {
     return 'anonyme';
   }
@@ -19,11 +22,11 @@ export function writeAuthor(author: string): void {
 }
 
 export function displayAuthor(author: string | null | undefined): string {
-  return (author || '').trim() || 'anonyme';
+  return (author || '').trim() || tr(getLang(), 'wl.anon');
 }
 
 export function formatDate(value: string | number | null | undefined): string {
-  if (value === null || value === undefined || value === '') return 'date inconnue';
+  if (value === null || value === undefined || value === '') return tr(getLang(), 'wk.unknownDate');
   let date: Date;
   if (typeof value === 'number') {
     date = new Date(value < 1e12 ? value * 1000 : value);
@@ -31,7 +34,7 @@ export function formatDate(value: string | number | null | undefined): string {
     date = new Date(value);
   }
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString('fr-FR', {
+  return date.toLocaleString(locale(), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

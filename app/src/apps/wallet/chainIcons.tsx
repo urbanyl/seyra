@@ -60,7 +60,7 @@ export default function ChainLogo({ chain, size = 24, className }: { chain: Chai
   return (
     <span className={`w-chain-logo${className ? ` ${className}` : ''}`} style={{ width: size, height: size }}>
       <Mark size={size} />
-      {chain.testnet && <em className="w-logo-test" title="réseau de test" />}
+      {chain.testnet && <em className="w-logo-test" aria-hidden="true" />}
     </span>
   );
 }

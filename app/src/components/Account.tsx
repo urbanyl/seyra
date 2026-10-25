@@ -1,17 +1,17 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { recoveryCode, register, startLocal, unlock, unlockWithCode, useAccount, useAutoRestore } from '../lib/vault';
+import { apiErrorMessage } from '../lib/apierr';
 import AppFrame from './AppFrame';
+import { useT } from '../lib/i18n';
 import './account.css';
 
-type Tab = 'login' | 'register' | 'recover';
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'login', label: 'Se connecter' },
-  { id: 'register', label: 'Créer un compte' },
-  { id: 'recover', label: 'Code de récupération' },
-];
-
 export default function Account({ back = '/' }: { back?: string }) {
+  const t = useT();
+  const TABS: { id: Tab; label: string }[] = [
+    { id: 'login', label: t('ac.login') },
+    { id: 'register', label: t('ac.register') },
+    { id: 'recover', label: t('ac.recover') },
+  ];
   useAutoRestore();
   const { user, local, lock, logout } = useAccount();
   const [tab, setTab] = useState<Tab>('login');
@@ -32,7 +32,7 @@ export default function Account({ back = '/' }: { back?: string }) {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Une erreur est survenue.');
+      setError(apiErrorMessage(e, t));
     } finally {
       setBusy(false);
     }
@@ -42,9 +42,9 @@ export default function Account({ back = '/' }: { back?: string }) {
     e.preventDefault();
     run(async () => {
       if (tab === 'register') {
-        if (!/^[a-zA-Z0-9_.-]{3,24}$/.test(name)) throw new Error('Pseudo : 3 à 24 caractères (lettres, chiffres, . _ -).');
-        if (pass.length < 8) throw new Error('Mot de passe : 8 caractères minimum.');
-        if (pass !== pass2) throw new Error('Les deux mots de passe ne correspondent pas.');
+        if (!/^[a-zA-Z0-9_.-]{3,24}$/.test(name)) throw new Error(t('ac.errPseudo'));
+        if (pass.length < 8) throw new Error(t('ac.errPass'));
+        if (pass !== pass2) throw new Error(t('ac.errMatch'));
         const rec = await register(name, pass);
         setFresh(rec);
         setPass('');
@@ -75,8 +75,7 @@ export default function Account({ back = '/' }: { back?: string }) {
     return frame(
       <>
         <p className="acct-note">
-          C'est la seule façon de retrouver ce compte si vous oubliez le mot de passe. Il n'y a ni e-mail ni
-          téléphone. Notez-le hors ligne, ne le partagez jamais.
+          {t('ac.recoveryNote')}
         </p>
         <code className="acct-code">{fresh}</code>
         <div className="acct-row">
@@ -86,14 +85,14 @@ export default function Account({ back = '/' }: { back?: string }) {
               navigator.clipboard?.writeText(fresh).then(() => setCopied(true)).catch(() => {});
             }}
           >
-            {copied ? 'Copié' : 'Copier le code'}
+            {copied ? t('ac.copied') : t('ac.copyCode')}
           </button>
           <button className="acct-btn primary" onClick={() => (location.href = '/')}>
-            J'ai sauvegardé
+            {t('ac.saved')}
           </button>
         </div>
       </>,
-      { title: 'Code de récupération', subtitle: 'À noter hors ligne' },
+      { title: t('ac.recoveryTitle'), subtitle: t('ac.recoverySub') },
     );
   }
 
@@ -102,35 +101,33 @@ export default function Account({ back = '/' }: { back?: string }) {
     return frame(
       <>
         <p className="acct-note">
-          {local
-            ? 'Vos données restent dans ce navigateur et ne sont envoyées nulle part. Elles disparaissent si vous videz les données du site.'
-            : 'Votre coffre est chiffré avec votre mot de passe. Le serveur ne peut pas le lire.'}
+          {local ? t('ac.localNote') : t('ac.vaultNote')}
         </p>
         {rec && (
           <>
             <button className="acct-btn" onClick={() => setShowCode((v) => !v)}>
-              {showCode ? 'Masquer le code de récupération' : 'Afficher le code de récupération'}
+              {showCode ? t('ac.hideRecovery') : t('ac.showRecovery')}
             </button>
             {showCode && <code className="acct-code">{rec}</code>}
           </>
         )}
         <div className="acct-row">
           <button className="acct-btn" onClick={() => { lock(); location.href = '/compte'; }}>
-            Verrouiller
+            {t('ac.lock')}
           </button>
           {!local && (
             <button className="acct-btn danger" onClick={() => { logout(); location.href = '/compte'; }}>
-              Se déconnecter
+              {t('ac.logout')}
             </button>
           )}
         </div>
       </>,
       {
-        title: local ? 'Profil local' : 'Compte ' + user,
-        subtitle: local ? 'Stocké dans ce navigateur' : 'Coffre chiffré',
+        title: local ? t('ac.localTitle') : t('ac.accountTitle', { user }),
+        subtitle: local ? t('ac.localSub') : t('ac.vaultSub'),
         actions: (
           <button className="acct-btn primary" onClick={() => (location.href = back)}>
-            Continuer
+            {t('ac.continue')}
           </button>
         ),
       },
@@ -140,12 +137,12 @@ export default function Account({ back = '/' }: { back?: string }) {
   return frame(
     <>
       <p className="acct-note">
-        Le compte sert au wallet, aux notes et au reste. La messagerie reste à part : un code, aucune inscription.
+        {t('ac.note')}
       </p>
 
       <form onSubmit={submit}>
         <label>
-          <span>Pseudo</span>
+          <span>{t('ac.pseudo')}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value.trim())}
@@ -158,7 +155,7 @@ export default function Account({ back = '/' }: { back?: string }) {
 
         {tab !== 'recover' && (
           <label>
-            <span>Mot de passe</span>
+            <span>{t('ac.password')}</span>
             <input
               type="password"
               value={pass}
@@ -170,14 +167,14 @@ export default function Account({ back = '/' }: { back?: string }) {
 
         {tab === 'register' && (
           <label>
-            <span>Confirmer</span>
+            <span>{t('ac.confirm')}</span>
             <input type="password" value={pass2} onChange={(e) => setPass2(e.target.value)} autoComplete="new-password" />
           </label>
         )}
 
         {tab === 'recover' && (
           <label>
-            <span>Code de récupération</span>
+            <span>{t('ac.recoverCode')}</span>
             <input value={code} onChange={(e) => setCode(e.target.value.trim())} spellCheck={false} />
           </label>
         )}
@@ -185,33 +182,33 @@ export default function Account({ back = '/' }: { back?: string }) {
         {error && <p className="acct-error">{error}</p>}
 
         <button className="acct-btn primary wide" disabled={busy}>
-          {busy ? '…' : tab === 'register' ? 'Créer le compte' : tab === 'recover' ? 'Déverrouiller avec le code' : 'Ouvrir mon coffre'}
+          {busy ? t('ac.busy') : tab === 'register' ? t('ac.register') : tab === 'recover' ? t('ac.unlockCode') : t('ac.open')}
         </button>
       </form>
 
-      <div className="acct-sep"><span>ou</span></div>
+      <div className="acct-sep"><span>{t('ac.or')}</span></div>
 
       <button
         className="acct-btn wide"
         onClick={() => {
-          if (confirm('Mode local : les données restent dans ce navigateur uniquement, sans sauvegarde. Continuer ?')) {
+          if (confirm(t('ac.localConfirm'))) {
             startLocal();
             location.href = '/';
           }
         }}
       >
-        Utiliser sans compte (local)
+        {t('ac.localBtn')}
       </button>
       <p className="acct-fine">
-        Sans e-mail, sans téléphone. Mot de passe oublié = données perdues, sauf code de récupération.
+        {t('ac.fine')}
       </p>
     </>,
     {
-      title: 'Compte Seyra',
-      subtitle: 'Coffre chiffré · sans e-mail',
+      title: t('ac.title'),
+      subtitle: t('ac.subtitle'),
       nav: (
         <>
-          <p className="app-nav-title">Accès</p>
+          <p className="app-nav-title">{t('ac.access')}</p>
           {TABS.map((item) => (
             <button
               key={item.id}
@@ -226,9 +223,11 @@ export default function Account({ back = '/' }: { back?: string }) {
       ),
       actions: (
         <a className="acct-btn" href={back}>
-          Retour
+          {t('ac.back')}
         </a>
       ),
     },
   );
 }
+
+type Tab = 'login' | 'register' | 'recover';

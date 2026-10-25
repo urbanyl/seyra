@@ -4,8 +4,8 @@ import { normalizePhrase } from './mnemonic';
 import type { WalletData } from './types';
 import Onboarding from './Onboarding';
 import Dashboard from './Dashboard';
-import { IconWallet } from './icons';
 import AppFrame from '../../components/AppFrame';
+import { useT } from '../../lib/i18n';
 import './wallet.css';
 
 function readWallet(value: unknown): WalletData | null {
@@ -22,6 +22,7 @@ function readWallet(value: unknown): WalletData | null {
 }
 
 export default function Wallet() {
+  const t = useT();
   useAutoRestore();
   const { vault, update, ready } = useVault();
   const wallet = readWallet(vault.wallet);
@@ -51,16 +52,35 @@ export default function Wallet() {
   };
 
   if (!ready) {
+    // Squelette instantané : la page s'affiche direct pendant la restauration.
     return (
-      <AppFrame app="wallet" className="w-frame" title="Portefeuille" subtitle="Ouverture du coffre" fixedBody>
-        <div className="w-loading">
-          <div className="w-loading-box">
-            <span className="w-logo">
-              <IconWallet size={22} />
-            </span>
-            <span className="w-spinner" aria-hidden="true" />
-            <p>Ouverture du coffre…</p>
-          </div>
+      <AppFrame
+        app="wallet"
+        className="w-frame"
+        fixedBody
+        sideSub={t('wl.sideSub')}
+        title={t('wl.title')}
+        subtitle={<><span className="w-spinner w-spinner-inline" aria-hidden="true" /> {t('wl.opening')}</>}
+      >
+        <div className="w-scroll">
+          <main className="w-main">
+            <div className="w-card w-skel" aria-hidden="true">
+              <span className="w-skel-line w-skel-line-short" />
+              <span className="w-skel-line w-skel-line-xl" />
+              <span className="w-skel-line" />
+            </div>
+            <div className="w-grid">
+              <div className="w-card w-skel">
+                <span className="w-skel-line w-skel-line-short" />
+                <span className="w-skel-line" />
+                <span className="w-skel-line" />
+              </div>
+              <div className="w-card w-skel">
+                <span className="w-skel-line w-skel-line-short" />
+                <span className="w-skel-line" />
+              </div>
+            </div>
+          </main>
         </div>
       </AppFrame>
     );

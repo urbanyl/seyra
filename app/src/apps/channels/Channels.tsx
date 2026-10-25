@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import AppFrame from '../../components/AppFrame';
+import { getLang, t as tr, useT } from '../../lib/i18n';
+import { locale } from '../../lib/locale';
 import { IconPlus, IconUsers } from '../../components/Icons';
 import { Avatar } from '../../components/ui';
 import './channels.css';
@@ -17,8 +19,8 @@ const MAX_TOPIC = 200;
 const MAX_TEXT = 2000;
 const POLL_MS = 4000;
 
-const RATE_LIMIT_MESSAGE = 'Doucement : vous envoyez des messages trop vite. Patientez quelques secondes avant de réessayer.';
-const NETWORK_MESSAGE = 'Connexion au serveur impossible. Vérifiez votre réseau, puis réessayez.';
+const RATE_LIMIT_MESSAGE = () => tr(getLang(), 'ch.rateLimit');
+const NETWORK_MESSAGE = () => tr(getLang(), 'ch.netError');
 const AVATAR_COLORS = ['#00b2ff', '#4f8bff', '#37c2a0', '#e0a30b', '#dc6aa8', '#9b8cff'];
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -154,38 +156,39 @@ async function requestJson(path: string, init: RequestInit = {}): Promise<{ stat
 }
 
 function failureMessage(status: number, target: 'message' | 'channel'): string {
-  if (status === 429) return RATE_LIMIT_MESSAGE;
-  if (status === 404) return target === 'channel' ? 'Le service des canaux est introuvable sur le serveur.' : 'Ce canal n’existe plus.';
-  if (status === 413) return 'Le contenu est trop volumineux pour le serveur.';
+  if (status === 429) return RATE_LIMIT_MESSAGE();
+  if (status === 404) return target === 'channel' ? tr(getLang(), 'ch.svc404') : tr(getLang(), 'ch.gone404');
+  if (status === 413) return tr(getLang(), 'ch.toobig');
   if (status === 400 || status === 422) {
     return target === 'channel'
-      ? 'Le canal n’a pas pu être créé : vérifiez le titre et le sujet.'
-      : 'Message refusé : vérifiez son contenu et sa longueur.';
+      ? tr(getLang(), 'ch.createFail')
+      : tr(getLang(), 'ch.postFail');
   }
   return target === 'channel'
-    ? `La création du canal a échoué (erreur ${status}). Réessayez dans un instant.`
-    : `Votre message n’a pas pu être envoyé (erreur ${status}). Réessayez dans un instant.`;
+    ? tr(getLang(), 'ch.createServerError', { status })
+    : tr(getLang(), 'ch.postServerError', { status });
 }
 
 function relativeTime(ts: number, now: number): string {
+  const lang = getLang();
   if (!ts) return '—';
   const diff = Math.max(0, now - ts);
-  if (diff < 45_000) return 'à l’instant';
+  if (diff < 45_000) return tr(lang, 'ch.now');
   const minutes = Math.floor(diff / 60_000);
-  if (minutes < 60) return `il y a ${minutes} min`;
+  if (minutes < 60) return tr(lang, 'ch.minAgo', { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `il y a ${hours} h`;
+  if (hours < 24) return tr(lang, 'ch.hourAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days === 1) return 'hier';
-  if (days < 7) return `il y a ${days} j`;
+  if (days === 1) return tr(lang, 'nt.yesterday');
+  if (days < 7) return tr(lang, 'ch.dayAgo', { n: days });
   const date = new Date(ts);
   const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
   if (date.getFullYear() !== new Date(now).getFullYear()) options.year = 'numeric';
-  return date.toLocaleDateString('fr-FR', options);
+  return date.toLocaleDateString(locale(), options);
 }
 
 function fullTime(ts: number): string {
-  return new Date(ts).toLocaleString('fr-FR', {
+  return new Date(ts).toLocaleString(locale(), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -196,7 +199,7 @@ function fullTime(ts: number): string {
 }
 
 function messageCount(count: number): string {
-  return `${count} message${count > 1 ? 's' : ''}`;
+  return tr(getLang(), 'ch.messages', { n: count });
 }
 
 function normalizeSearch(value: string): string {
@@ -268,6 +271,7 @@ function renderMarkdown(text: string): ReactNode {
 }
 
 export default function Channels() {
+  const t = useT();
   const [channels, setChannels] = useState<ChannelSummary[]>([]);
   const [channelsLoading, setChannelsLoading] = useState(true);
   const [channelsError, setChannelsError] = useState('');
@@ -313,7 +317,7 @@ export default function Channels() {
       setChannels(list);
       setChannelsError('');
     } catch {
-      if (!silent) setChannelsError('Impossible de charger les canaux publics. Vérifiez votre connexion.');
+      if (!silent) setChannelsError(tr(getLang(), 'ch.netError'));
     } finally {
       if (!silent) setChannelsLoading(false);
     }
@@ -360,7 +364,7 @@ export default function Channels() {
       }
       setDetailError('');
     } catch {
-      if (token === requestToken.current) setDetailError(NETWORK_MESSAGE);
+      if (token === requestToken.current) setDetailError(NETWORK_MESSAGE());
     } finally {
       if (manual) setRefreshing(false);
       if (token === requestToken.current) setDetailLoading(false);
@@ -483,7 +487,7 @@ export default function Channels() {
       }
       const id = readString(data.id).trim();
       if (!id) {
-        setCreateError('Le serveur n’a pas renvoyé l’identifiant du canal.');
+        setCreateError(tr(getLang(), 'ch.noId'));
         return;
       }
       setTitleDraft('');
@@ -497,7 +501,7 @@ export default function Channels() {
       );
       setSelectedId(id);
     } catch {
-      setCreateError(NETWORK_MESSAGE);
+      setCreateError(NETWORK_MESSAGE());
     } finally {
       setCreating(false);
     }
@@ -534,10 +538,10 @@ export default function Channels() {
         void loadChannel(id, true);
       }
       setComposer('');
-      setComposerNotice({ kind: 'info', text: 'Message publié.' });
+      setComposerNotice({ kind: 'info', text: t('ch.sent') });
       void loadChannels(true);
     } catch {
-      setComposerNotice({ kind: 'error', text: NETWORK_MESSAGE });
+      setComposerNotice({ kind: 'error', text: NETWORK_MESSAGE() });
     } finally {
       setSending(false);
     }
@@ -550,7 +554,7 @@ export default function Channels() {
   };
 
   const currentSummary = selectedId ? channels.find((item) => item.id === selectedId) : undefined;
-  const title = channel?.title || currentSummary?.title || 'Canal';
+  const title = channel?.title || currentSummary?.title || tr(getLang(), 'app.canaux');
   const topic = channel?.topic || currentSummary?.topic || '';
 
   return (
@@ -558,27 +562,27 @@ export default function Channels() {
       app="canaux"
       className="ch-frame"
       fixedBody
-      title={selectedId ? title : 'Canaux'}
-      sideSub="Discussions publiques"
+      title={selectedId ? title : t('ch.title')}
+      sideSub={t('ch.sideSub')}
       subtitle={
         <>
-          <IconUsers size={12} /> {selectedId ? `${messages.length} message${messages.length > 1 ? 's' : ''}` : `${channels.length} canal${channels.length > 1 ? 'x' : ''}`}
-          <i className="live online" /> {selectedId ? topic || 'Sans sujet' : 'Sans compte'}
+          <IconUsers size={12} /> {selectedId ? t('ch.messages', { n: messages.length }) : t('ch.nChannels', { n: channels.length })}
+          <i className="live online" /> {selectedId ? topic || t('ch.noTopic') : t('ch.noAccount')}
         </>
       }
-      note={<>Canaux publics : tout le monde peut lire. N'écrivez pas de secrets.</>}
+      note={<>{t('ch.banner')}</>}
       stats={[
-        [channels.length, 'Canaux'],
-        [channels.reduce((total, item) => total + item.posts, 0), 'Messages'],
-        [messages.length, 'Ce canal'],
+        [channels.length, t('ch.statChannels')],
+        [channels.reduce((total, item) => total + item.posts, 0), t('ch.statMessages')],
+        [messages.length, t('ch.thisChannel')],
       ]}
       quick={
         <>
           <button type="button" className="side-action" onClick={() => { setShowCreate((visible) => !visible); setCreateError(''); }}>
-            <IconPlus size={16} /> {showCreate ? 'Fermer' : 'Créer un canal'}
+            <IconPlus size={16} /> {showCreate ? t('ch.cancel') : t('ch.create')}
           </button>
           <button type="button" className="side-action" disabled={!selectedId || refreshing} onClick={() => { if (selectedId) void loadChannel(selectedId, true); }}>
-            {refreshing ? 'Actualisation…' : 'Actualiser'}
+            {refreshing ? t('ch.refreshing') : t('ch.refresh')}
           </button>
         </>
       }
@@ -587,7 +591,7 @@ export default function Channels() {
         <div className="ch-identity">
           {editingName ? (
             <div className="ch-name-edit">
-              <label htmlFor="ch-name-input">Pseudo</label>
+              <label htmlFor="ch-name-input">{t('ch.name')}</label>
               <input
                 id="ch-name-input"
                 value={nameDraft}
@@ -604,21 +608,21 @@ export default function Channels() {
                   }
                 }}
               />
-              <button type="button" className="ch-mini ch-mini-primary" onClick={saveName}>OK</button>
-              <button type="button" className="ch-mini" onClick={() => setEditingName(false)}>Annuler</button>
+              <button type="button" className="ch-mini ch-mini-primary" onClick={saveName}>{t('ch.ok')}</button>
+              <button type="button" className="ch-mini" onClick={() => setEditingName(false)}>{t('ch.cancel')}</button>
             </div>
           ) : (
-            <button type="button" className="ch-name-button" onClick={startNameEdit} title="Modifier votre pseudo">
-              <span>Pseudo</span>
+            <button type="button" className="ch-name-button" onClick={startNameEdit} title={t('ch.editName')}>
+              <span>{t('ch.name')}</span>
               <strong>{name}</strong>
-              <em>modifier</em>
+              <em>{t('ch.modifyShort')}</em>
             </button>
           )}
         </div>
     </>
       }
       nav={
-      <div className="ch-sidebar" aria-label="Liste des canaux">
+      <div className="ch-sidebar" aria-label={t('ch.listAria')}>
           <div className="ch-side-tools">
             <div className="ch-search-row">
               <input
@@ -626,7 +630,7 @@ export default function Channels() {
                 type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                aria-label="Rechercher un canal"
+                aria-label={t('ch.searchAria')}
               />
               <button
                 type="button"
@@ -636,7 +640,7 @@ export default function Channels() {
                   setCreateError('');
                 }}
               >
-                {showCreate ? 'Fermer' : 'Créer un canal'}
+                {showCreate ? t('ch.cancel') : t('ch.create')}
               </button>
             </div>
 
@@ -650,7 +654,7 @@ export default function Channels() {
               >
                 <div className="ch-field">
                   <div className="ch-field-head">
-                    <label htmlFor="ch-title">Titre</label>
+                    <label htmlFor="ch-title">{t('ch.titleLabel')}</label>
                     <span>{titleDraft.length}/{MAX_TITLE}</span>
                   </div>
                   <input
@@ -663,7 +667,7 @@ export default function Channels() {
                 </div>
                 <div className="ch-field">
                   <div className="ch-field-head">
-                    <label htmlFor="ch-topic">Sujet (facultatif)</label>
+                    <label htmlFor="ch-topic">{t('ch.topicLabel')}</label>
                     <span>{topicDraft.length}/{MAX_TOPIC}</span>
                   </div>
                   <textarea
@@ -676,7 +680,7 @@ export default function Channels() {
                 </div>
                 {createError && <p className="ch-error" role="alert">{createError}</p>}
                 <button type="submit" className="ch-btn-primary" disabled={creating || !titleDraft.trim()}>
-                  {creating ? 'Création…' : 'Créer le canal'}
+                  {creating ? t('ch.creating') : t('ch.createBtn')}
                 </button>
               </form>
             )}
@@ -685,20 +689,20 @@ export default function Channels() {
           {channelsError && <p className="ch-error ch-side-error" role="alert">{channelsError}</p>}
 
           <div className="ch-list-head">
-            <span>Canaux publics</span>
+            <span>{t('ch.pubList')}</span>
             <span>{channels.length}</span>
           </div>
 
           <div className="ch-list">
             {channelsLoading && channels.length === 0 ? (
-              <p className="ch-empty-line">Chargement des canaux…</p>
+              <p className="ch-empty-line">{t('ch.loadingChannels')}</p>
             ) : channelsError && channels.length === 0 ? null : filteredChannels.length === 0 ? (
               <p className="ch-empty-line">
                 {search.trim()
-                  ? `Aucun canal ne correspond à « ${search.trim()} ».`
+                  ? t('ch.noMatch', { q: search.trim() })
                   : channels.length === 0
-                    ? 'Aucun canal pour l’instant. Créez le premier.'
-                    : 'Aucun canal disponible.'}
+                    ? t('ch.none')
+                    : t('ch.unavailable')}
               </p>
             ) : (
               filteredChannels.map((item) => (
@@ -707,7 +711,7 @@ export default function Channels() {
                   type="button"
                   className="ch-item"
                   aria-current={selectedId === item.id ? 'true' : undefined}
-                  title={item.updatedAt ? `Dernière activité : ${fullTime(item.updatedAt)}` : 'Aucune activité'}
+                  title={item.updatedAt ? t('ch.lastActivity', { t: fullTime(item.updatedAt) }) : t('ch.noActivity')}
                   onClick={() => setSelectedId(item.id)}
                 >
                   <Avatar name={item.title} color={item.id.length} size={38} />
@@ -716,7 +720,7 @@ export default function Channels() {
                       <span className="ch-item-title">{item.title}</span>
                       <span className="ch-item-activity">{relativeTime(item.updatedAt, now)}</span>
                     </span>
-                    <span className="ch-item-topic">{item.topic || 'Sans sujet'}</span>
+                    <span className="ch-item-topic">{item.topic || t('ch.noTopic')}</span>
                     <span className="ch-item-meta">{messageCount(item.posts)}</span>
                   </span>
                 </button>
@@ -725,7 +729,7 @@ export default function Channels() {
           </div>
 
           <footer className="ch-side-foot">
-            <span>Messages stockés sur le serveur, sans chiffrement de bout en bout.</span>
+            <span>{t('ch.publicNote')}</span>
           </footer>
       </div>
       }
@@ -733,8 +737,8 @@ export default function Channels() {
         <button
           type="button"
           className="icon-btn"
-          title={refreshing ? 'Actualisation…' : 'Actualiser'}
-          aria-label="Actualiser"
+          title={refreshing ? t('ch.refreshing') : t('ch.refresh')}
+          aria-label={t('ch.refresh')}
           onClick={() => { if (selectedId) void loadChannel(selectedId, true); }}
           disabled={refreshing}
         >
@@ -758,8 +762,8 @@ export default function Channels() {
                 value={composer}
                 maxLength={MAX_TEXT}
                 rows={1}
-                aria-label="Message public"
-                placeholder="Écrire un message public"
+                aria-label={t('ch.placeholder')}
+                placeholder={t('ch.placeholder')}
                 onChange={(event) => {
                   setComposer(event.target.value);
                   if (composerNotice?.kind === 'error') setComposerNotice(null);
@@ -776,8 +780,8 @@ export default function Channels() {
                 className="icon-btn primary"
                 onClick={() => void sendMessage()}
                 disabled={sending || !composer.trim()}
-                aria-label={sending ? 'Envoi…' : 'Envoyer'}
-                title={sending ? 'Envoi…' : 'Envoyer'}
+                aria-label={sending ? t('ch.sending') : t('ch.send')}
+                title={sending ? t('ch.sending') : t('ch.send')}
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M2 16L17 9 2 2v5l11 2-11 2z"/></svg>
               </button>
@@ -790,9 +794,9 @@ export default function Channels() {
             <>
               <div className="ch-feed" ref={feedRef} onScroll={handleFeedScroll}>
                 {detailError && <p className="ch-inline-error" role="status">{detailError}</p>}
-                {detailLoading && messages.length === 0 && <p className="ch-empty-line">Chargement des messages…</p>}
+                {detailLoading && messages.length === 0 && <p className="ch-empty-line">{t('ch.loadingMessages')}</p>}
                 {!detailLoading && !detailError && messages.length === 0 && (
-                  <p className="ch-empty-line">Aucun message pour l’instant. Lancez la discussion.</p>
+                  <p className="ch-empty-line">{t('ch.noMessages')}</p>
                 )}
                 {messages.map((message) => (
                   <article className="ch-msg" key={message.id}>
@@ -821,8 +825,8 @@ export default function Channels() {
           ) : (
             <div className="ch-empty-conv">
               <span className="ch-empty-mark" aria-hidden="true">#</span>
-              <h2>Choisissez un canal</h2>
-              <p>Sélectionnez un canal public pour lire la conversation, ou créez le vôtre.</p>
+              <h2>{t('ch.choose')}</h2>
+              <p>{t('ch.select')}</p>
               <button
                 type="button"
                 className="ch-btn-primary"
@@ -831,7 +835,7 @@ export default function Channels() {
                   setCreateError('');
                 }}
               >
-                Créer un canal
+                {t('ch.create')}
               </button>
             </div>
           )}

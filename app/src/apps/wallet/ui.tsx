@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { IconCheck, IconCopy, IconEye, IconLock, IconShield, IconWarning } from './icons';
+import { useT } from '../../lib/i18n';
 
 export async function copyText(text: string): Promise<boolean> {
   try {
@@ -37,11 +37,14 @@ type CopyButtonProps = {
 
 export function CopyButton({
   text,
-  label = 'Copier',
-  copiedLabel = 'Copié',
+  label,
+  copiedLabel,
   iconOnly = false,
   className = '',
 }: CopyButtonProps) {
+  const t = useT();
+  const copyLabel = label ?? t('wl.copy');
+  const doneLabel = copiedLabel ?? t('wl.copied');
   const [state, setState] = useState<'idle' | 'done' | 'fail'>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -59,7 +62,7 @@ export function CopyButton({
     timer.current = setTimeout(() => setState('idle'), 1800);
   };
 
-  const current = state === 'done' ? copiedLabel : state === 'fail' ? 'Copie impossible' : label;
+  const current = state === 'done' ? doneLabel : state === 'fail' ? t('wl.copyFail') : copyLabel;
   const classes = ['w-btn', 'small', 'ghost', iconOnly ? 'w-icon-btn' : '', className]
     .filter(Boolean)
     .join(' ');
@@ -110,15 +113,16 @@ export function Notice({
 }
 
 export function SafetyNotes() {
+  const t = useT();
   return (
-    <section className="w-safety" aria-label="Avertissements de sécurité">
+    <section className="w-safety" aria-label={t('wl.safetyAria')}>
       <div className="w-safety-row">
         <span className="w-safety-icon">
           <IconLock size={17} />
         </span>
         <p>
-          <strong>Mot de passe perdu ou phrase perdue = fonds perdus.</strong> Aucune récupération
-          serveur.
+          <strong>{t('wl.safety1')}</strong>
+          {t('wl.safety1rest')}
         </p>
       </div>
       <div className="w-safety-row">
@@ -126,8 +130,8 @@ export function SafetyNotes() {
           <IconEye size={17} />
         </span>
         <p>
-          <strong>Les RPC publics voient ton adresse.</strong> Le solde et les transactions passent
-          par un nœud public.
+          <strong>{t('wl.safety2')}</strong>
+          {t('wl.safety2rest')}
         </p>
       </div>
     </section>
@@ -135,9 +139,10 @@ export function SafetyNotes() {
 }
 
 export function TechDetails({ text }: { text: string }) {
+  const t = useT();
   return (
     <details className="w-tech">
-      <summary>Détail technique</summary>
+      <summary>{t('wl.techDetails')}</summary>
       <code>{text}</code>
     </details>
   );

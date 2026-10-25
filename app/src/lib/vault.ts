@@ -99,6 +99,16 @@ function open(key: Uint8Array, blob: string): Vault {
   return JSON.parse(dec(plain));
 }
 
+export class VaultError extends Error {
+  code: string;
+
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = 'VaultError';
+    this.code = code;
+  }
+}
+
 async function api(path: string, body?: unknown, method = body ? 'POST' : 'GET') {
   const res = await fetch(path, {
     method,
@@ -110,9 +120,9 @@ async function api(path: string, body?: unknown, method = body ? 'POST' : 'GET')
   try {
     data = text ? JSON.parse(text) : {};
   } catch {
-    throw new Error('Réponse du serveur invalide.');
+    throw new VaultError('Réponse du serveur invalide.', 'invalid');
   }
-  if (!res.ok) throw new Error((data.error as string) || `Erreur ${res.status}`);
+  if (!res.ok) throw new VaultError((data.error as string) || `Erreur ${res.status}`, (data.code as string) || String(res.status));
   return data;
 }
 
@@ -259,6 +269,15 @@ export function useAutoRestore() {
   useEffect(() => {
     restore();
   }, []);
+}
+
+/** Une session est-elle enregistrée pour cet onglet ? Permet le rendu immédiat. */
+export function hasStoredSession(): boolean {
+  try {
+    return Boolean(sessionStorage.getItem(SS_KEY));
+  } catch {
+    return false;
+  }
 }
 
 export function recoveryCode(): string | null {

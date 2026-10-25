@@ -7,6 +7,7 @@ import { CopyButton, Notice } from './ui';
 import { IconRefresh } from './icons';
 import ChainLogo from './chainIcons';
 import { formatEur, type Market } from './prices';
+import { useT } from '../../lib/i18n';
 
 type Props = {
   address: `0x${string}`;
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export default function BalanceCard({ address, chain, balance, loading, error, onRefresh, market }: Props) {
+  const t = useT();
   const [qr, setQr] = useState<string | null>(null);
   const [qrError, setQrError] = useState(false);
 
@@ -51,15 +53,15 @@ export default function BalanceCard({ address, chain, balance, loading, error, o
       : null;
 
   return (
-    <section className="w-card w-balance-card" aria-label="Solde du portefeuille" aria-busy={loading}>
+    <section className="w-card w-balance-card" aria-label={t('wl.balance')} aria-busy={loading}>
       <div className="w-balance-head">
         <div className="w-balance-main">
           <div className="w-balance-caption">
             <ChainLogo chain={chain} size={16} className="inline" />
-            <span>Solde</span>
+            <span>{t('wl.balance')}</span>
             <span className="w-dot" />
             <span>{chain.name}</span>
-            {chain.testnet && <span className="w-testnet">test</span>}
+            {chain.testnet && <span className="w-testnet">{t('wl.testShort')}</span>}
           </div>
           <div className="w-balance-value" title={exact ? `${exact} ${chain.symbol}` : undefined}>
             {shown}
@@ -74,21 +76,19 @@ export default function BalanceCard({ address, chain, balance, loading, error, o
                   {market.change24h >= 0 ? '▲' : '▼'} {Math.abs(market.change24h).toFixed(1)} % · 24 h
                 </span>
               )}
-              {market && <span className="w-unit">{`1 ${market.symbol} ≈ ${formatEur(market.priceEur)}`}</span>}
+              {market && <span className="w-unit">{t('wl.oneUnit', { sym: market.symbol, price: formatEur(market.priceEur) })}</span>}
             </div>
           )}
           <p className="w-balance-hint">
-            {market && !chain.testnet
-              ? 'Prix en direct via CoinGecko, actualisé chaque minute.'
-              : 'Même adresse sur tous les réseaux EVM listés.'}
+            {market && !chain.testnet ? t('wl.livePrice') : t('wl.sameAddr')}
           </p>
         </div>
-        <div className="w-qr-wrap" aria-label="QR code de réception">
+        <div className="w-qr-wrap" aria-label={t('wl.receiveQr')}>
           {qr ? (
-            <img src={qr} alt={`QR code de l'adresse ${address}`} width={360} height={360} />
+            <img src={qr} alt={t('wl.qrAlt', { address })} width={360} height={360} />
           ) : (
             <div className="w-qr-empty">
-              {qrError ? 'QR indisponible' : <span className="w-spinner" aria-hidden="true" />}
+              {qrError ? t('wl.qrUnavailable') : <span className="w-spinner" aria-hidden="true" />}
             </div>
           )}
         </div>
@@ -99,33 +99,33 @@ export default function BalanceCard({ address, chain, balance, loading, error, o
         <CopyButton
           text={address}
           iconOnly
-          label="Copier l'adresse"
-          copiedLabel="Adresse copiée"
+          label={t('wl.copyAddress')}
+          copiedLabel={t('wl.addressCopied')}
         />
         <button
           type="button"
           className="w-icon-btn"
           onClick={onRefresh}
           disabled={loading}
-          aria-label="Rafraîchir le solde"
-          title="Rafraîchir le solde"
+          aria-label={t('wl.refreshBalance')}
+          title={t('wl.refreshBalance')}
         >
           <IconRefresh size={17} />
         </button>
       </div>
       <div className="w-addr-caption">
-        Scanne le QR code ou copie l'adresse pour recevoir des fonds sur {chain.name}.
+        {t('wl.scanHint', { chain: chain.name })}
       </div>
 
       {error && (
         <div className="w-balance-error">
-          <Notice tone="danger" title="Solde indisponible">
+          <Notice tone="danger" title={t('wl.soldeUnavailable')}>
             <p>{error}</p>
             <p className="w-rpc">
-              RPC : <code>{chain.rpc}</code>
+              {t('wl.rpcLabel')} <code>{chain.rpc}</code>
             </p>
             <button type="button" className="w-btn small ghost" onClick={onRefresh}>
-              Réessayer
+              {t('wl.retry')}
             </button>
           </Notice>
         </div>

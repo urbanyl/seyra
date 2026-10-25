@@ -905,7 +905,7 @@ export function ShareTile({ stream, name, onStop, onClose, local }: {
             <IconEyeOff size={15} />
           </button>
           {local ? (
-            <button type="button" className="sc-btn danger" onClick={onStop || onClose} title={t('act.stopShare')} aria-label="Arrêter le partage">
+            <button type="button" className="sc-btn danger" onClick={onStop || onClose} title={t('act.stopShare')} aria-label={t('act.stopShare')}>
               <IconX size={15} />
             </button>
           ) : (

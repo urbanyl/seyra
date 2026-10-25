@@ -5,6 +5,15 @@
 .app-pane { min-width: 0; }
 .app-main { min-width: 0; }
 
+/* La marque est un lien : pas de soulignement ni de couleur « hyperlink ». */
+.app-frame .side-brand,
+.app-frame .side-brand strong,
+.app-frame .side-brand span {
+  text-decoration: none;
+  color: inherit;
+}
+.app-frame .side-brand span { color: var(--muted); }
+
 /* ---------- zone de contenu : fond de conversation, défilement propre ---------- */
 .app-body {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
@@ -49,8 +58,32 @@
 /* ---------- états vides dans la zone de contenu ---------- */
 .app-empty { margin: auto; }
 
-/* ---------- mobile : le bouton liste ouvre la feuille latérale ---------- */
+/* ---------- mobile : le cadre doit être aussi confortable que la messagerie ---------- */
 @media (max-width: 860px) {
   .app-body { padding: 10px 10px 12px; }
   .app-body--fixed { padding: 0; }
+  .pane-head { gap: 8px; }
+  .pane-title { min-width: 0; }
+  .pane-title h2 { font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pane-title p { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pane-actions { gap: 4px; flex: none; }
+  .pane-actions .wiki-button { padding: 8px 10px; font-size: 13px; }
+  .side-quick { padding: 10px 10px 2px; }
+  .side-stats { margin: 8px 10px 0; gap: 5px; }
+  .code-card { margin: 10px 10px 4px; }
+  .app-row { min-height: 54px; }
+  .app-row .participant-name > span:first-child { font-size: 14.5px; }
+  .app-bottom { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  /* évite le zoom automatique d'iOS à la saisie */
+  .app-bottom textarea,
+  .app-bottom input,
+  .app-frame .side input,
+  .app-frame .side select,
+  .app-frame .side textarea { font-size: 16px; }
+  .app-note { text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .app-frame .stack .avatar { margin-left: -10px; }
+  .app-frame .stack .avatar:first-child { margin-left: 0; }
 }
