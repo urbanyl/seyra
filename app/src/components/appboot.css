@@ -1,0 +1,21 @@
+/* Écran d'attente AppBoot : topbar + carte centrée. */
+
+.appboot {
+  min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
+  background: var(--bg, #0c1116); color: var(--txt, #e9eef2);
+}
+.appboot-body { flex: 1; display: grid; place-items: center; padding: 24px; }
+.appboot-card {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 34px 44px; border: 1px solid var(--line, rgba(255,255,255,0.08));
+  border-radius: 18px; background: var(--panel, #11181f);
+}
+.appboot-card svg { color: var(--accent, #00b2ff); }
+.appboot-card p { margin: 0; color: var(--muted, #9aa7b1); font-size: 14px; }
+.appboot-spinner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.14); border-top-color: var(--accent, #00b2ff);
+  animation: appboot-spin 0.9s linear infinite;
+}
+@keyframes appboot-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .appboot-spinner { animation-duration: 2.4s; } }

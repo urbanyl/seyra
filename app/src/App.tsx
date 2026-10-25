@@ -1020,7 +1020,7 @@ export default function App() {
           prefillCode={prefillCode}
         />
         {lockedCode && (
-          <Modal title="Session protégée" onClose={() => { setLockedCode(''); setLockedPwd(''); }} width={400}>
+          <Modal title={t('lock.protected')} onClose={() => { setLockedCode(''); setLockedPwd(''); }} width={400}>
             <p className="muted">Cette session demande un mot de passe. Il doit vous avoir été communiqué avec le code.</p>
             <div className="modal-field">
               <input

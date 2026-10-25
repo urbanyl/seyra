@@ -815,7 +815,7 @@ h1, h2, h3, p { margin: 0; }
 }
 
 
-/* ---------- Seyra 2.0 : �pingles, mentions, aide ---------- */
+/* ---------- Seyra 2.0 : épingles, mentions, aide ---------- */
 .pin-bar {
   display: flex; align-items: center; gap: 10px; margin: 8px 14px 0; padding: 8px 8px 8px 12px;
   border-radius: 12px; background: rgba(0,178,255,0.12); border: 1px solid rgba(0,178,255,0.28);
@@ -839,7 +839,7 @@ kbd { font: 12px ui-monospace, Consolas, monospace; padding: 3px 7px; border-rad
 .msg.out .mention { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 .msg.out .mention-me { background: rgba(255,255,255,0.22); }
 
-/* ---------- Seyra 2.0 : sondages, fil, note partag�e ---------- */
+/* ---------- Seyra 2.0 : sondages, fil, note partagée ---------- */
 .poll { display: flex; flex-direction: column; gap: 6px; min-width: 230px; padding: 2px 2px 0; }
 .poll-q { font-weight: 600; font-size: 14.5px; margin-bottom: 4px; }
 .poll-opt {
@@ -866,7 +866,7 @@ kbd { font: 12px ui-monospace, Consolas, monospace; padding: 3px 7px; border-rad
 
 
 
-/* ---------- petit �cran : en-t�te de session sans chevauchement ---------- */
+/* ---------- petit écran : en-tête de session sans chevauchement ---------- */
 @media (max-width: 480px) {
   .pane-head { gap: 6px; }
   .pane-title { min-width: 0; }
@@ -876,7 +876,7 @@ kbd { font: 12px ui-monospace, Consolas, monospace; padding: 3px 7px; border-rad
   .pane-actions .icon-btn svg, .call-btn svg { width: 17px; height: 17px; }
 }
 
-/* ---------- Seyra 2.2 : cam�ras, �dition, lecture, animateurs, recherche ---------- */
+/* ---------- Seyra 2.2 : caméras, édition, lecture, animateurs, recherche ---------- */
 .cam-rail { position: fixed; left: 14px; bottom: calc(150px + env(safe-area-inset-bottom)); z-index: 45; display: flex; flex-direction: column; gap: 8px; width: 200px; }
 .cam-tile { position: relative; border-radius: 12px; overflow: hidden; background: #05080b; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 10px 28px rgba(0,0,0,0.45); aspect-ratio: 16 / 10; }
 .cam-tile video { width: 100%; height: 100%; object-fit: cover; transform: none; }

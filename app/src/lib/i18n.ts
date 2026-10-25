@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export type Lang = 'en' | 'fr' | 'zh' | 'ru' | 'ko';
+export type Lang = 'en' | 'fr' | 'zh' | 'ru' | 'ko' | 'ar';
 
 export const LANGS: { id: Lang; label: string; flag: string; name: string }[] = [
   { id: 'en', label: 'EN', flag: '🇬🇧', name: 'English' },
@@ -8,6 +8,7 @@ export const LANGS: { id: Lang; label: string; flag: string; name: string }[] = 
   { id: 'zh', label: '中文', flag: '🇨🇳', name: '中文' },
   { id: 'ru', label: 'RU', flag: '🇷🇺', name: 'Русский' },
   { id: 'ko', label: '한국어', flag: '🇰🇵', name: '한국어' },
+  { id: 'ar', label: 'AR', flag: '🇸🇦', name: 'العربية' },
 ];
 
 const KEY = 'seyra.lang';
@@ -29,6 +30,7 @@ export function setLang(l: Lang) {
   current = l;
   try { localStorage.setItem(KEY, l); } catch { /* stockage indisponible */ }
   document.documentElement.lang = l;
+  document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
   for (const fn of subs) fn();
 }
 
@@ -313,10 +315,123 @@ const ko: Dict = {
   'common.cancel': '취소', 'common.save': '저장', 'common.delete': '삭제', 'common.close': '닫기', 'common.back': '뒤로',
 };
 
-const DICT: Record<Lang, Dict> = { en, fr, zh, ru, ko };
+const ar: Dict = {
+  'nav.features': 'الميزات', 'nav.how': 'كيف يعمل', 'nav.security': 'الأمان', 'nav.news': 'الجديد', 'nav.open': 'فتح', 'nav.home': 'الرئيسية',
+  'announce.title': 'خاص افتراضيًا. لا يبقى شيء.',
+  'announce.text': 'جلسات مشفرة، مكالمات جماعية، كاميرا ومشاركة الشاشة. بدون حساب.',
+  'announce.cta': 'اكتشف الجديد',
+  'hero.eyebrow': 'رسائل خاصة، بدون حساب',
+  'hero.h1a': 'جلسة واحدة.', 'hero.h1b': 'رمز واحد.', 'hero.h1c': 'لا شيء يبقى.',
+  'hero.lede': 'يفتح Seyra محادثات خاصة مشفرة على جهازك. شارك رمزًا، فينضم الآخرون، وتنتهي الجلسة عندما تقرر.',
+  'hero.cta1': 'افتح جلسة', 'hero.cta2': 'انضم برمز',
+  'hero.p1': 'بدون حساب', 'hero.p2': 'بدون سجل', 'hero.p3': 'مكالمات جماعية',
+  'mock.title': 'جلسة خاصة', 'mock.online': '3 متصلين', 'mock.q': 'من يحضر المخططات؟',
+  'mock.a': 'أرسلها، وتبقى مشفرة.', 'mock.poll': 'بيتزا الليلة؟', 'mock.yes': 'نعم', 'mock.no': 'لا', 'mock.foot': 'الخادم لا يرى شيئًا',
+  'feat.kicker': 'الميزات', 'feat.h2': 'ما يهم',
+  'f1.t': 'بدون حساب', 'f1.d': 'بدون تسجيل أو رقم هاتف أو بريد إلكتروني. افتح جلسة وانتهى الأمر.',
+  'f2.t': 'مشفر على جهازك', 'f2.d': 'يُشتق المفتاح من الرمز. تُختم الرسائل قبل مغادرة المتصفح.',
+  'f3.t': 'مؤقت', 'f3.d': 'لا شيء يُكتب على القرص. إغلاق الجلسة يمحو كل شيء للجميع.',
+  'f4.t': 'مكالمات وكاميرا', 'f4.d': 'صوت بين الأقران، كاميرا ومشاركة شاشة مع الصوت. اكتم الميكروفون أو السماعات في أي وقت.',
+  'f5.t': 'استطلاعات وسلاسل', 'f5.d': 'ابدأ استطلاعًا بأمر واحد، وردّ في سلسلة. تبقى الأصوات مشفرة.',
+  'f6.t': 'إشعارات القراءة', 'f6.d': 'اختيارية، تُحدد عند إنشاء الجلسة. معطلة افتراضيًا.',
+  'how.kicker': 'كيف', 'how.h2': 'ثلاث خطوات',
+  's1.t': 'افتح جلسة', 's1.d': 'يظهر رمز من 12 حرفًا. إنه المفتاح.',
+  's2.t': 'شاركه', 's2.d': 'رابط أو رمز أو رمز QR، كما تشاء.',
+  's3.t': 'تحدث', 's3.d': 'رسائل ومكالمات، وغيّر اسمك في أي وقت.',
+  'sec.kicker': 'الأمان', 'sec.h2': 'ما المشفر، وكيف',
+  'sec1.t': 'مفتاح من الرمز', 'sec1.d': 'PBKDF2-SHA256، 210,000 تكرار. لا يُرسل الرمز إلى الخادم أبدًا.',
+  'sec2.t': 'رسائل مختومة', 'sec2.d': 'XSalsa20-Poly1305 مع nonce عشوائي لكل رسالة.',
+  'sec3.t': 'بلا سجلات', 'sec3.d': 'تعيش الجلسات في الذاكرة. إعادة التشغيل تمحو كل شيء.',
+  'sec4.t': 'مكالمات مشفرة', 'sec4.d': 'WebRTC، تشفير وسائط DTLS-SRTP، ومرحّل TURN للشبكات المقيدة.',
+  'sec.link': 'اقرأ الملف التقني الكامل: الأساسيات، الحدود، الأرقام، نموذج التهديد ←',
+  'final.h2': 'افتح جلسة الآن.', 'final.cta': 'افتح جلسة', 'share.title': 'شارك Seyra', 'share.copy': 'نسخ الرابط', 'share.copied': 'تم نسخ الرابط',
+  'news.kicker': 'الجديد', 'news.h1': 'ما تغيّر', 'news.lede': 'تُختبر كل نسخة قبل النشر. الأحدث أولًا.', 'news.latest': 'الأحدث',
+  'common.pseudo': 'اسمك', 'common.pseudoPh': 'ضيف (افتراضي)',
+  'create.title': 'افتح جلسة', 'create.desc': 'يظهر رمز. شاركه للدردشة.',
+  'join.title': 'انضم إلى جلسة', 'join.desc': 'أدخل الرمز الذي أُعطي لك.',
+  'create.password': 'احمِ الجلسة بكلمة مرور', 'create.passwordLabel': 'كلمة مرور الجلسة', 'create.passwordPh': 'شاركها مع الضيوف',
+  'create.passwordHint': 'لا تُرسل إلى الخادم أبدًا: تُدمج في مفتاح التشفير.',
+  'create.history': 'اسمح للقادمين برؤية السجل', 'create.historyOn': 'سيرى المنضمون الرسائل المرسلة سابقًا.', 'create.historyOff': 'افتراضيًا لا يرى القادم شيئًا قيل قبل وصوله.',
+  'create.receipts': 'إشعارات القراءة', 'create.receiptsOn': 'يرى الجميع من قرأ ماذا. هذا الخيار ظاهر للجميع.', 'create.receiptsOff': 'معطلة: لا يرى أحد من قرأ ماذا.',
+  'join.codeLabel': 'رمز الجلسة', 'join.codePh': 'ABCD-EFGH-IJKL', 'join.join': 'انضم', 'join.back': 'رجوع', 'join.password': 'كلمة مرور الجلسة', 'join.busy': 'جارٍ الاتصال…',
+  'app.brandSub': 'جلسة خاصة', 'app.appearance': 'المظهر', 'app.invite': 'دعوة', 'app.code': 'رمز الجلسة', 'app.codeNote': 'هذا الرمز هو المفتاح. أي شخص يملكه يمكنه الانضمام.',
+  'app.copyCode': 'الرمز', 'app.copyLink': 'رابط الدعوة', 'app.linkCopied': 'تم نسخ الرابط', 'app.participants': 'المشاركون', 'app.duration': 'المدة', 'app.messages': 'الرسائل', 'app.files': 'الملفات',
+  'app.closeSession': 'أغلق الجلسة', 'app.closeNote': 'الإغلاق يمحو كل شيء لجميع المشاركين.', 'app.owner': 'المالك',
+  'chat.placeholder': 'رسالة مشفرة…', 'chat.reply': 'رد…', 'chat.send': 'إرسال', 'chat.voice': 'سجّل رسالة صوتية',
+  'chat.search': 'ابحث في هذه الجلسة', 'chat.allSenders': 'كل المرسلين', 'chat.allTypes': 'كل الأنواع', 'chat.you': 'أنت',
+  'settings.title': 'تخصيص', 'settings.theme': 'السمة', 'settings.wallShared': 'خلفية المحادثة — للجميع', 'settings.wallSharedHint': 'يُطبق النمط على الجلسة: يراه الجميع. أبقِه خفيفًا لسهولة القراءة.',
+  'settings.wallPersonal': 'خلفية شخصية — لك وحدك، لا تُرسل أبدًا', 'settings.textSize': 'حجم النص', 'settings.small': 'صغير', 'settings.normal': 'عادي', 'settings.large': 'كبير',
+  'settings.comfort': 'الراحة', 'settings.compact': 'كثافة مضغوطة', 'settings.compactHint': 'رسائل أكثر على الشاشة', 'settings.discreet': 'الوضع الحذر', 'settings.discreetHint': 'يضباب النص حتى تمرر المؤشر', 'settings.sound': 'أصوات الرسائل', 'settings.soundHint': 'صفير قصير عند كل رسالة جديدة',
+  'settings.import': 'استيراد صورة',
+  'help.title': 'الاختصارات', 'help.send': 'أرسل الرسالة', 'help.newline': 'سطر جديد', 'help.find': 'ابحث في هذه الجلسة', 'help.paste': 'الصق صورة أو ملفًا', 'help.escape': 'أغلق نافذة، اخرج من ملء الشاشة', 'help.help': 'اعرض هذه المساعدة', 'help.poll': 'سؤال | خيار | خيار: استطلاع بخيار واحد',
+  'common.cancel': 'إلغاء', 'common.save': 'حفظ', 'common.delete': 'حذف', 'common.close': 'إغلاق', 'common.back': 'رجوع',
+};
+
+const DICT: Record<Lang, Dict> = { en, fr, zh, ru, ko, ar };
+
+Object.assign(DICT.ar, {
+  'wall.none': 'سادة', 'wall.dots': 'نقاط', 'wall.grid': 'شبكة', 'wall.lines': 'خطوط', 'wall.cross': 'صلبان', 'wall.bubbles': 'فقاعات', 'wall.waves': 'أمواج', 'wall.arcs': 'أقواس',
+  'wall.signature': 'توقيع',
+  'chat.sessionTitle': 'جلسة خاصة', 'chat.connected': 'متصل', 'chat.online': 'متصل', 'chat.connecting': 'جارٍ الاتصال…', 'chat.offline': 'غير متصل',
+  'chat.results': 'نتائج', 'chat.e2e': 'مشفر على هذا الجهاز بالمفتاح المشتق من الرمز. الخادم لا يرى شيئًا.', 'chat.noResult': 'لا نتائج',
+  'chat.open': 'الجلسة مفتوحة', 'chat.tryOther': 'جرّب كلمة أخرى.', 'chat.openHint': 'شارك الرمز لدعوة شخص. كل شيء يختفي عند إغلاق الجلسة.',
+  'chat.guest': 'ضيف', 'app.remove': 'إزالة', 'app.copied': 'تم النسخ', 'time.today': 'اليوم', 'time.yesterday': 'أمس',
+  'poll.new': 'استطلاع جديد', 'poll.question': 'السؤال', 'poll.options': 'الخيارات', 'poll.removeOption': 'إزالة الخيار',
+  'poll.add': 'إضافة خيار', 'poll.hint': 'الأصوات مشفرة. يمكن لكل مشارك التصويت، والنقر مرة أخرى يزيل صوته.', 'poll.create': 'إنشاء استطلاع',
+  'edit.title': 'تعديل الرسالة', 'edit.hint': 'سيرى الآخرون النص المعدّل، مع علامة «معدّل». لا يُحتفظ بالأصل.',
+  'chat.replyTo': 'رد', 'chat.copy': 'نسخ', 'chat.replyingTo': 'الرد على', 'chat.mentionList': 'مشاركون للإشارة إليهم', 'chat.pinnedList': 'الرسائل المثبتة',
+  'thread.title': 'سلسلة', 'thread.root': 'الرسالة الأصلية',
+  'poll.example': 'بيتزا الليلة؟',
+  'settings.tip': 'نصيحة: زر الشاشة في الرأس يشارك شاشتك أثناء مكالمة.',
+  'wall.matrix': 'مصفوفة', 'wall.cracks': 'أرض متشققة', 'wall.plates': 'بلاط',
+  'settings.wallPersonalLabel': 'خلفية المحادثة', 'settings.wallPersonalHint': 'على هذا الجهاز فقط، محفوظة في متصفحك. لا يُرسل شيء إلى الجلسة.',
+  'invite.copyFail': 'تعذر النسخ: حدد الرابط يدويًا.', 'invite.copied': 'تم نسخ الرابط', 'invite.copyLink': 'نسخ الرابط',
+  'invite.hideQr': 'إخفاء رمز QR', 'invite.showQr': 'إظهار رمز QR', 'invite.title': 'دعوة',
+  'invite.hint': 'يفتح الرابط ورمز QR التطبيق مع الرمز معبأً مسبقًا.', 'invite.close': 'إغلاق',
+  'rename.title': 'اسمك', 'rename.hint': 'سيراه المشاركون الآخرون. يمكنك تغييره في أي وقت.',
+  'code.title': 'الجلسة مفتوحة', 'code.hint': 'شارك هذا الرمز. إنه مفتاح التشفير: بدونه لا يمكن قراءة الرسائل.',
+  'code.copy': 'نسخ', 'code.copied': 'تم النسخ', 'code.trust': 'شاركه فقط عبر قناة تثق بها.', 'code.start': 'لنبدأ',
+  'kick.title': 'إزالة', 'kick.hint': 'سيُفصل هذا المشارك ولن يتمكن من العودة إلى هذه الجلسة.', 'kick.confirm': 'إزالة',
+  'close.title': 'إغلاق الجلسة؟', 'close.hint': 'ستُمحى كل الرسائل نهائيًا، لك وللمشاركين الآخرين.', 'close.confirm': 'أغلق وامحُ',
+  'help.enter': 'أرسل الرسالة', 'help.newline': 'سطر جديد', 'help.find': 'ابحث في هذه الجلسة', 'help.paste': 'الصق صورة أو ملفًا',
+  'help.escape': 'أغلق نافذة، اخرج من ملء الشاشة', 'help.help': 'اعرض هذه المساعدة', 'help.poll': 'سؤال | خيار | خيار: استطلاع بخيار واحد',
+  'notice.joined': 'انضم {name} إلى الجلسة', 'notice.left': 'غادر {name} الجلسة', 'notice.kicked': 'أُزيل {name} من الجلسة',
+  'notice.closed': 'أُغلقت الجلسة. مُحيت الرسائل.', 'notice.removed': 'أزالك المالك من الجلسة.',
+  'err.sessionUnavailable': 'الجلسة غير متاحة.', 'err.createFailed': 'تعذر إنشاء الجلسة.', 'err.voiceTooLong': 'الرسالة الصوتية طويلة جدًا. جرّب رسالة أقصر.',
+  'share.watch': 'شاهد واستمع إلى هذه المشاركة', 'share.reopen': 'أعد فتح مشاركة',
+  'type.text': 'نص', 'type.photo': 'صور', 'type.video': 'فيديو', 'type.file': 'ملفات', 'type.voice': 'صوت', 'type.poll': 'استطلاعات',
+  'ttl.perm': 'دائم', 'ttl.s30': '30 ثانية', 'ttl.m1': 'دقيقة واحدة', 'ttl.m5': '5 دقائق', 'ttl.m15': '15 دقيقة', 'ttl.h1': 'ساعة واحدة',
+  'poll.incomplete': 'استطلاع غير مكتمل. الصيغة:', 'poll.votes': 'أصوات', 'poll.choose': 'اختر خيارًا', 'poll.removeVote': 'انقر مرة أخرى لإزالة صوتك',
+  'call.leave': 'مغادرة المكالمة', 'call.voice': 'مكالمة صوتية', 'call.incoming': 'بدأ {name} مكالمة صوتية',
+  'pin.goto': 'اذهب إلى الرسالة المثبتة', 'pin.unpin': 'إلغاء التثبيت', 'pin.pin': 'تثبيت', 'react.add': 'أضف تفاعلًا',
+  'attach.file': 'أرفق ملفًا', 'attach.photoLight': 'صورة · خفيفة', 'attach.photoBalanced': 'صورة · متوازنة',
+  'attach.photoMax': 'صورة · أعلى جودة', 'attach.photoOriginal': 'صورة · أصلية',
+  'qr.failed': 'تعذر إنشاء رمز QR.', 'qr.loading': 'جارٍ إنشاء رمز QR…', 'qr.alt': 'رمز QR للدعوة',
+  'edit.action': 'تعديل', 'ttl.badge': 'رسالة مؤقتة', 'reply.cancel': 'إلغاء الرد', 'rec.cancel': 'إلغاء التسجيل',
+  'voice.unreadable': 'غير قابل للقراءة', 'voice.oldFormat': 'لا يستطيع هذا المتصفح تشغيل هذه الصيغة القديمة',
+  'select.enter': 'اختر الرسائل', 'select.exit': 'إلغاء التحديد', 'select.count': '{n} محدد', 'select.copy': 'نسخ', 'select.delete': 'حذف',
+  'select.none': 'لم تُحدد أي رسالة', 'select.copied': 'تم نسخ {n} رسالة', 'select.copyFail': 'تعذر نسخ التحديد',
+  'help.navKeys': 'J / K: الرسالة التالية / السابقة',
+  'wait.title': 'في انتظار الموافقة', 'wait.hint': 'يجب أن يسمح لك مالك الجلسة بالدخول.', 'wait.pending': 'في الانتظار',
+  'wait.admit': 'اسمح بالدخول', 'wait.deny': 'رفض', 'wait.toggle': 'غرفة الانتظار', 'wait.toggleHint': 'يوافق المالك على كل قادم جديد.',
+  'wait.admitted': 'يمكنك الدخول الآن.', 'wait.denied': 'لم يسمح لك المالك بالدخول.',
+  'owner.make': 'اجعله مالكًا', 'owner.badge': 'مالك', 'owner.changed': 'أصبح {name} المالك الآن',
+  'settings.colorblind': 'مناسب لعمى الألوان', 'settings.colorblindHint': 'أزرق وبرتقالي بدل الأخضر والأحمر', 'theme.contrast': 'تباين عالٍ',
+  'poll.noVotes': 'لا أصوات', 'msg.voice': 'رسالة صوتية', 'ttl.titleOn': 'تختفي هذه الرسالة للجميع بعد هذه المدة',
+  'ttl.titleOff': 'تبقى هذه الرسالة في الجلسة', 'rec.hint': 'رسالة صوتية…', 'rec.send': 'أرسل الرسالة الصوتية', 'rec.start': 'سجّل رسالة صوتية',
+  'search.close': 'أغلق البحث', 'share.close': 'إغلاق: التوقف عن رؤية وسماع هذه المشاركة',
+  'board.title': 'لوح أبيض', 'board.hint': 'الخطوط مشفرة وتختفي مع الجلسة.', 'board.clear': 'مسح', 'board.close': 'إغلاق', 'board.open': 'لوح أبيض',
+  'transcribe.start': 'إملاء', 'transcribe.stop': 'إيقاف الإملاء', 'transcribe.local': 'يعمل على هذا الجهاز', 'transcribe.unsupported': 'غير متاح على هذا المتصفح',
+  'whisper.toggle': 'همس', 'whisper.to': 'إلى', 'whisper.hint': 'هذا الشخص وحده يستلمها. لا تُخزن.', 'whisper.badge': 'همس',
+  'ghost.option': 'جلسة شبح', 'ghost.hint': 'تُغلق تلقائيًا بعد مغادرة المنشئ', 'ghost.min': '{n} دقيقة', 'ghost.off': 'معطلة',
+  'ghost.banner': 'غادر المنشئ. تُغلق الجلسة خلال', 'ghost.closed': 'أُغلقت الجلسة بعد مغادرة المنشئ.', 'panic.done': 'غادرت الجلسة.',
+});
 
 // langue du document au chargement
-if (typeof document !== 'undefined') document.documentElement.lang = current;
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = current;
+  document.documentElement.dir = current === 'ar' ? 'rtl' : 'ltr';
+}
 
 /* Libellés des motifs de fond (ajoutés après le dictionnaire principal). */
 Object.assign(DICT.en, { 'wall.none': 'Plain', 'wall.dots': 'Dots', 'wall.grid': 'Grid', 'wall.lines': 'Lines', 'wall.cross': 'Crosses', 'wall.bubbles': 'Bubbles', 'wall.waves': 'Waves', 'wall.arcs': 'Arcs' });
@@ -523,7 +638,40 @@ Object.assign(DICT.ru, {"select.enter":"Выбрать сообщения","sele
 Object.assign(DICT.ko, {"select.enter":"메시지 선택","select.exit":"선택 취소","select.count":"{n}개 선택됨","select.copy":"복사","select.delete":"삭제","select.none":"선택된 메시지 없음","select.copied":"메시지 {n}개 복사됨","select.copyFail":"선택 항목을 복사할 수 없습니다","help.navKeys":"J / K: 다음 / 이전 메시지","wait.title":"승인 대기 중","wait.hint":"세션 소유자가 입장을 허용해야 합니다.","wait.pending":"대기 중","wait.admit":"입장 허용","wait.deny":"거절","wait.toggle":"대기실","wait.toggleHint":"소유자가 새 참가자를 한 명씩 승인합니다.","wait.admitted":"이제 입장할 수 있습니다.","wait.denied":"소유자가 입장을 허용하지 않았습니다.","owner.make":"소유자로 지정","owner.badge":"소유자","owner.changed":"{name} 님이 소유자가 되었습니다","settings.colorblind":"색약 친화","settings.colorblindHint":"초록·빨강 대신 파랑·주황 사용","theme.contrast":"고대비"});
 
 Object.assign(DICT.en, {"board.title":"Whiteboard","board.hint":"Strokes are encrypted and disappear with the session.","board.clear":"Clear","board.close":"Close","board.open":"Whiteboard","transcribe.start":"Dictate","transcribe.stop":"Stop dictation","transcribe.local":"Runs on this device","transcribe.unsupported":"Not available on this browser","whisper.toggle":"Whisper","whisper.to":"To","whisper.hint":"Only this person receives it. Not stored.","whisper.badge":"whisper","ghost.option":"Ghost session","ghost.hint":"Closes automatically after the creator leaves","ghost.min":"{n} min","ghost.off":"Off","ghost.banner":"Creator left. Session closes in","ghost.closed":"The session closed after the creator left.","panic.done":"Left the session."});
-Object.assign(DICT.fr, {"board.title":"Tableau blanc","board.hint":"Les traits sont chiffr�s et disparaissent avec la session.","board.clear":"Effacer","board.close":"Fermer","board.open":"Tableau blanc","transcribe.start":"Dicter","transcribe.stop":"Arr�ter la dict�e","transcribe.local":"Fonctionne sur cet appareil","transcribe.unsupported":"Indisponible sur ce navigateur","whisper.toggle":"Chuchoter","whisper.to":"�","whisper.hint":"Seule cette personne le re�oit. Rien n�est stock�.","whisper.badge":"chuchotement","ghost.option":"Session fant�me","ghost.hint":"Se ferme automatiquement apr�s le d�part du cr�ateur","ghost.min":"{n} min","ghost.off":"Non","ghost.banner":"Le cr�ateur est parti. Fermeture dans","ghost.closed":"La session s�est ferm�e apr�s le d�part du cr�ateur.","panic.done":"Session quitt�e."});
+Object.assign(DICT.fr, {"board.title":"Tableau blanc","board.hint":"Les traits sont chiffrés et disparaissent avec la session.","board.clear":"Effacer","board.close":"Fermer","board.open":"Tableau blanc","transcribe.start":"Dicter","transcribe.stop":"Arrêter la dictée","transcribe.local":"Fonctionne sur cet appareil","transcribe.unsupported":"Indisponible sur ce navigateur","whisper.toggle":"Chuchoter","whisper.to":"À","whisper.hint":"Seule cette personne le reçoit. Rien n'est stocké.","whisper.badge":"chuchotement","ghost.option":"Session fantôme","ghost.hint":"Se ferme automatiquement après le départ du créateur","ghost.min":"{n} min","ghost.off":"Non","ghost.banner":"Le créateur est parti. Fermeture dans","ghost.closed":"La session s'est fermée après le départ du créateur.","panic.done":"Session quittée."});
 Object.assign(DICT.zh, {"board.title":"??","board.hint":"??????,????????","board.clear":"??","board.close":"??","board.open":"??","transcribe.start":"????","transcribe.stop":"??????","transcribe.local":"???????","transcribe.unsupported":"???????","whisper.toggle":"??","whisper.to":"??","whisper.hint":"???????,?????","whisper.badge":"??","ghost.option":"????","ghost.hint":"??????????","ghost.min":"{n} ??","ghost.off":"??","ghost.banner":"??????,???????????","ghost.closed":"????????????","panic.done":"??????"});
 Object.assign(DICT.ru, {"board.title":"?????","board.hint":"?????? ??????????? ? ???????? ?????? ? ???????.","board.clear":"????????","board.close":"???????","board.open":"?????","transcribe.start":"?????????","transcribe.stop":"?????????? ????????","transcribe.local":"???????? ?? ???? ??????????","transcribe.unsupported":"?????????? ? ???? ????????","whisper.toggle":"?????","whisper.to":"????","whisper.hint":"??????? ?????? ???? ???????. ?? ???????????.","whisper.badge":"?????","ghost.option":"??????-???????","ghost.hint":"??????????? ????????????? ????? ????? ?????????","ghost.min":"{n} ???","ghost.off":"????","ghost.banner":"????????? ????. ???????? ?????","ghost.closed":"?????? ????????? ????? ????? ?????????.","panic.done":"?? ????? ?? ??????."});
 Object.assign(DICT.ko, {"board.title":"?????","board.hint":"?? ????? ??? ?? ?????.","board.clear":"???","board.close":"??","board.open":"?????","transcribe.start":"????","transcribe.stop":"???? ??","transcribe.local":"? ???? ??","transcribe.unsupported":"? ??????? ??? ? ??","whisper.toggle":"???","whisper.to":"?? ??","whisper.hint":"? ??? ????. ???? ????.","whisper.badge":"???","ghost.option":"?? ??","ghost.hint":"???? ??? ???? ??","ghost.min":"{n}?","ghost.off":"?","ghost.banner":"???? ?????. ????","ghost.closed":"???? ?? ? ??? ?????.","panic.done":"???? ?????."});
+
+
+/* Applications de bureau et Android. */
+Object.assign(DICT.en, {"dl.kicker":"Apps","dl.title":"Seyra on desktop and Android","dl.sub":"The web version stays available. Same encryption, same sessions. Install it as an app and open it in one click.","dl.win":"Windows installer","dl.winNote":"Windows 10 / 11 · 64-bit · installs in your user folder, no admin","dl.android":"Android APK","dl.apkNote":"Android 6 and later · install directly","dl.version":"Version 2.4.3","dl.verify":"Verify (SHA-256)"});
+Object.assign(DICT.fr, {"dl.kicker":"Applications","dl.title":"Seyra sur ordinateur et sur Android","dl.sub":"La version web reste disponible. Même chiffrement, mêmes sessions. Installez-la comme une appli et ouvrez-la en un clic.","dl.win":"Installateur Windows","dl.winNote":"Windows 10 / 11 · 64 bits · installation dans votre dossier utilisateur, sans administrateur","dl.android":"APK Android","dl.apkNote":"Android 6 et plus · installation directe","dl.version":"Version 2.4.3","dl.verify":"Vérifier (SHA-256)"});
+Object.assign(DICT.zh, {"dl.kicker":"应用","dl.title":"在电脑和安卓上使用 Seyra","dl.sub":"网页版仍然可用。同样的加密，同样的会话。把它安装成应用，一键打开。","dl.win":"Windows 安装程序","dl.winNote":"Windows 10 / 11 · 64 位 · 安装到用户目录，无需管理员","dl.android":"Android APK","dl.apkNote":"Android 6 及以上 · 直接安装","dl.version":"版本 2.4.3","dl.verify":"校验 (SHA-256)"});
+Object.assign(DICT.ru, {"dl.kicker":"Приложения","dl.title":"Seyra на компьютере и на Android","dl.sub":"Веб-версия остаётся доступной. То же шифрование, те же сессии. Установите приложение и открывайте в один клик.","dl.win":"Установщик Windows","dl.winNote":"Windows 10 / 11 · 64 бита · установка в папку пользователя, без администратора","dl.android":"APK для Android","dl.apkNote":"Android 6 и новее · прямая установка","dl.version":"Версия 2.4.3","dl.verify":"Проверить (SHA-256)"});
+Object.assign(DICT.ko, {"dl.kicker":"앱","dl.title":"컴퓨터와 Android에서 Seyra","dl.sub":"웹 버전은 그대로 사용할 수 있습니다. 같은 암호화, 같은 세션. 앱으로 설치하면 한 번에 열 수 있습니다.","dl.win":"Windows 설치 프로그램","dl.winNote":"Windows 10 / 11 · 64비트 · 사용자 폴더에 설치, 관리자 권한 불필요","dl.android":"Android APK","dl.apkNote":"Android 6 이상 · 바로 설치","dl.version":"버전 2.4.3","dl.verify":"확인 (SHA-256)"});
+Object.assign(DICT.ar, {"dl.kicker":"التطبيقات","dl.title":"سيرا على الحاسوب وأندرويد","dl.sub":"نسخة الويب تبقى متاحة. نفس التشفير ونفس الجلسات. ثبّتها كتطبيق وافتحها بنقرة واحدة.","dl.win":"مثبّت ويندوز","dl.winNote":"ويندوز 10 / 11 · 64 بت · التثبيت في مجلد المستخدم دون صلاحيات إدارية","dl.android":"ملف أندرويد APK","dl.apkNote":"أندرويد 6 فما فوق · تثبيت مباشر","dl.version":"الإصدار 2.4.3","dl.verify":"التحقق (SHA-256)"});
+
+/* Piece jointe : une seule qualite photo. */
+Object.assign(DICT.en, {"attach.photo":"Photo"});
+Object.assign(DICT.fr, {"attach.photo":"Photo"});
+Object.assign(DICT.zh, {"attach.photo":"照片"});
+Object.assign(DICT.ru, {"attach.photo":"Фото"});
+Object.assign(DICT.ko, {"attach.photo":"사진"});
+Object.assign(DICT.ar, {"attach.photo":"صورة"});
+
+/* Libellés d'accessibilité passés en i18n. */
+Object.assign(DICT.en, {"act.filterSender":"Filter by sender","act.forged":"The author announced by the server does not match the one sealed in the message.","act.showShare":"Show the share again","act.stopShare":"Stop sharing","act.showCall":"Show the call again","act.moveCall":"Drag to move","act.hideCall":"Hide the call window","act.download":"Download","act.attach":"Attach","ttl.duration":"Message duration","lock.protected":"Protected session"});
+Object.assign(DICT.fr, {"act.filterSender":"Filtrer par expéditeur","act.forged":"L'auteur annoncé par le serveur ne correspond pas à celui scellé dans le message.","act.showShare":"Réafficher le partage","act.stopShare":"Arrêter le partage","act.showCall":"Réafficher l'appel","act.moveCall":"Glissez pour déplacer","act.hideCall":"Masquer la fenêtre d'appel","act.download":"Télécharger","act.attach":"Joindre","ttl.duration":"Durée du message","lock.protected":"Session protégée"});
+Object.assign(DICT.zh, {"act.filterSender":"按发送者筛选","act.forged":"服务器声明的作者与消息中封存的作者不一致。","act.showShare":"重新显示共享","act.stopShare":"停止共享","act.showCall":"重新显示通话","act.moveCall":"拖动以移动","act.hideCall":"隐藏通话窗口","act.download":"下载","act.attach":"附件","ttl.duration":"消息有效期","lock.protected":"受保护的会话"});
+Object.assign(DICT.ru, {"act.filterSender":"Фильтр по отправителю","act.forged":"Автор, указанный сервером, не совпадает с запечатанным в сообщении.","act.showShare":"Снова показать показ экрана","act.stopShare":"Остановить показ","act.showCall":"Снова показать звонок","act.moveCall":"Перетащите, чтобы переместить","act.hideCall":"Скрыть окно звонка","act.download":"Скачать","act.attach":"Прикрепить","ttl.duration":"Срок жизни сообщения","lock.protected":"Защищённая сессия"});
+Object.assign(DICT.ko, {"act.filterSender":"보낸 사람으로 필터","act.forged":"서버가 알린 작성자가 메시지에 봉인된 작성자와 다릅니다.","act.showShare":"공유 다시 표시","act.stopShare":"공유 중지","act.showCall":"통화 다시 표시","act.moveCall":"끌어서 이동","act.hideCall":"통화 창 숨기기","act.download":"다운로드","act.attach":"첨부","ttl.duration":"메시지 유효 시간","lock.protected":"보호된 세션"});
+Object.assign(DICT.ar, {"act.filterSender":"تصفية حسب المرسل","act.forged":"المؤلف المعلن من الخادم لا يطابق المؤلف المختوم في الرسالة.","act.showShare":"إظهار المشاركة مجددًا","act.stopShare":"إيقاف المشاركة","act.showCall":"إظهار المكالمة مجددًا","act.moveCall":"اسحب للتحريك","act.hideCall":"إخفاء نافذة المكالمة","act.download":"تنزيل","act.attach":"إرفاق","ttl.duration":"مدة الرسالة","lock.protected":"جلسة محمية"});
+
+/* Applications macOS et Linux. */
+Object.assign(DICT.en, {"dl.mac":"macOS","dl.macNote":"Apple Silicon and Intel · universal","dl.linux":"Linux","dl.linuxNote":"AppImage · portable","dl.deb":"Debian / Ubuntu package:","dl.unsigned":"Not code-signed yet. On macOS, right-click the app and choose Open the first time."});
+Object.assign(DICT.fr, {"dl.mac":"macOS","dl.macNote":"Apple Silicon et Intel · universel","dl.linux":"Linux","dl.linuxNote":"AppImage · portable","dl.deb":"Paquet Debian / Ubuntu :","dl.unsigned":"Pas encore signé. Sur macOS, faites un clic droit sur l’app puis Ouvrir la première fois."});
+Object.assign(DICT.zh, {"dl.mac":"macOS","dl.macNote":"Apple Silicon 与 Intel · 通用","dl.linux":"Linux","dl.linuxNote":"AppImage · 便携","dl.deb":"Debian / Ubuntu 安装包：","dl.unsigned":"尚未签名。macOS 首次打开时请右键点击应用并选择“打开”。"});
+Object.assign(DICT.ru, {"dl.mac":"macOS","dl.macNote":"Apple Silicon и Intel · универсальный","dl.linux":"Linux","dl.linuxNote":"AppImage · портативный","dl.deb":"Пакет Debian / Ubuntu:","dl.unsigned":"Пока без подписи. В macOS при первом запуске нажмите на приложение правой кнопкой и выберите «Открыть»."});
+Object.assign(DICT.ko, {"dl.mac":"macOS","dl.macNote":"Apple Silicon 및 Intel · 유니버설","dl.linux":"Linux","dl.linuxNote":"AppImage · 포터블","dl.deb":"Debian / Ubuntu 패키지:","dl.unsigned":"아직 서명되지 않았습니다. macOS에서는 처음 실행할 때 앱을 마우스 오른쪽 버튼으로 클릭하고 '열기'를 선택하세요."});
+Object.assign(DICT.ar, {"dl.mac":"macOS","dl.macNote":"Apple Silicon و Intel · شامل","dl.linux":"Linux","dl.linuxNote":"AppImage · محمول","dl.deb":"حزمة Debian / Ubuntu:","dl.unsigned":"غير موقّع بعد. على macOS، انقر بزر الفأرة الأيمن على التطبيق واختر فتح في المرة الأولى."});

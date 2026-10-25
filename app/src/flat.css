@@ -116,7 +116,7 @@
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* ---------- s�lecteur de langue ---------- */
+/* ---------- sélecteur de langue ---------- */
 .lang { position: relative; }
 .lang-btn {
   display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 10px;
@@ -141,11 +141,11 @@
   .lang-list { right: auto; left: 0; }
 }
 
-/* motif de fond de conversation : seul �l�ment autoris� � garder une image */
+/* motif de fond de conversation : seul élément autorisé à garder une image */
 .messages { background: var(--chat-wall, var(--chat-bg)) !important; }
 .wall-swatch { background-color: var(--head) !important; }
 
-/* marque cliquable du panneau : m�me traitement que la barre de l'accueil */
+/* marque cliquable du panneau : même traitement que la barre de l'accueil */
 .side-brand {
   display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
   padding: 2px 6px 2px 0; margin: -2px 0; border-radius: 10px; text-align: left; color: var(--txt);
@@ -158,7 +158,7 @@
 /* aperçu du motif : plus grand, et le motif démarre au coin */
 .wall-swatch { width: 74px; height: 54px; background-size: auto !important; background-position: 0 0 !important; }
 
-/* ---------- fond anim� � matrix � ---------- */
+/* ---------- fond animé à matrix » ---------- */
 .matrix-wall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; opacity: 0.18; }
 .matrix-wall.mini { opacity: 0.9; border-radius: inherit; }
 .matrix-col {
@@ -180,7 +180,7 @@
 @media (max-width: 768px) { .matrix-col { width: 12px; font-size: 11px; line-height: 1.05; } }
 @media (max-width: 480px) { .matrix-col { width: 10px; font-size: 10px; } }
 
-/* quand le fond matrix est actif, la conversation laisse voir la couche anim�e */
+/* quand le fond matrix est actif, la conversation laisse voir la couche animée */
 .pane.with-wall { background: var(--chat-bg); }
 .pane.with-wall .messages { background: transparent !important; }
 
@@ -188,34 +188,34 @@
   .matrix-col { animation: none !important; opacity: 0.35; }
 }
 
-/* vignette d'aper�u : le fond matrix est un composant, il lui faut un cadre */
+/* vignette d'aperçu : le fond matrix est un composant, il lui faut un cadre */
 .wall-swatch { position: relative; overflow: hidden; }
 .wall-swatch .matrix-wall { opacity: 0.55; }
 
-/* ---------- fond � terre craquel�e � ---------- */
+/* ---------- fond « terre craquelée » ---------- */
 .cracks-wall {
   position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.55;
   background-color: var(--chat-bg); background-repeat: repeat; contain: strict;
 }
 .cracks-wall.mini { opacity: 1; border-radius: inherit; }
-/* la couleur des fissures suit l'accent du th�me */
+/* la couleur des fissures suit l'accent du thème */
 .wall-swatch .cracks-wall { opacity: 0.6; }
 
-/* fonds d'aplats (les d�grad�s ont �t� retir�s plus haut) */
+/* fonds d'aplats (les dégradés ont été retirés plus haut) */
 .side { background-color: var(--panel) !important; }
 .mock, .v2-announce, .cl-card, .doc-kpis div { background-color: var(--head) !important; }
 .home-final { background-color: var(--panel) !important; }
 .v2-announce { border: 1px solid var(--line) !important; }
-/* le titre en d�grad� devenait invisible : aplat accent */
+/* le titre en dégradé devenait invisible : aplat accent */
 .hero-copy .grad { background: none !important; -webkit-text-fill-color: var(--accent); color: var(--accent) !important; }
 
-/* ---------- mobile : lisibilit�, tailles, d�bordements ---------- */
+/* ---------- mobile : lisibilité, tailles, débordements ---------- */
 @media (max-width: 860px) {
   .session { height: 100dvh; padding: 0; }
   .pane { min-height: 0; }
   .messages { min-height: 0; padding: 8px 10px 6px; }
 
-  /* le panneau est une feuille opaque et d�filante */
+  /* le panneau est une feuille opaque et défilante */
   .side {
     background-color: var(--panel) !important;
     max-height: 92dvh;
@@ -240,24 +240,24 @@
   .participant { padding: 7px 8px; }
   .participant-name span { font-size: 14px; }
 
-  /* en-t�te de conversation compact */
+  /* en-tête de conversation compact */
   .pane-head { padding: 8px 10px; min-height: 54px; }
   .pane-title h2 { font-size: 14px; }
   .pane-title p { font-size: 11.5px; }
   .pane-actions .icon-btn, .call-btn { width: 40px; height: 40px; }
 
-  /* saisie : ne d�passe jamais le bas */
+  /* saisie : ne dépasse jamais le bas */
   .composer { padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
   .composer textarea { font-size: 16px; padding: 9px 12px; }
   .composer .icon-btn, .composer .send { width: 40px; height: 40px; }
 
-  /* fen�tres : jamais plus hautes que l'�cran, contenu d�filant */
+  /* fenêtres : jamais plus hautes que l'écran, contenu défilant */
   .modal { max-height: calc(100dvh - 24px); display: flex; flex-direction: column; }
   .modal header { flex: none; }
   .modal-body { overflow-y: auto; min-height: 0; }
   .modal footer { flex: none; }
 
-  /* �cran d'ouverture : plus compact */
+  /* écran d'ouverture : plus compact */
   .landing { padding: 0; }
   .landing-card { padding: 18px 16px calc(20px + env(safe-area-inset-bottom)); }
   .landing-brand h1 { font-size: 22px; }
@@ -277,7 +277,7 @@
   .side-stats span { letter-spacing: 0; }
 }
 
-/* ---------- fen�tres sur mobile : compactes et lisibles ---------- */
+/* ---------- fenêtres sur mobile : compactes et lisibles ---------- */
 @media (max-width: 600px) {
   .overlay { padding: 10px; }
   .modal { border-radius: 16px; }
@@ -306,7 +306,7 @@
   .modal-body > .muted:first-child { margin-top: 0; }
 }
 
-/* ---------- s�lection multiple ---------- */
+/* ---------- sélection multiple ---------- */
 .sel-check {
   display: none; width: 18px; height: 18px; border-radius: 5px; flex: none;
   border: 1.5px solid var(--muted); margin: 0 6px 0 2px; align-self: center;

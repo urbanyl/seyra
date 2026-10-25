@@ -462,7 +462,7 @@ export default function ChatPane(p: Props) {
             <button className="search-close" aria-label={t("search.close")} onClick={() => { setSearchOpen(false); setQuery(''); setFromFilter(''); setTypeFilter(''); }}><IconX size={15} /></button>
           </div>
           <div className="search-filters">
-            <select value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} aria-label="Filtrer par expéditeur">
+            <select value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} aria-label={t('act.filterSender')}>
               <option value="">{t('chat.allSenders')}</option>
               {p.participants.map((x) => <option key={x.id} value={x.id}>{x.id === p.selfId ? t('chat.you') : x.name}</option>)}
             </select>
@@ -653,8 +653,8 @@ export default function ChatPane(p: Props) {
                   )}
 
                   {forged && (
-                    <span className="forged" title="L’auteur annoncé par le serveur ne correspond pas à celui scellé dans le message">
-                      auteur non vérifié
+                    <span className="forged" title={t('act.forged')}>
+                      {t('msg.forged')}
                     </span>
                   )}
 
@@ -728,7 +728,7 @@ export default function ChatPane(p: Props) {
             <strong>{t('chat.replyingTo')} {nameOf(reply.from)}</strong>
             <span>{reply.text.slice(0, 120)}</span>
           </div>
-          <button type="button" title="Annuler la réponse" onClick={() => setReply(null)}><IconX size={16} /></button>
+          <button type="button" title={t('reply.cancel')} onClick={() => setReply(null)}><IconX size={16} /></button>
         </div>
       )}
 
@@ -875,7 +875,7 @@ export function ShareTile({ stream, name, onStop, onClose, local }: {
 
   if (mini) {
     return (
-      <button className="share-pill" onClick={() => setMini(false)} title="Réafficher le partage">
+      <button className="share-pill" onClick={() => setMini(false)} title={t('act.showShare')}>
         <span className="share-chip-dot" />
         <IconScreenShare size={15} />
         <span>{local ? 'Votre partage' : `Partage de ${name}`}</span>
@@ -905,7 +905,7 @@ export function ShareTile({ stream, name, onStop, onClose, local }: {
             <IconEyeOff size={15} />
           </button>
           {local ? (
-            <button type="button" className="sc-btn danger" onClick={onStop || onClose} title="Arrêter le partage" aria-label="Arrêter le partage">
+            <button type="button" className="sc-btn danger" onClick={onStop || onClose} title={t('act.stopShare')} aria-label="Arrêter le partage">
               <IconX size={15} />
             </button>
           ) : (

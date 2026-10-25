@@ -102,7 +102,7 @@ describe('parsePoll', () => {
 });
 
 describe('commande sondage', () => {
-  it('reconnaÓt une tentative mÍme incomplËte', () => {
+  it('reconna√Æt une tentative m√™me incompl√®te', () => {
     expect(isPollCommand('/sondage')).toBe(true);
     expect(isPollCommand('/sondage Pizza')).toBe(true);
     expect(isPollCommand('bonjour')).toBe(false);
@@ -117,7 +117,7 @@ describe('commande sondage', () => {
     expect(buildPollCommand('', ['Oui', 'Non'])).toBeNull();
   });
 
-  it('retire les sÈparateurs saisis dans les champs', () => {
+  it('retire les s√©parateurs saisis dans les champs', () => {
     expect(buildPollCommand('A | B', ['x|y', 'z'])).toBe('/sondage A B | x y | z');
   });
 });
@@ -126,13 +126,13 @@ describe('mentions en cours de saisie', () => {
   it('trouve le @ en cours avant le curseur', () => {
     expect(activeMention('salut @inv', 10)).toEqual({ start: 6, query: 'inv' });
   });
-  it('ignore un @ collÈ ‡ un mot (adresse e-mail)', () => {
+  it('ignore un @ coll√© √† un mot (adresse e-mail)', () => {
     expect(activeMention('mail a@b', 8)).toBeNull();
   });
-  it('propose InvitÈ 1 pour @inv, sans tenir compte de la casse ni des accents', () => {
-    const list = [{ name: 'Alice' }, { name: 'InvitÈ 1' }, { name: 'Ivan' }];
-    expect(suggestMentions(list, 'INV').map((x) => x.name)).toEqual(['InvitÈ 1']);
-    expect(suggestMentions(list, 'inv').map((x) => x.name)).toEqual(['InvitÈ 1']);
-    expect(suggestMentions(list, 'i').map((x) => x.name)).toEqual(['InvitÈ 1', 'Ivan', 'Alice']);
+  it('propose Invit√© 1 pour @inv, sans tenir compte de la casse ni des accents', () => {
+    const list = [{ name: 'Alice' }, { name: 'Invit√© 1' }, { name: 'Ivan' }];
+    expect(suggestMentions(list, 'INV').map((x) => x.name)).toEqual(['Invit√© 1']);
+    expect(suggestMentions(list, 'inv').map((x) => x.name)).toEqual(['Invit√© 1']);
+    expect(suggestMentions(list, 'i').map((x) => x.name)).toEqual(['Invit√© 1', 'Ivan', 'Alice']);
   });
 });

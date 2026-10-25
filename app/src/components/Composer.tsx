@@ -387,24 +387,15 @@ export default function Composer(p: Props) {
               type="button"
               className={`icon-btn attach-btn ${attachOpen ? 'active' : ''}`}
               onClick={() => { setAttachOpen((v) => !v); setEmojiOpen(false); setTtlPop(false); }}
-              title="Joindre"
+              title={t('act.attach')}
               aria-label={t('attach.file')}
             >
               <IconPaperclip size={20} />
             </button>
             {attachOpen && (
               <div className="attach-pop">
-                <button type="button" onClick={() => pickImage(0.6)}>
-                  <IconImage size={18} /><span>{t('attach.photoLight')}</span><em>0,6</em>
-                </button>
                 <button type="button" onClick={() => pickImage(0.82)}>
-                  <IconImage size={18} /><span>{t('attach.photoBalanced')}</span><em>0,82</em>
-                </button>
-                <button type="button" onClick={() => pickImage(0.95)}>
-                  <IconImage size={18} /><span>{t('attach.photoMax')}</span><em>0,95</em>
-                </button>
-                <button type="button" onClick={() => pickImage(null)}>
-                  <IconImage size={18} /><span>{t('attach.photoOriginal')}</span><em>∞</em>
+                  <IconImage size={18} /><span>{t('attach.photo')}</span><em>0,82</em>
                 </button>
                 <button type="button" onClick={() => pickInput(vidInput)}>
                   <IconVideoFile size={18} /><span>{t('type.video')}</span><em>{formatSize(MAX_FILE)}</em>
@@ -471,8 +462,8 @@ export default function Composer(p: Props) {
               type="button"
               className={`icon-btn ttl-btn ${ttl ? 'active' : ''}`}
               onClick={() => setTtlPop((v) => !v)}
-              title="Durée du message"
-              aria-label="Durée du message"
+              title={t('ttl.duration')}
+              aria-label={t('ttl.duration')}
             >
               <IconTimer size={20} />
               {ttl !== null && <b className="ttl-flag">{TTL_OPTIONS.find(([v]) => v === ttl)?.[2]}</b>}

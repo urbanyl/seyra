@@ -1,0 +1,9 @@
+/* Lanceur = écran d'entrée de /app (Landing). Tokens globaux de flat.css. Icônes : voir AppIcons / appframe.css. */
+.lm-landing a.choice { text-decoration: none !important; color: inherit !important; }
+.lm-landing a.choice strong { color: var(--txt) !important; text-decoration: none !important; font-weight: 600; }
+.lm-landing a.choice em { color: var(--muted) !important; text-decoration: none !important; font-style: normal; }
+
+/* tuiles d'icône : même taille et même rayon que les lignes du lanceur */
+.lm-landing a.app-choice { align-items: center; gap: 14px; }
+.lm-landing a.app-choice .app-tile { border-radius: 12px; }
+.lm-landing a.app-choice:hover .app-tile { filter: brightness(1.08); }

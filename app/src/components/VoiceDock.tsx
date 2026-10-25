@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceState } from '../lib/voice';
 import { IconCamera, IconChevron, IconHeadset, IconMic, IconMicOff, IconPhoneOff } from './Icons';
 import { Avatar } from './ui';
+import { useT } from '../lib/i18n';
 
 const POS_KEY = 'seyra.voiceDock.pos';
 
@@ -14,6 +15,7 @@ export default function VoiceDock({ state, selfName, nameOf, onMute, onDeafen, o
   onDeafen: () => void;
   onLeave: () => void;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -78,7 +80,7 @@ export default function VoiceDock({ state, selfName, nameOf, onMute, onDeafen, o
 
   if (hidden) {
     return (
-      <button className="voice-pill" onClick={() => setHidden(false)} title="Réafficher l'appel">
+      <button className="voice-pill" onClick={() => setHidden(false)} title={t('act.showCall')}>
         <span className="voice-pill-dot" /> {waiting ? 'Appel' : `${others.length + 1}`}
         {state.muted ? <IconMicOff size={15} /> : <IconMic size={15} />}
       </button>
@@ -95,10 +97,10 @@ export default function VoiceDock({ state, selfName, nameOf, onMute, onDeafen, o
       onPointerUp={onUp}
       onPointerCancel={onUp}
     >
-      <div className="voice-top" title="Glissez pour déplacer">
+      <div className="voice-top" title={t('act.moveCall')}>
         <span className="voice-grip"><i /><i /><i /></span>
         <span className="voice-live"><i /> {waiting ? 'Appel démarré' : `En appel · ${others.length + 1} personnes`}</span>
-        <button className="voice-min" onClick={() => setHidden(true)} title="Masquer la fenêtre d'appel" aria-label="Masquer"><IconChevron size={16} /></button>
+        <button className="voice-min" onClick={() => setHidden(true)} title={t('act.hideCall')} aria-label="Masquer"><IconChevron size={16} /></button>
       </div>
       {state.error && <p className="voice-error">{state.error}</p>}
 

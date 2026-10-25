@@ -88,7 +88,7 @@ export function installPrivacyShield() {
     }
   };
 
-  // Ouvrir le clavier ou changer de champ ne doit pas flouter l'�cran.
+  // Ouvrir le clavier ou changer de champ ne doit pas flouter l'écran.
   let lastFocus = 0;
   const onFocus = () => { lastFocus = Date.now(); hide(); };
   const onBlur = () => {

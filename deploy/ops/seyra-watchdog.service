@@ -1,0 +1,6 @@
+[Unit]
+Description=Seyra health watchdog
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/seyra-watchdog.sh

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
+import * as apps from './apps.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -21,6 +22,7 @@ const MAX_CIPHER_TEXT = 100_000;
 const MAX_CIPHER_VOICE = 3_000_000;
 const MAX_CIPHER_CHUNK = 1_100_000; // un morceau de fichier (512 Ko bruts → ~915 Ko scellés)
 const MAX_ROOM_BYTES = 128 * 1024 * 1024; // plafond mémoire par session
+const MAX_TOTAL_BYTES = 384 * 1024 * 1024; // plafond mémoire global
 const TURN_SECRET = process.env.TURN_SECRET || '';
 const TURN_HOST = process.env.TURN_HOST || '';
 const TURN_TTL = 12 * 3600;
@@ -60,11 +62,13 @@ const MIME = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp',
   '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
   '.webmanifest': 'application/manifest+json', '.map': 'application/json',
+  '.xml': 'application/xml; charset=utf-8',
 };
 
 /* ---------------------------------------------------------------- rooms */
 // Everything lives in memory. Killing the process wipes every session.
 const rooms = new Map();
+let totalBytes = 0;
 const creators = new Map(); // ip -> [timestamps]
 const wsByIp = new Map(); // ip -> nombre de WebSocket ouverts
 const CREATIONS_PER_IP = 30;
@@ -126,7 +130,9 @@ function destroyRoom(room, reason) {
   }
   room.clients.clear();
   room.messages.length = 0;
+  totalBytes -= room.bytes;
   room.bytes = 0;
+  if (totalBytes < 0) totalBytes = 0;
 }
 
 setInterval(() => {
@@ -339,6 +345,7 @@ wss.on('connection', (ws, req) => {
 
       // Mémoire bornée par session : un fichier peut peser lourd, on refuse au plafond.
       if (room.bytes + cipher.length > MAX_ROOM_BYTES) return;
+      if (totalBytes + cipher.length > MAX_TOTAL_BYTES) return send(ws, { t: 'session:error', code: 'busy', message: 'Serveur saturé, réessayez.' });
       const msg = {
         id: crypto.randomUUID(),
         from: p.id,
@@ -352,10 +359,10 @@ wss.on('connection', (ws, req) => {
       const ttl = Number(m.ttl);
       if (ttl === 30 || ttl === 60 || ttl === 300 || ttl === 900 || ttl === 3600) msg.expiresAt = now + ttl * 1000;
       room.messages.push(msg);
-      room.bytes += cipher.length;
+      room.bytes += cipher.length; totalBytes += cipher.length;
       if (room.messages.length > MAX_MESSAGES) {
         const dropped = room.messages.splice(0, room.messages.length - MAX_MESSAGES);
-        for (const d of dropped) room.bytes -= d.cipher.length;
+        for (const d of dropped) { room.bytes -= d.cipher.length; totalBytes -= d.cipher.length; }
       }
       const raw2 = JSON.stringify({ t: 'msg', msg });
       for (const other of room.clients.values()) if (other.ws.readyState === 1) other.ws.send(raw2);
@@ -374,7 +381,7 @@ wss.on('connection', (ws, req) => {
       const removed = target.fid
         ? room.messages.filter((x) => x.fid === target.fid && x.from === p.id)
         : [target];
-      for (const x of removed) room.bytes -= x.cipher.length;
+      for (const x of removed) { room.bytes -= x.cipher.length; totalBytes -= x.cipher.length; }
       const ids = new Set(removed.map((x) => x.id));
       room.messages = room.messages.filter((x) => !ids.has(x.id));
       return broadcast(room, null, { t: 'msg:removed', ids: [...ids] });
@@ -491,7 +498,7 @@ setInterval(() => {
     if (room.messages.length === 0) continue;
     const gone = room.messages.filter((x) => x.expiresAt && x.expiresAt <= now);
     if (gone.length === 0) continue;
-    for (const g of gone) room.bytes -= g.cipher.length;
+    for (const g of gone) { room.bytes -= g.cipher.length; totalBytes -= g.cipher.length; }
     room.messages = room.messages.filter((x) => !(x.expiresAt && x.expiresAt <= now));
     const raw = JSON.stringify({ t: 'msg:removed', ids: gone.map((x) => x.id) });
     for (const c of room.clients.values()) if (c.ws.readyState === 1) c.ws.send(raw);
@@ -519,7 +526,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' wss:",
+  "connect-src 'self' wss: https://ethereum-rpc.publicnode.com https://base-rpc.publicnode.com https://polygon-bor-rpc.publicnode.com https://ethereum-sepolia-rpc.publicnode.com https://*.publicnode.com https://api.coingecko.com",
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
   "object-src 'none'",
@@ -553,8 +560,8 @@ const json = (res, code, data) => {
 };
 
 const META = {
-  title: 'Seyra — sessions privées chiffrées',
-  description: 'Un code suffit. Vos messages sont chiffrés dans le navigateur, rien n’est conservé.',
+  title: 'Seyra — votre boîte à outils privée',
+  description: 'Messagerie chiffrée, wallet, notes, canaux et wiki libre. Sans compte pour discuter, chiffré pour le reste.',
 };
 
 function serveStatic(req, res, url) {
@@ -568,12 +575,25 @@ function serveStatic(req, res, url) {
   const isApp = p === '/app' || p === '/app/';
   const isSecurity = p === '/securite' || p === '/securite/';
   const isNews = p === '/nouveautes' || p === '/nouveautes/';
+  const isTool = ['/compte', '/notes', '/wallet', '/canaux'].some((r) => p === r || p === r + '/');
+  if (p === '/wiki' || p === '/wiki/' || p.startsWith('/wiki/')) {
+    const slug = p === '/wiki' || p === '/wiki/' ? '' : p.split('/')[2] || '';
+    return stream(path.join(PUBLIC_DIR, 'index.html'), res, { ...META, ...apps.wikiMeta(slug) });
+  }
+  if (p === '/decouvrir' || p === '/decouvrir/') {
+    return stream(path.join(PUBLIC_DIR, 'index.html'), res, {
+      ...META,
+      title: 'Découvrir Seyra — la boîte à outils privée',
+      description: 'Messagerie chiffrée, wallet, notes, canaux et wiki libre. Sans compte pour discuter, chiffré pour le reste.',
+      url: `${SITE}/decouvrir`,
+    });
+  }
   if (isNews) {
     return stream(path.join(PUBLIC_DIR, 'index.html'), res, {
       ...META, title: 'Nouveautés — Seyra 2.0', description: 'Ce qui change dans Seyra 2.0 : épingles, mentions, partage d’écran et nouvelle interface.', url: `${SITE}/nouveautes`,
     });
   }
-  if (isHome || isApp || isSecurity || p === '/rejoindre') {
+  if (isHome || isApp || isSecurity || p === '/rejoindre' || isTool) {
     const meta = isHome
       ? { ...META, url: `${SITE}/` }
       : isApp
@@ -585,13 +605,14 @@ function serveStatic(req, res, url) {
             description: 'Modèle de menace, primitives, limites et chiffres : ce que Seyra chiffre vraiment, et ce qu’il ne protège pas.',
             url: `${SITE}/securite`,
           }
-          : { ...META, title: 'Rejoindre une session — Seyra', url: `${SITE}/rejoindre` };
+          : isTool ? { ...META, url: `${SITE}${p.replace(/\/$/, '')}` } : { ...META, title: 'Rejoindre une session — Seyra', url: `${SITE}/rejoindre` };
     return stream(path.join(PUBLIC_DIR, 'index.html'), res, meta);
   }
   fs.stat(full, (err, st) => {
     if (err || st.isDirectory()) {
-      if (path.extname(p) && p !== '/index.html') { res.writeHead(404); return res.end('Not found'); }
-      return stream(path.join(PUBLIC_DIR, 'index.html'), res, { ...META, url: `${SITE}${p}` });
+      // Vraie 404 : une URL inconnue ne doit pas renvoyer l'app en 200.
+      res.writeHead(404, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end('<!doctype html><meta charset="utf-8"><title>404 - Seyra</title><body style="background:#1c232a;color:#eef4f8;font-family:system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0"><div style="text-align:center"><h1 style="font-size:22px;font-weight:600;margin:0 0 8px">404</h1><p style="color:#8fa1b3;margin:0 0 18px">Cette page n\u2019existe pas.</p><a href="/" style="color:#00b2ff;text-decoration:none">Retour \u00e0 Seyra</a></div>');
     }
     const ext = path.extname(full).toLowerCase();
     res.setHeader('content-type', MIME[ext] || 'application/octet-stream');
@@ -641,9 +662,16 @@ function stream(file, res, meta) {
   });
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/api/healthz') return json(res, 200, { ok: true, rooms: rooms.size, ts: Date.now() });
+  if (url.pathname.startsWith('/api/') || url.pathname === '/sitemap.xml') {
+    try {
+      if (await apps.handle(req, res, url)) return;
+    } catch (e) {
+      return json(res, 400, { error: e.message || 'Requête invalide.' });
+    }
+  }
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
   serveStatic(req, res, url);
 });

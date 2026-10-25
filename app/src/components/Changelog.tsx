@@ -4,6 +4,22 @@ import LangMenu from './LangMenu';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.4.3',
+    date: 'October 2026',
+    title: 'Arabic, desktop and Android apps, local AI',
+    items: [
+      'Arabic is available in right-to-left, bringing the interface to six languages.',
+      'Windows installer and Android app, downloadable from the home page.',
+      'macOS universal (Apple Silicon and Intel) and Linux AppImage/.deb builds, produced in CI.',
+      'ai.seyra.website: a chat assistant running on the server, rate-limited and reachable over HTTPS.',
+      'The AI subdomain only exposes /api/chat; model administration stays private.',
+      'French strings that displayed garbled characters are fixed.',
+      'Photo attachments use a single quality; the four compression variants are gone.',
+      'SSH accepts keys only, and room memory is now capped globally.',
+      'robots.txt, sitemap, favicon and absolute preview images for link sharing.',
+    ],
+  },
+  {
     version: '2.4.2',
     date: 'October 2026',
     title: 'Typing that does not stutter',

@@ -1,0 +1,64 @@
+/* Chrome commun : toutes les applis reprennent la barre et les tokens de /app (flat.css). */
+.ch-top,
+.wiki-topbar,
+.notes-head,
+.w-top,
+.w-onboard-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 54px !important;
+  padding: 8px 12px !important;
+  background: var(--head) !important;
+  border-bottom: 1px solid var(--line) !important;
+  color: var(--txt) !important;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.ch-top::before,
+.wiki-topbar::before,
+.notes-head::before,
+.w-top::before {
+  content: "S";
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ch-top h1, .ch-top h2, .ch-top strong,
+.wiki-topbar h1, .wiki-topbar h2, .wiki-topbar__title,
+.notes-head h1, .notes-head h2, .notes-head strong,
+.w-top h1, .w-top h2, .w-top strong {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  color: var(--txt) !important;
+}
+
+.ch-top button, .wiki-topbar button, .notes-head button, .w-top button { color: var(--muted); }
+.ch-top button:hover, .wiki-topbar button:hover, .notes-head button:hover, .w-top button:hover { color: var(--txt); }
+
+.ch-app, .wiki-app, .notes-app, .w-app { background: var(--bg) !important; color: var(--txt) !important; }
+.ch-app input, .ch-app textarea, .wiki-app input, .wiki-app textarea,
+.notes-app input, .notes-app textarea, .w-app input, .w-app textarea {
+  background-color: var(--field) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius) !important;
+  color: var(--txt) !important;
+}
+
+@media (max-width: 640px) {
+  .ch-top, .wiki-topbar, .notes-head, .w-top { padding: 8px 10px !important; }
+}
+
+.wiki-button--primary, .wiki-button--primary:hover { background-color: var(--accent) !important; color: #fff !important; border: none !important; }

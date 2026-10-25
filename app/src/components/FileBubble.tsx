@@ -1,6 +1,7 @@
 import type { FileMeta } from '../lib/types';
 import { formatSize } from '../lib/files';
 import { IconDownload, IconFile, IconVideoFile } from './Icons';
+import { useT } from '../lib/i18n';
 
 type Props = {
   meta: FileMeta;
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export default function FileBubble({ meta, url, progress, onOpen }: Props) {
+  const t = useT();
   if (!url) {
     const pct = Math.max(0, Math.min(100, Math.round((progress || 0) * 100)));
     return (
@@ -43,7 +45,7 @@ export default function FileBubble({ meta, url, progress, onOpen }: Props) {
   }
 
   return (
-    <a className="file-card" href={url} download={meta.name} title="Télécharger">
+    <a className="file-card" href={url} download={meta.name} title={t('act.download')}>
       <span className="file-icon"><IconFile size={22} /></span>
       <span className="file-info">
         <b>{meta.name}</b>

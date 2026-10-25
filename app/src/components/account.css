@@ -1,0 +1,63 @@
+.acct {
+  min-height: var(--vh, 100dvh);
+  display: grid;
+  place-items: center;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(900px 500px at 15% 0%, rgba(0, 178, 255, 0.10), transparent 60%),
+    #1c232a;
+  color: #eef4f8;
+}
+.acct-card {
+  width: min(100%, 420px);
+  background: #232c34;
+  border: 1px solid #2f3a45;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+.acct-back { display: inline-block; font-size: 12.5px; color: #8fa1b3; text-decoration: none; margin-bottom: 10px; }
+.acct-back:hover { color: #eef4f8; }
+.acct h1 { font-size: 21px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
+.acct-note { font-size: 13px; line-height: 1.55; color: #8fa1b3; margin: 0 0 16px; }
+.acct-tabs { display: flex; gap: 6px; background: #1c232a; border: 1px solid #2f3a45; border-radius: 10px; padding: 4px; margin-bottom: 14px; }
+.acct-tabs button {
+  flex: 1; height: 32px; border-radius: 7px; font-size: 12.5px; color: #8fa1b3;
+  background: none; border: none; cursor: pointer;
+}
+.acct-tabs button.on { background: #2f3a45; color: #eef4f8; }
+.acct form { display: flex; flex-direction: column; gap: 11px; }
+.acct label { display: flex; flex-direction: column; gap: 5px; }
+.acct label span { font-size: 12px; color: #8fa1b3; }
+.acct input {
+  height: 42px; border-radius: 10px; border: 1px solid #2f3a45; background: #28323c;
+  padding: 0 12px; color: #eef4f8; font-size: 15px; outline: none;
+}
+.acct input:focus { border-color: rgba(0, 178, 255, 0.6); box-shadow: 0 0 0 3px rgba(0, 178, 255, 0.12); }
+.acct-btn {
+  height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #35414c;
+  background: #28323c; color: #dfe9f2; font-size: 13.5px; cursor: pointer;
+}
+.acct-btn:hover { border-color: #465563; }
+.acct-btn.primary { background: linear-gradient(135deg, #00b2ff, #2b52f2); border-color: transparent; color: #fff; }
+.acct-btn.danger { color: #f18897; border-color: #58343c; }
+.acct-btn.wide { width: 100%; }
+.acct-btn:disabled { opacity: 0.55; cursor: default; }
+.acct-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.acct-error { margin: 0; font-size: 12.5px; color: #f18897; }
+.acct-sep { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: #6d7e8f; font-size: 11.5px; }
+.acct-sep::before, .acct-sep::after { content: ""; flex: 1; height: 1px; background: #2f3a45; }
+.acct-code {
+  display: block; margin: 12px 0 0; padding: 12px; border-radius: 10px; background: #1c232a;
+  border: 1px solid #2f3a45; font-family: ui-monospace, Consolas, monospace; font-size: 13px;
+  color: #cfe6f5; word-break: break-all; line-height: 1.5;
+}
+.acct-fine { margin: 12px 0 0; font-size: 11px; line-height: 1.5; color: #6d7e8f; }
+
+/* ---------- cadre AppFrame : navigation dans le side, formulaire dans le pane ---------- */
+.acct-frame .app-body { padding: 0; }
+.acct-frame .acct { flex: 1; min-height: 0; background: transparent; place-items: start center; padding: 22px 18px 32px; }
+.acct-frame .acct-card { width: min(100%, 460px); box-shadow: none; background: var(--head); border-color: var(--line); padding: 20px; }
+.acct-frame .acct-btn.primary { background: var(--accent); border-color: transparent; color: #05121b; font-weight: 600; }
+.acct-frame .acct-btn { height: 38px; }
+.acct-frame .acct-code { font-size: 12.5px; }

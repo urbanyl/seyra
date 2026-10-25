@@ -133,7 +133,7 @@ button:focus:not(:focus-visible), input:focus:not(:focus-visible) { box-shadow: 
 .choice { border-radius: var(--r-md); }
 .field input, .pwd-toggle, .choice { border-radius: var(--r-sm); }
 
-/* ---------- /app : même barre que l'accueil ---------- */
+/* ---------- /app : mÃªme barre que l'accueil ---------- */
 /* Variables de la barre d'accueil, disponibles aussi hors de .home. */
 :root {
   --h-bg: var(--bg);
