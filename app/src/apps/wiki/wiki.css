@@ -883,3 +883,23 @@
 @media (prefers-reduced-motion: reduce) {
   .wiki-skel, .wiki-spinner { animation: none; }
 }
+
+/* ---------- finitions : index en colonnes, article type wikipedia ---------- */
+@media (min-width: 1180px) {
+  .wiki-letter-group .wiki-article-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .wiki-letter-group .wiki-article-list > li { display: flex; min-width: 0; }
+  .wiki-letter-group .wiki-card { flex: 1; }
+  .wiki-reading { max-width: 820px; }
+}
+.wiki-markdown > p:first-of-type { font-size: 1.07rem; color: #e9f2f8; }
+.wiki-article__summary { font-size: 0.98rem; }
+.wiki-section-head h2 { letter-spacing: -0.02em; }
+.wiki-hero { border-bottom: 1px solid var(--wiki-line); padding-bottom: 16px; margin-bottom: 6px; }
+@media (max-width: 860px) {
+  .wiki-hero { padding-bottom: 12px; }
+  .wiki-markdown { font-size: 1rem; line-height: 1.7; }
+  .wiki-markdown h1 { font-size: 1.55rem; }
+  .wiki-markdown h2 { font-size: 1.3rem; }
+  .wiki-reading { padding-bottom: 24px; }
+  .wiki-article-list { gap: 10px; }
+}

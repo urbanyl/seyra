@@ -632,16 +632,7 @@ export default function Channels() {
                 onChange={(event) => setSearch(event.target.value)}
                 aria-label={t('ch.searchAria')}
               />
-              <button
-                type="button"
-                className="ch-new"
-                onClick={() => {
-                  setShowCreate((visible) => !visible);
-                  setCreateError('');
-                }}
-              >
-                {showCreate ? t('ch.cancel') : t('ch.create')}
-              </button>
+
             </div>
 
             {showCreate && (

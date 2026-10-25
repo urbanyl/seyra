@@ -962,3 +962,13 @@
   .ch-frame .ch-feed { padding: 10px 6px 8px; }
   .ch-frame .ch-msg { padding: 7px 4px; }
 }
+
+/* finitions : messages et rangee de recherche */
+.ch-frame .ch-msg { transition: background 0.15s ease; border-radius: 10px; }
+.ch-frame .ch-msg:hover { background: rgba(255, 255, 255, 0.035); }
+.ch-frame .ch-search-row { gap: 8px; }
+.ch-frame .ch-search { flex: 1; min-width: 0; height: 40px; }
+@media (max-width: 860px) {
+  .ch-frame .ch-search { height: 44px; }
+  .ch-frame .ch-msg-avatar, .ch-frame .ch-avatar { width: 34px; height: 34px; }
+}

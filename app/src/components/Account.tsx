@@ -2,15 +2,16 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { recoveryCode, register, startLocal, unlock, unlockWithCode, useAccount, useAutoRestore } from '../lib/vault';
 import { apiErrorMessage } from '../lib/apierr';
 import AppFrame from './AppFrame';
+import { IconLock, IconPlus, IconShield } from './Icons';
 import { useT } from '../lib/i18n';
 import './account.css';
 
 export default function Account({ back = '/' }: { back?: string }) {
   const t = useT();
-  const TABS: { id: Tab; label: string }[] = [
-    { id: 'login', label: t('ac.login') },
-    { id: 'register', label: t('ac.register') },
-    { id: 'recover', label: t('ac.recover') },
+  const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
+    { id: 'login', label: t('ac.login'), icon: <IconLock size={17} /> },
+    { id: 'register', label: t('ac.register'), icon: <IconPlus size={17} /> },
+    { id: 'recover', label: t('ac.recover'), icon: <IconShield size={17} /> },
   ];
   useAutoRestore();
   const { user, local, lock, logout } = useAccount();
@@ -216,6 +217,7 @@ export default function Account({ back = '/' }: { back?: string }) {
               className={`app-nav-item${tab === item.id ? ' is-on' : ''}`}
               onClick={() => { setTab(item.id); setError(''); }}
             >
+              {item.icon}
               <span>{item.label}</span>
             </button>
           ))}

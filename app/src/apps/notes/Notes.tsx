@@ -581,16 +581,6 @@ export default function Notes() {
         [ordered.filter((note) => note.pinned).length, t('nt.pinned')],
         [words, t('nt.words')],
       ]}
-      quick={
-        <>
-          <button type="button" className="side-action" onClick={createNote}>
-            <IconPlus /> {t('nt.new')}
-          </button>
-          <button type="button" className="side-action" onClick={() => { searchRef.current?.focus(); searchRef.current?.select(); }}>
-            <IconSearch /> {t('nt.search')}
-          </button>
-        </>
-      }
       card={
         <>
           <span className="code-label"><IconLock /> {t('nt.selected')}</span>

@@ -61,3 +61,9 @@
 .acct-frame .acct-btn.primary { background: var(--accent); border-color: transparent; color: #05121b; font-weight: 600; }
 .acct-frame .acct-btn { height: 38px; }
 .acct-frame .acct-code { font-size: 12.5px; }
+@media (max-width: 860px) {
+  .acct-frame .acct { padding: 12px 10px calc(22px + env(safe-area-inset-bottom)); }
+  .acct-frame .acct-card { padding: 18px; border-radius: 14px; }
+  .acct-frame .acct-card input { font-size: 16px; }
+  .acct-frame .acct-btn { height: 44px; }
+}
