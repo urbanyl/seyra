@@ -576,6 +576,11 @@ function serveStatic(req, res, url) {
   const isSecurity = p === '/securite' || p === '/securite/';
   const isNews = p === '/nouveautes' || p === '/nouveautes/';
   const isTool = ['/compte', '/notes', '/wallet', '/canaux'].some((r) => p === r || p === r + '/');
+  // Raccourci : /telecharger pointe vers la section d'installation de la page publique.
+  if (p === '/telecharger' || p === '/telecharger/' || p === '/downloads') {
+    res.writeHead(302, { location: '/decouvrir#telecharger' });
+    return res.end();
+  }
   if (p === '/wiki' || p === '/wiki/' || p.startsWith('/wiki/')) {
     const slug = p === '/wiki' || p === '/wiki/' ? '' : p.split('/')[2] || '';
     return stream(path.join(PUBLIC_DIR, 'index.html'), res, { ...META, ...apps.wikiMeta(slug) });

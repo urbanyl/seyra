@@ -57,6 +57,7 @@ export default function Home() {
         <nav>
           <a href="#fonctions">{t('nav.features')}</a>
           <a href="#comment">{t('nav.how')}</a>
+          <a className="home-dl-nav" href="#telecharger">{t('dl.kicker')}</a>
           <a href="/securite">{t('nav.security')}</a>
           <a href="/nouveautes">{t('nav.news')}</a>
           <LangMenu />

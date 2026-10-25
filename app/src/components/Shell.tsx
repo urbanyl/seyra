@@ -28,6 +28,7 @@ export default function Shell() {
           <span>Seyra</span>
         </a>
         <nav>
+          <a href="/decouvrir#telecharger">{t('dl.kicker')}</a>
           <a href="/securite">{t('shell.security')}</a>
           <a href="/nouveautes">{t('shell.news')}</a>
           <LangMenu />

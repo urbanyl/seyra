@@ -358,3 +358,6 @@
 .dl-extra a{color:var(--h-green);text-decoration:none;border-bottom:1px solid transparent}
 .dl-extra a:hover{border-bottom-color:var(--h-green)}
 .dl-warn{margin:10px 0 0;font-size:12px;line-height:1.5;color:#d7a24a;max-width:78ch}
+
+/* lien Applications dans la barre du haut (masqué sur petit écran) */
+@media (max-width: 900px) { .home-nav .home-dl-nav { display: none; } }
