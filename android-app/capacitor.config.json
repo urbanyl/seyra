@@ -1,0 +1,16 @@
+{
+  "appId": "com.seyra.chat",
+  "appName": "Seyra",
+  "webDir": "www",
+  "backgroundColor": "#1c232a",
+  "server": {
+    "url": "https://seyra.website",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

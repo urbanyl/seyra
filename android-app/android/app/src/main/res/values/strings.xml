@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Seyra</string>
+    <string name="title_activity_main">Seyra</string>
+    <string name="package_name">com.seyra.chat</string>
+    <string name="custom_url_scheme">com.seyra.chat</string>
+</resources>

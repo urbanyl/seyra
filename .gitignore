@@ -20,3 +20,14 @@ android-app/android/app/src/main/assets/public/
 # Builds Linux locaux
 desktop/dist-linux/
 desktop/dist-mac/
+
+# Android release signing (local only)
+android-app/android/keystore.properties
+android-app/android/*.jks
+
+# Binaires de release (uploades sur le site)
+release/
+
+# Artefacts de build du client de bureau (volumineux)
+desktop/ci-artifacts/
+

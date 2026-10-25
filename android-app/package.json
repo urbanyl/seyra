@@ -1,0 +1,14 @@
+{
+  "name": "seyra-android",
+  "version": "2.4.4",
+  "private": true,
+  "description": "Seyra pour Android",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/browser": "^7.0.5",
+    "@capacitor/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}

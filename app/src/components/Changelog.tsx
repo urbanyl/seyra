@@ -4,6 +4,20 @@ import LangMenu from './LangMenu';
 
 const RELEASES: { version: string; date: string; title: string; items: string[] }[] = [
   {
+    version: '2.4.4',
+    date: 'October 2026',
+    title: 'One app, six languages, AI articles',
+    items: [
+      'Every app now shares the messaging layout: a sidebar with quick actions and stats, and a clean header.',
+      'The whole interface is translated into six languages: English, French, Chinese, Russian, Korean and Arabic, right-to-left included.',
+      'Pages open instantly: no more sign-in flash and no loading screen before the app.',
+      'Wallet: pick the network from the header on phones, real chain logos, live CoinGecko prices in euros and 24-hour change.',
+      'SeyraWiki: write a draft with the AI, browse an alphabetical index, filter by category, and read with a table of contents.',
+      'Channels, notes and the account page are polished for desktop and phones, with larger tap targets and no duplicate buttons.',
+      'New installers for Windows, macOS, Linux and Android, with SHA-256 checksums.',
+    ],
+  },
+  {
     version: '2.4.3',
     date: 'October 2026',
     title: 'Arabic, desktop and Android apps, local AI',

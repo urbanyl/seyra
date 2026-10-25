@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { IconCamera, IconCheck, IconLock, IconPin, IconTimer, IconUsers, SeyraMark } from './Icons';
 import { useT } from '../lib/i18n';
 import LangMenu from './LangMenu';
+import { RELEASE, formatSize } from '../lib/releases';
 
 const NETWORKS: [string, (u: string) => string][] = [
   ['WhatsApp', (u) => `https://wa.me/?text=${encodeURIComponent(u)}`],
@@ -168,42 +169,42 @@ export default function Home() {
         <h2>{t('dl.title')}</h2>
         <p className="dl-lead">{t('dl.sub')}</p>
         <div className="dl-grid">
-          <a className="dl-card" href="/downloads/Seyra-Setup-2.4.3.exe" download>
+          <a className="dl-card" href={`/downloads/${RELEASE.files.win}`} download>
             <span className="dl-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.6l7.6-1.05V11H3V4.6zm8.6-1.18L21 2v9h-9.4V3.42zM3 12h7.6v7.45L3 18.4V12zm8.6 0H21v9l-9.4-1.3V12z"/></svg>
             </span>
             <span className="dl-body"><b>{t('dl.win')}</b><em>{t('dl.winNote')}</em></span>
-            <span className="dl-size">122 MB</span>
+            <span className="dl-size">{formatSize(RELEASE.sizes.win)}</span>
           </a>
-          <a className="dl-card" href="/downloads/Seyra-2.4.3-universal.dmg" download>
+          <a className="dl-card" href={`/downloads/${RELEASE.files.mac}`} download>
             <span className="dl-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.7 12.9c0-2 1.6-3 1.7-3.1-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3 0-2.5.8-3.2 2-1.4 2.4-.4 6 1 8 .7 1 1.4 2 2.5 2 1 0 1.4-.6 2.6-.6 1.2 0 1.5.6 2.6.6 1.1 0 1.8-1 2.4-2 .8-1.1 1.1-2.2 1.1-2.3-.1 0-2.2-.8-2.2-3zM14.6 6.2c.5-.6.8-1.4.7-2.2-.7 0-1.6.5-2.1 1.1-.5.5-.9 1.4-.8 2.2.8.1 1.7-.4 2.2-1.1z"/></svg>
             </span>
             <span className="dl-body"><b>{t('dl.mac')}</b><em>{t('dl.macNote')}</em></span>
-            <span className="dl-size">223 MB</span>
+            <span className="dl-size">{formatSize(RELEASE.sizes.mac)}</span>
           </a>
-          <a className="dl-card" href="/downloads/Seyra-2.4.3.AppImage" download>
+          <a className="dl-card" href={`/downloads/${RELEASE.files.linux}`} download>
             <span className="dl-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm2 4.6l3.4 3.4L5 15.4l1.4 1.4 4.8-4.8-4.8-4.8L5 8.6zM12 15h6v2h-6v-2z"/></svg>
             </span>
             <span className="dl-body"><b>{t('dl.linux')}</b><em>{t('dl.linuxNote')}</em></span>
-            <span className="dl-size">126 MB</span>
+            <span className="dl-size">{formatSize(RELEASE.sizes.linux)}</span>
           </a>
-          <a className="dl-card" href="/downloads/Seyra-2.4.3.apk" download>
+          <a className="dl-card" href={`/downloads/${RELEASE.files.apk}`} download>
             <span className="dl-icon">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 4.3l-1.1-1.9a.4.4 0 0 1 .7-.4l1.1 2A6.9 6.9 0 0 1 12 3.2c1.5 0 2.9.4 4.1 1L17.2 2a.4.4 0 0 1 .7.4l-1.1 1.9A6.6 6.6 0 0 1 20 9.5H4a6.6 6.6 0 0 1 3.2-5.2zM8.5 7.4a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6zm7 0a.8.8 0 1 0 0-1.6.8.8 0 0 0 0 1.6zM4 10.5h16V17a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17v-6.5zM2.5 11H4v6H2.5A1.5 1.5 0 0 1 1 15.5v-3A1.5 1.5 0 0 1 2.5 11zm19 0H20v6h1.5A1.5 1.5 0 0 0 23 15.5v-3a1.5 1.5 0 0 0-1.5-1.5z"/></svg>
             </span>
             <span className="dl-body"><b>{t('dl.android')}</b><em>{t('dl.apkNote')}</em></span>
-            <span className="dl-size">3.3 MB</span>
+            <span className="dl-size">{formatSize(RELEASE.sizes.apk)}</span>
           </a>
         </div>
         <p className="dl-extra">
           <span>{t('dl.deb')}</span>
-          <a href="/downloads/seyra-desktop_2.4.3_amd64.deb" download>.deb (97 MB)</a>
+          <a href={`/downloads/${RELEASE.files.deb}`} download>.deb ({formatSize(RELEASE.sizes.deb)})</a>
         </p>
         <p className="dl-warn">{t('dl.unsigned')}</p>
         <p className="dl-foot">
-          <span>{t('dl.version')}</span>
+          <span>{t('dl.version')} {RELEASE.version}</span>
           <a href="/downloads/SHA256SUMS.txt" target="_blank" rel="noopener noreferrer">{t('dl.verify')}</a>
         </p>
       </section>
